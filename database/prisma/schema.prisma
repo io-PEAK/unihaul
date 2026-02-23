@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+
+  items        Item[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  buyerTxns    Transaction[] @relation("BuyerTransactions")
+  sellerTxns   Transaction[] @relation("SellerTransactions")
+}
+
+model Item {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?
+  price       Float
+  category    String
+  condition   String
+  status      String        @default("available")
+  imageUrl    String?
+  createdAt   DateTime      @default(now())
+
+  sellerId    Int
+  seller      User          @relation(fields: [sellerId], references: [id])
+
+  messages    Message[]
+  transactions Transaction[]
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  createdAt  DateTime @default(now())
+
+  senderId   Int
+  receiverId Int
+  itemId     Int
+
+  sender     User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  item       Item @relation(fields: [itemId], references: [id])
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  itemId    Int
+  buyerId   Int
+  sellerId  Int
+
+  item      Item @relation(fields: [itemId], references: [id])
+  buyer     User @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller    User @relation("SellerTransactions", fields: [sellerId], references: [id])
+}
