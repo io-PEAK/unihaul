@@ -9,7 +9,8 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('🌱 Starting seed...')
 
-
+  // Clear existing data (order matters due to foreign keys)
+  await prisma.notification.deleteMany()
   await prisma.transaction.deleteMany()
   await prisma.message.deleteMany()
   await prisma.item.deleteMany()
@@ -31,8 +32,20 @@ async function main() {
   console.log(`✅ Created ${users.length} users`)
 
   // ─── ITEMS (500) ───────────────────────────────────────────
-  const categories = ['Books', 'Electronics', 'Furniture', 'Clothing', 'Sports', 'Stationery', 'Appliances', 'Other']
-  const conditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor']
+  const categories = [
+    'Books & Notes',
+    'Electronics',
+    'Food & Drinks',
+    'Clothing',
+    'Furniture',
+    'Sports & Fitness',
+    'Stationery',
+    'Appliances',
+    'Games & Hobbies',
+    'Services',
+    'Other',
+  ]
+  const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor']
   const statuses = ['available', 'pending', 'sold']
 
   const items = []
@@ -58,7 +71,6 @@ async function main() {
     const sender = faker.helpers.arrayElement(users)
     const receiver = faker.helpers.arrayElement(users.filter(u => u.id !== sender.id))
     const item = faker.helpers.arrayElement(items)
-
     await prisma.message.create({
       data: {
         content: faker.helpers.arrayElement([
@@ -81,7 +93,6 @@ async function main() {
   for (let i = 0; i < 500; i++) {
     const item = faker.helpers.arrayElement(items)
     const buyer = faker.helpers.arrayElement(users.filter(u => u.id !== item.sellerId))
-
     await prisma.transaction.create({
       data: {
         itemId: item.id,

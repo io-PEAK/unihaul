@@ -1,15 +1,13 @@
-import express from 'express';
-import {
-  sendMessage,
-  getMessagesByItem,
-  getMyConversations,
-} from '../controllers/messagesController.js';
-import authMiddleware from '../middleware/auth.js';
+import express from 'express'
+import { getConversations, getMessages, sendMessage, getUnreadCount, markAllRead } from '../controllers/messagesController.js'
+import authMiddleware from '../middleware/auth.js'
 
-const router = express.Router();
+const router = express.Router()
 
-router.post('/', authMiddleware, sendMessage);
-router.get('/conversations', authMiddleware, getMyConversations);
-router.get('/:itemId', authMiddleware, getMessagesByItem);
+router.get('/unread-count', authMiddleware, getUnreadCount)
+router.get('/conversations', authMiddleware, getConversations)
+router.post('/mark-all-read', authMiddleware, markAllRead)
+router.get('/:itemId', authMiddleware, getMessages)
+router.post('/', authMiddleware, sendMessage)
 
-export default router;
+export default router

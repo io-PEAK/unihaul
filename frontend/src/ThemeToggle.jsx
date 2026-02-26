@@ -14,7 +14,7 @@ function ThemeToggle() {
       style={{
         position: 'fixed',
         bottom: '2rem',
-        right: '2rem',
+        left: '2rem',                 // <-- moved from right to left
         width: '48px',
         height: '48px',
         borderRadius: '14px',

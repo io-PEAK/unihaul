@@ -18,6 +18,8 @@ model User {
   receivedMessages Message[] @relation("ReceivedMessages")
   buyerTxns    Transaction[] @relation("BuyerTransactions")
   sellerTxns   Transaction[] @relation("SellerTransactions")
+  cartItems    CartItem[]
+  notifications Notification[]
 }
 
 model Item {
@@ -26,8 +28,10 @@ model Item {
   description String?
   price       Float
   category    String
+  subcategory String?
   condition   String
   status      String        @default("available")
+  quantity    Int           @default(1)
   imageUrl    String?
   createdAt   DateTime      @default(now())
 
@@ -36,12 +40,15 @@ model Item {
 
   messages    Message[]
   transactions Transaction[]
+  cartItems    CartItem[]
+  notifications Notification[]
 }
 
 model Message {
   id         Int      @id @default(autoincrement())
   content    String
   createdAt  DateTime @default(now())
+  read       Boolean  @default(false)
 
   senderId   Int
   receiverId Int
@@ -64,4 +71,30 @@ model Transaction {
   item      Item @relation(fields: [itemId], references: [id])
   buyer     User @relation("BuyerTransactions", fields: [buyerId], references: [id])
   seller    User @relation("SellerTransactions", fields: [sellerId], references: [id])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  userId    Int
+  itemId    Int
+
+  user      User @relation(fields: [userId], references: [id])
+  item      Item @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  userId    Int
+  itemId    Int
+  buyerName String
+  price     Float
+  seen      Boolean  @default(false)
+  user      User @relation(fields: [userId], references: [id])
+  item      Item @relation(fields: [itemId], references: [id])
 }
