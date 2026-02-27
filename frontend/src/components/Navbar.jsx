@@ -28,7 +28,6 @@ function NavLink({ to, label, isActive, onClick, showDot }) {
           boxShadow: '0 0 8px rgba(232,119,34,0.6)',
         }} />
       )}
-      {/* ✅ Red dot for unseen sale notifications */}
       {showDot && (
         <div style={{
           position: 'absolute', top: '2px', right: '2px',
@@ -127,7 +126,12 @@ function Navbar({ hasUnseenNotifications }) {
   const isHomePath = location.pathname === '/' || location.pathname === '/home'
 
   useEffect(() => {
-    if (!isLoggedIn) { setCartCount(0); return }
+    if (!isLoggedIn) {
+      // ✅ FIX: read guest cart from localStorage instead of forcing 0
+      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
+      setCartCount(guestCart.length)
+      return
+    }
     const fetchCartCount = async () => {
       try {
         const res = await API.get('/cart')
@@ -205,7 +209,8 @@ function Navbar({ hasUnseenNotifications }) {
               </div>
             </Link>
             <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.08)', marginLeft: '0.5rem' }} />
-            <CartIcon count={isLoggedIn ? cartCount : 0} />
+            {/* ✅ FIX: always pass cartCount directly (no more isLoggedIn ? cartCount : 0) */}
+            <CartIcon count={cartCount} />
             <HistoryIcon />
           </div>
 
@@ -224,7 +229,6 @@ function Navbar({ hasUnseenNotifications }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <NavLink to="/" label="Home" isActive={isHomePath} />
             <NavLink to="/post" label="Post Item" isActive={location.pathname === '/post'} />
-            {/* ✅ Red dot on Dashboard when there are unseen notifications */}
             <NavLink
               to="/dashboard"
               label="Dashboard"
