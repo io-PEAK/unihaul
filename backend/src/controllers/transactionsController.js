@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma.js'
 
-// POST /transactions — buyer purchases a single item
+// POST /transactions — buyer purchases a single item directly (not via cart)
 export const createTransaction = async (req, res) => {
   const buyerId = req.user.userId
   const { itemId } = req.body
@@ -18,13 +18,16 @@ export const createTransaction = async (req, res) => {
           buyerId: parseInt(buyerId),
           sellerId: item.sellerId,
           status: 'completed',
+          quantity: 1,
+          price: item.price,
+          itemTitle: item.title,
+          itemCategory: item.category,
         },
       }),
       prisma.item.update({
         where: { id: parseInt(itemId) },
         data: { status: 'sold' },
       }),
-      // ✅ Create notification for the seller
       prisma.notification.create({
         data: {
           userId: item.sellerId,
@@ -50,30 +53,52 @@ export const getMyTransactions = async (req, res) => {
     const transactions = await prisma.transaction.findMany({
       where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
       include: {
-        item: { select: { id: true, title: true, price: true, category: true } },
-        buyer: { select: { id: true, name: true, email: true } },
-        seller: { select: { id: true, name: true, email: true } },
+        buyer:  { select: { id: true, name: true } },
+        seller: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
 
     const result = transactions.map(t => ({
-      id: t.id,
-      status: t.status,
-      createdAt: t.createdAt,
-      item_id: t.item.id,
-      item_title: t.item.title,
-      price: t.item.price,
-      category: t.item.category,
-      buyer_id: t.buyerId,
-      seller_id: t.sellerId,
-      buyer_name: t.buyer.name,
-      seller_name: t.seller.name,
+      id:           t.id,
+      status:       t.status,
+      created_at:   t.createdAt,
+      item_id:      t.itemId,
+      // ✅ Use snapshot fields — survive item deletion
+      item_title:   t.itemTitle,
+      price:        t.price,
+      quantity:     t.quantity,
+      category:     t.itemCategory,
+      buyer_id:     t.buyerId,
+      seller_id:    t.sellerId,
+      buyer_name:   t.buyer.name,
+      seller_name:  t.seller.name,
     }))
 
     res.json(result)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch transactions.' })
+  }
+}
+
+// DELETE /transactions/:id — delete a transaction (only buyer or seller can delete their own)
+export const deleteTransaction = async (req, res) => {
+  const userId = parseInt(req.user.userId)
+  const txnId  = parseInt(req.params.id)
+  try {
+    const txn = await prisma.transaction.findUnique({ where: { id: txnId } })
+    if (!txn) return res.status(404).json({ error: 'Transaction not found.' })
+
+    // Only the buyer or seller of this transaction can delete it
+    if (txn.buyerId !== userId && txn.sellerId !== userId) {
+      return res.status(403).json({ error: 'Not authorised to delete this transaction.' })
+    }
+
+    await prisma.transaction.delete({ where: { id: txnId } })
+    res.json({ message: 'Transaction deleted.' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to delete transaction.' })
   }
 }

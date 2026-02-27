@@ -32,13 +32,14 @@ model Item {
   condition   String
   status      String        @default("available")
   quantity    Int           @default(1)
+  specs       Json?
   imageUrl    String?
   createdAt   DateTime      @default(now())
 
   sellerId    Int
   seller      User          @relation(fields: [sellerId], references: [id])
 
-  messages    Message[]
+  messages     Message[]
   transactions Transaction[]
   cartItems    CartItem[]
   notifications Notification[]
@@ -60,9 +61,14 @@ model Message {
 }
 
 model Transaction {
-  id        Int      @id @default(autoincrement())
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+
+  quantity     Int      @default(1)
+  price        Float    @default(0)
+  itemTitle    String   @default("")
+  itemCategory String   @default("")
 
   itemId    Int
   buyerId   Int

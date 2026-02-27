@@ -35,7 +35,6 @@ export const addToCart = async (req, res) => {
       return res.status(400).json({ error: `Quantity must be between 1 and ${item.quantity}.` })
     }
 
-    // If already in cart, update quantity
     const existing = await prisma.cartItem.findUnique({
       where: { userId_itemId: { userId, itemId: parseInt(itemId) } }
     })
@@ -117,33 +116,45 @@ export const checkout = async (req, res) => {
     const available = cartItems.filter(c => c.item.status === 'available')
     if (available.length === 0) return res.status(400).json({ error: 'No available items in cart.' })
 
-    const ops = available.flatMap(c => [
-      prisma.transaction.create({
-        data: {
-          itemId: c.itemId,
-          buyerId: userId,
-          sellerId: c.item.sellerId,
-          status: 'completed',
-        },
-      }),
-      prisma.item.update({
-        where: { id: c.itemId },
-        data: {
-          // Reduce quantity; mark sold if hits 0
-          quantity: Math.max(0, c.item.quantity - c.quantity),
-          ...(c.item.quantity - c.quantity <= 0 && { status: 'sold' }),
-        },
-      }),
-      prisma.notification.create({
-        data: {
-          userId: c.item.sellerId,
-          itemId: c.itemId,
-          buyerName: buyer.name,
-          price: c.item.price * c.quantity,
-          seen: false,
-        },
-      }),
-    ])
+    const ops = available.flatMap(c => {
+      const boughtQty = parseInt(c.quantity) || 1
+      const remainingQty = Math.max(0, c.item.quantity - boughtQty)
+      const isSoldOut = remainingQty <= 0
+      const totalPrice = c.item.price * boughtQty  // ✅ snapshot total price
+
+      return [
+        // ✅ Store quantity, total price, title and category as snapshot
+        //    so data is preserved even if item is later deleted
+        prisma.transaction.create({
+          data: {
+            itemId: c.itemId,
+            buyerId: userId,
+            sellerId: c.item.sellerId,
+            status: 'completed',
+            quantity: boughtQty,
+            price: totalPrice,
+            itemTitle: c.item.title,
+            itemCategory: c.item.category,
+          },
+        }),
+        prisma.item.update({
+          where: { id: c.itemId },
+          data: {
+            quantity: remainingQty,
+            ...(isSoldOut && { status: 'sold' }),
+          },
+        }),
+        prisma.notification.create({
+          data: {
+            userId: c.item.sellerId,
+            itemId: c.itemId,
+            buyerName: buyer.name,
+            price: totalPrice,
+            seen: false,
+          },
+        }),
+      ]
+    })
 
     ops.push(prisma.cartItem.deleteMany({ where: { userId } }))
     await prisma.$transaction(ops)

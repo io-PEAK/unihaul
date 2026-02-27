@@ -19,6 +19,10 @@ import { useState, useEffect } from 'react'
 function ScrollToTopButton() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const location = useLocation()
+
+  // Only show on home page
+  const isHomePage = location.pathname === '/' || location.pathname === '/home'
 
   useEffect(() => {
     const onScroll = () => {
@@ -30,7 +34,7 @@ function ScrollToTopButton() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  if (!visible) return null
+  if (!visible || !isHomePage) return null
 
   return (
     <>
@@ -48,25 +52,15 @@ function ScrollToTopButton() {
         onMouseLeave={() => setHovered(false)}
         title="Back to top"
         style={{
-          position: 'fixed',
-          bottom: '2rem',
-          left: '50%',
+          position: 'fixed', bottom: '2rem', left: '50%',
           transform: hovered ? 'translateX(-50%) translateY(-2px)' : 'translateX(-50%)',
-          width: '48px',
-          height: '48px',
-          borderRadius: '14px',
+          width: '48px', height: '48px', borderRadius: '14px',
           border: hovered ? '1px solid rgba(232,119,34,0.4)' : '1px solid rgba(255,255,255,0.1)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 89,
           background: hovered ? 'rgba(232,119,34,0.12)' : 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: hovered
-            ? '0 8px 24px rgba(232,119,34,0.2)'
-            : '0 4px 12px rgba(0,0,0,0.2)',
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: hovered ? '0 8px 24px rgba(232,119,34,0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
           animation: 'scrollBtnPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
           transition: 'background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         }}
