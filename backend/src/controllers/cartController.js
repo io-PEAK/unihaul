@@ -120,11 +120,9 @@ export const checkout = async (req, res) => {
       const boughtQty = parseInt(c.quantity) || 1
       const remainingQty = Math.max(0, c.item.quantity - boughtQty)
       const isSoldOut = remainingQty <= 0
-      const totalPrice = c.item.price * boughtQty  // ✅ snapshot total price
+      const totalPrice = c.item.price * boughtQty
 
       return [
-        // ✅ Store quantity, total price, title and category as snapshot
-        //    so data is preserved even if item is later deleted
         prisma.transaction.create({
           data: {
             itemId: c.itemId,
@@ -148,6 +146,7 @@ export const checkout = async (req, res) => {
           data: {
             userId: c.item.sellerId,
             itemId: c.itemId,
+            itemTitle: c.item.title,
             buyerName: buyer.name,
             price: totalPrice,
             seen: false,

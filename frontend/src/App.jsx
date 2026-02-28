@@ -14,14 +14,12 @@ import Navbar from './components/Navbar'
 import MessageButton from './components/MessageButton'
 import ProtectedRoute from './components/ProtectedRoute'
 import ToastNotification from './components/ToastNotification'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 function ScrollToTopButton() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
   const location = useLocation()
-
-  // Only show on home page
   const isHomePage = location.pathname === '/' || location.pathname === '/home'
 
   useEffect(() => {
@@ -80,31 +78,28 @@ function ScrollToTopButton() {
 function AppInner() {
   const location = useLocation()
   const [notifications, setNotifications] = useState([])
-  const [hasUnseen, setHasUnseen] = useState(false)
+  // This ref is a function that Navbar exposes to open its bell dropdown
+  const openBellRef = useRef(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('pendingNotifications')
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
-        if (parsed.length > 0) {
-          setNotifications(parsed)
-          setHasUnseen(true)
-        }
+        if (parsed.length > 0) setNotifications(parsed)
       } catch (_) {}
       localStorage.removeItem('pendingNotifications')
     }
   }, [location.pathname])
 
-  useEffect(() => {
-    if (location.pathname === '/dashboard' && hasUnseen) {
-      setHasUnseen(false)
-    }
-  }, [location.pathname])
+  function handleOpenBell() {
+    if (openBellRef.current) openBellRef.current()
+  }
 
   return (
     <>
-      <Navbar hasUnseenNotifications={hasUnseen} />
+      {/* Pass registerOpenBell so Navbar can expose its open function */}
+      <Navbar registerOpenBell={(fn) => { openBellRef.current = fn }} />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/home" element={<Navigate to="/" replace />} />
@@ -120,7 +115,7 @@ function AppInner() {
       <MessageButton />
       <ScrollToTopButton />
       <ThemeToggle />
-      <ToastNotification notifications={notifications} />
+      <ToastNotification notifications={notifications} onOpenBell={handleOpenBell} />
     </>
   )
 }

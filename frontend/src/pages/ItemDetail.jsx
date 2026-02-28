@@ -7,11 +7,8 @@ const specLabels = {
   gender: 'Gender', color: 'Color', type: 'Type',
   subject: 'Subject', author: 'Author', edition: 'Edition',
   material: 'Material', dimensions: 'Dimensions',
-  sport: 'Sport', size: 'Size',
-  capacity: 'Capacity',
-  platform: 'Platform',
-  mode: 'Mode', experience: 'Experience',
-  ingredients: 'Ingredients', allergens: 'Allergens',
+  sport: 'Sport', size: 'Size', capacity: 'Capacity', platform: 'Platform',
+  mode: 'Mode', experience: 'Experience', ingredients: 'Ingredients', allergens: 'Allergens',
 }
 
 function ItemDetail() {
@@ -19,11 +16,14 @@ function ItemDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const backTo = location.state?.from || '/'
-  const [item, setItem] = useState(null)
+
+  const [item, setItem]       = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [backHovered, setBackHovered] = useState(false)
-  const [btnHovered, setBtnHovered] = useState(false)
+  const [error, setError]     = useState(null)
+
+  // cartQty = 0 means not in cart
+  const [cartQty, setCartQty]     = useState(0)
+  const [cartLoading, setCartLoading] = useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const myId = user?.id
@@ -31,18 +31,78 @@ function ItemDetail() {
   useEffect(() => {
     const fetchItem = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true); setError(null)
         const res = await API.get(`/items/${id}`)
         setItem(res.data)
-      } catch (err) {
-        setError('Item not found or failed to load.')
-      } finally {
-        setLoading(false)
-      }
+      } catch { setError('Item not found.') }
+      finally { setLoading(false) }
     }
     fetchItem()
   }, [id])
+
+  // Check existing cart qty using item.id (not cart row id)
+  useEffect(() => {
+    if (!item || !user) return
+    const check = async () => {
+      try {
+        const res = await API.get('/cart')
+        const found = res.data.find(c => c.itemId === item.id || c.item?.id === item.id)
+        if (found) setCartQty(found.quantity || 1)
+      } catch {}
+    }
+    check()
+  }, [item])
+
+  async function handleAddToCart() {
+    if (!user) { navigate('/login'); return }
+    try {
+      setCartLoading(true)
+      const res = await API.post('/cart', { itemId: item.id, quantity: 1 })
+      // POST returns the cart row — res.data.quantity is the actual qty set
+      setCartQty(res.data.quantity || 1)
+      window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: 1 } }))
+    } catch (err) {
+      const msg = err.response?.data?.error || ''
+      if (msg.includes('already in cart')) {
+        // fetch real qty
+        try {
+          const r = await API.get('/cart')
+          const found = r.data.find(c => c.itemId === item.id || c.item?.id === item.id)
+          if (found) setCartQty(found.quantity || 1)
+        } catch {}
+      } else {
+        alert(msg || 'Failed to add to cart.')
+      }
+    } finally { setCartLoading(false) }
+  }
+
+  // PATCH /cart/:itemId — uses item.id, NOT cart row id
+  async function handleQtyChange(newQty) {
+    if (cartLoading) return
+    const totalStock = item?.quantity ?? 1
+
+    if (newQty < 1) {
+      // Remove from cart
+      try {
+        setCartLoading(true)
+        await API.delete(`/cart/${item.id}`)
+        setCartQty(0)
+        window.dispatchEvent(new CustomEvent('cart-updated', { detail: { delta: -1 } }))
+      } catch { alert('Failed to remove from cart.') }
+      finally { setCartLoading(false) }
+      return
+    }
+
+    if (newQty > totalStock) return
+
+    try {
+      setCartLoading(true)
+      await API.patch(`/cart/${item.id}`, { quantity: newQty })
+      setCartQty(newQty)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update.')
+    } finally { setCartLoading(false) }
+  }
 
   if (loading) return (
     <div style={{ textAlign: 'center', padding: '6rem 2rem' }}>
@@ -54,58 +114,41 @@ function ItemDetail() {
 
   if (error || !item) return (
     <div style={{ textAlign: 'center', padding: '6rem 2rem', color: 'rgba(255,255,255,0.25)' }}>
-      <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', opacity: 0.5 }}>∅</div>
-      <h2 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>Item not found</h2>
-      <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.85rem', marginBottom: '1.75rem' }}>This listing may have been removed or doesn't exist.</p>
-      <button onClick={() => navigate(backTo)} style={{ padding: '0.6rem 1.75rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', letterSpacing: '0.5px', boxShadow: '0 4px 15px rgba(232,119,34,0.25)', transition: 'all 0.3s ease' }}>← Back to Home</button>
+      <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', background: 'rgba(255,255,255,0.04)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', opacity: 0.5 }}>∅</div>
+      <h2 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>Item not found</h2>
+      <p style={{ fontSize: '0.85rem', marginBottom: '1.75rem' }}>This listing may have been removed.</p>
+      <button onClick={() => navigate(backTo)} style={{ padding: '0.6rem 1.75rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700' }}>← Back</button>
     </div>
   )
 
-  const status = item.status?.toLowerCase()
-  const isMyItem = parseInt(myId) === parseInt(item.seller?.id)
+  const status     = item.status?.toLowerCase()
+  const isMyItem   = parseInt(myId) === parseInt(item.seller?.id)
+  const totalStock = item.quantity ?? 1
+  const stockLeft  = totalStock - cartQty  // remaining stock buyer can still add
 
-  // Parse specs — filter out empty values
   const specs = item.specs && typeof item.specs === 'object'
     ? Object.entries(item.specs).filter(([, v]) => v && String(v).trim() !== '')
     : []
 
-  async function handleAddToCart() {
-    if (!user) {
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
-      if (!guestCart.find(i => i.id === item.id)) {
-        guestCart.push(item)
-        localStorage.setItem('guestCart', JSON.stringify(guestCart))
-      }
-      navigate('/cart')
-      return
-    }
-    try {
-      await API.post('/cart', { itemId: item.id })
-      navigate('/cart')
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to add to cart.'
-      if (msg.includes('already in cart')) navigate('/cart')
-      else alert(msg)
-    }
-  }
-
-  // ✅ Info grid — now includes Stock card
   const infoGrid = [
     { label: 'Seller',    value: item.seller?.name || 'Unknown' },
     { label: 'Condition', value: item.condition },
     { label: 'Category',  value: item.category },
     { label: 'Status',    value: status, isStatus: true },
-    { label: 'Stock',     value: status === 'sold' ? '0 remaining' : `${item.quantity ?? 1}` },
+    { label: 'Stock',     value: status === 'sold' ? '0 remaining' : `${stockLeft}` },
     ...(item.subcategory ? [{ label: item.category === 'Clothing' ? 'Size' : item.category === 'Books & Notes' ? 'Semester' : 'Subcategory', value: item.subcategory }] : []),
   ]
 
   return (
     <div style={{ padding: '3rem 4rem', maxWidth: '900px', margin: '0 auto' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      <button onClick={() => navigate(backTo)} onMouseEnter={() => setBackHovered(true)} onMouseLeave={() => setBackHovered(false)}
-        style={{ background: backHovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', border: backHovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)', color: backHovered ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)', padding: '0.45rem 1.1rem', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', marginBottom: '2rem', transition: 'all 0.3s ease', backdropFilter: 'blur(12px)', letterSpacing: '0.3px' }}>← Back</button>
+      <button onClick={() => navigate(backTo)}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', padding: '0.45rem 1.1rem', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', marginBottom: '2rem', transition: 'all 0.3s ease' }}>← Back</button>
 
-      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.75rem', boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.75rem', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
 
         {/* Top row */}
@@ -113,16 +156,11 @@ function ItemDetail() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>{item.category}</span>
-              {item.subcategory && (
-                <>
-                  <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.7rem' }}>›</span>
-                  <span style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.6)', fontWeight: '700' }}>{item.subcategory}</span>
-                </>
-              )}
+              {item.subcategory && (<><span style={{ color: 'rgba(255,255,255,0.15)' }}>›</span><span style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.6)', fontWeight: '700' }}>{item.subcategory}</span></>)}
             </div>
             <h1 style={{ fontSize: '2.3rem', fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.1', color: 'rgba(255,255,255,0.95)', margin: 0 }}>{item.title}</h1>
           </div>
-          <span style={{ padding: '4px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '0.75rem', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.1)' : status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)', border: status === 'sold' ? '1px solid rgba(255,107,107,0.15)' : status === 'pending' ? '1px solid rgba(255,212,59,0.15)' : '1px solid rgba(81,207,102,0.15)', backdropFilter: 'blur(8px)', whiteSpace: 'nowrap', marginTop: '0.25rem', textTransform: 'capitalize' }}>{status}</span>
+          <span style={{ padding: '4px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '0.75rem', textTransform: 'capitalize', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.1)' : status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)', border: `1px solid ${status === 'sold' ? 'rgba(255,107,107,0.15)' : status === 'pending' ? 'rgba(255,212,59,0.15)' : 'rgba(81,207,102,0.15)'}`, marginTop: '0.25rem', whiteSpace: 'nowrap' }}>{status}</span>
         </div>
 
         {/* Price */}
@@ -132,29 +170,27 @@ function ItemDetail() {
 
         <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '2rem' }} />
 
-        {/* ✅ Info grid — 2 columns, Stock always shown */}
+        {/* Info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
           {infoGrid.map(({ label, value, isStatus }) => (
-            <div key={label} style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1rem 1.15rem', backdropFilter: 'blur(8px)', position: 'relative', overflow: 'hidden' }}>
+            <div key={label} style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1rem 1.15rem', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
               <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '0.4rem', fontWeight: '700' }}>{label}</div>
               {isStatus ? (
-                <span style={{ display: 'inline-block', fontWeight: '700', fontSize: '0.82rem', textTransform: 'capitalize', padding: '2px 10px', borderRadius: '20px', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.12)' : status === 'pending' ? 'rgba(255,212,59,0.12)' : 'rgba(81,207,102,0.12)', border: status === 'sold' ? '1px solid rgba(255,107,107,0.2)' : status === 'pending' ? '1px solid rgba(255,212,59,0.2)' : '1px solid rgba(81,207,102,0.2)' }}>{value}</span>
+                <span style={{ display: 'inline-block', fontWeight: '700', fontSize: '0.82rem', textTransform: 'capitalize', padding: '2px 10px', borderRadius: '20px', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.12)' : status === 'pending' ? 'rgba(255,212,59,0.12)' : 'rgba(81,207,102,0.12)', border: `1px solid ${status === 'sold' ? 'rgba(255,107,107,0.2)' : status === 'pending' ? 'rgba(255,212,59,0.2)' : 'rgba(81,207,102,0.2)'}` }}>{value}</span>
               ) : (
-                <div style={{ fontWeight: '600', color: 'rgba(255,255,255,0.85)', fontSize: '0.95rem', letterSpacing: '-0.2px', textTransform: 'capitalize' }}>{value}</div>
+                <div style={{ fontWeight: '600', color: 'rgba(255,255,255,0.85)', fontSize: '0.95rem', textTransform: 'capitalize' }}>{value}</div>
               )}
             </div>
           ))}
         </div>
 
-        {/* ✅ Specs section — only shown if item has specs data */}
+        {/* Specs */}
         {specs.length > 0 && (
           <div style={{ marginBottom: '1.5rem', background: 'rgba(232,119,34,0.04)', border: '1px solid rgba(232,119,34,0.12)', borderRadius: '16px', padding: '1.25rem 1.35rem', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(232,119,34,0.2), transparent)' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.7)" strokeWidth="2.2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-              </svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.7)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
               <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.7)', fontWeight: '800' }}>Specifications</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.65rem' }}>
@@ -170,33 +206,95 @@ function ItemDetail() {
 
         {/* Description */}
         {item.description && (
-          <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1.25rem 1.35rem', marginBottom: '2rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1.25rem 1.35rem', marginBottom: '2rem', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
             <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '0.65rem', fontWeight: '700' }}>Description</div>
-            <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: '1.75', margin: 0, fontSize: '0.92rem', fontWeight: '400', letterSpacing: '0.1px' }}>{item.description}</p>
+            <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: '1.75', margin: 0, fontSize: '0.92rem' }}>{item.description}</p>
           </div>
         )}
 
         <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
 
-        {/* Action buttons */}
+        {/* ── Action area ── */}
         {isMyItem ? (
-          <div style={{ textAlign: 'center', padding: '0.85rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '0.85rem', letterSpacing: '0.5px', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ textAlign: 'center', padding: '0.85rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
             This is your listing — manage it in your Dashboard
           </div>
         ) : status === 'available' ? (
           <div style={{ display: 'flex', gap: '0.75rem' }}>
+
+            {/* Message Seller */}
             <button onClick={() => navigate('/messages', { state: { item } })}
-              style={{ flex: 1, padding: '0.85rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.5px', transition: 'all 0.3s ease' }}
-              onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.1)'; e.target.style.color = 'white' }}
-              onMouseLeave={e => { e.target.style.background = 'rgba(255,255,255,0.06)'; e.target.style.color = 'rgba(255,255,255,0.7)' }}
-            >Message Seller</button>
-            <button onMouseEnter={() => setBtnHovered(true)} onMouseLeave={() => setBtnHovered(false)} onClick={handleAddToCart}
-              style={{ flex: 1, padding: '0.85rem', background: btnHovered ? 'linear-gradient(135deg, #f09030, #e87722)' : 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', transform: btnHovered ? 'translateY(-3px)' : 'translateY(0)', boxShadow: btnHovered ? '0 15px 35px rgba(232,119,34,0.35)' : '0 4px 15px rgba(232,119,34,0.2)' }}
-            >Add to Cart →</button>
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+              style={{ flex: 1, padding: '0.85rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s ease' }}>
+              Message Seller
+            </button>
+
+            {/* ── Cart button: morphs between 3 states ── */}
+            {cartQty === 0 ? (
+
+              /* State 1: Not in cart → orange Add to Cart */
+              <button onClick={handleAddToCart} disabled={cartLoading}
+                onMouseEnter={e => { if (!cartLoading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(232,119,34,0.4)' }}}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(232,119,34,0.2)' }}
+                style={{ flex: 1, padding: '0.85rem', background: cartLoading ? 'rgba(232,119,34,0.5)' : 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: cartLoading ? 'not-allowed' : 'pointer', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                {cartLoading
+                  ? <><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Adding...</>
+                  : 'Add to Cart →'}
+              </button>
+
+            ) : (
+
+              /* State 2: In cart → qty stepper + View Cart */
+              <div style={{ flex: 1, display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+
+                {/* Stepper */}
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', opacity: cartLoading ? 0.55 : 1, transition: 'opacity 0.2s' }}>
+
+                  {/* − button: red when qty=1 (signals removal) */}
+                  <button onClick={() => handleQtyChange(cartQty - 1)} disabled={cartLoading}
+                    onMouseEnter={e => e.currentTarget.style.background = cartQty === 1 ? 'rgba(255,107,107,0.15)' : 'rgba(255,255,255,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    title={cartQty === 1 ? 'Remove from cart' : 'Decrease'}
+                    style={{ width: '42px', height: '46px', background: 'transparent', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', color: cartQty === 1 ? '#ff6b6b' : 'rgba(255,255,255,0.55)', cursor: cartLoading ? 'not-allowed' : 'pointer', fontSize: '1.15rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                    {cartQty === 1 ? (
+                      // Trash icon at qty=1 — clear signal this will remove
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    ) : '−'}
+                  </button>
+
+                  {/* Qty + label */}
+                  <div style={{ padding: '0 1.1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '72px', height: '46px', gap: '1px' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '800', color: 'white', letterSpacing: '-0.3px' }}>{cartQty} in cart</span>
+                    <span style={{ fontSize: '0.6rem', fontWeight: '500', color: stockLeft === 0 ? 'rgba(255,212,59,0.6)' : 'rgba(255,255,255,0.2)' }}>
+                      {stockLeft === 0 ? 'max reached' : `${stockLeft} left`}
+                    </span>
+                  </div>
+
+                  {/* + button: orange, disabled at max */}
+                  <button onClick={() => handleQtyChange(cartQty + 1)} disabled={cartLoading || stockLeft === 0}
+                    onMouseEnter={e => { if (stockLeft > 0) e.currentTarget.style.background = 'rgba(232,119,34,0.12)' }}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    title={stockLeft === 0 ? 'No more stock' : 'Add one more'}
+                    style={{ width: '42px', height: '46px', background: 'transparent', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.07)', color: stockLeft === 0 ? 'rgba(255,255,255,0.15)' : '#e87722', cursor: cartLoading || stockLeft === 0 ? 'not-allowed' : 'pointer', fontSize: '1.15rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>+</button>
+                </div>
+
+                {/* View Cart button */}
+                <button onClick={() => navigate('/cart')}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #f09030, #e87722)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #e87722, #f09030)'; e.currentTarget.style.transform = 'translateY(0)' }}
+                  style={{ flex: 1, padding: '0.85rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.5px', transition: 'all 0.25s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.25)', whiteSpace: 'nowrap' }}>
+                  View Cart →
+                </button>
+
+              </div>
+            )}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '0.85rem', color: status === 'pending' ? 'rgba(255,212,59,0.7)' : 'rgba(255,107,107,0.6)', fontWeight: '600', fontSize: '0.85rem', letterSpacing: '0.5px', background: status === 'pending' ? 'rgba(255,212,59,0.08)' : 'rgba(255,107,107,0.08)', borderRadius: '12px', border: status === 'pending' ? '1px solid rgba(255,212,59,0.15)' : '1px solid rgba(255,107,107,0.1)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ textAlign: 'center', padding: '0.85rem', color: status === 'pending' ? 'rgba(255,212,59,0.7)' : 'rgba(255,107,107,0.6)', fontWeight: '600', fontSize: '0.85rem', background: status === 'pending' ? 'rgba(255,212,59,0.08)' : 'rgba(255,107,107,0.08)', borderRadius: '12px', border: `1px solid ${status === 'pending' ? 'rgba(255,212,59,0.15)' : 'rgba(255,107,107,0.1)'}` }}>
             {status === 'pending' ? 'This item is pending sale' : 'This item has been sold'}
           </div>
         )}

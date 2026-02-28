@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
 
-// ✅ Professional SVG empty cart — no emojis, matches dark glassmorphism theme
+// ──  Empty Cart Illustration ─────────────────────
 function EmptyCartIllustration() {
   return (
     <svg width="110" height="95" viewBox="0 0 110 95" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -45,7 +45,7 @@ function EmptyCartState({ onBrowse }) {
   )
 }
 
-// ── Professional Order Success Screen ────────────────────────────────────────
+// ── Order Success Screen ──────────────────────────────────────
 function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransactions }) {
   const [show, setShow] = useState(false)
   useEffect(() => { setTimeout(() => setShow(true), 80) }, [])
@@ -56,54 +56,24 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
   const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
 
   return (
-    <div style={{
-      opacity: show ? 1 : 0, transform: show ? 'translateY(0)' : 'translateY(16px)',
-      transition: 'all 0.5s cubic-bezier(0.175,0.885,0.32,1.275)',
-    }}>
+    <div style={{ opacity: show ? 1 : 0, transform: show ? 'translateY(0)' : 'translateY(16px)', transition: 'all 0.5s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
       <style>{`
         @keyframes checkPop { 0% { transform: scale(0) rotate(-15deg); opacity:0 } 60% { transform: scale(1.15) rotate(3deg); opacity:1 } 100% { transform: scale(1) rotate(0deg); opacity:1 } }
         @keyframes ringPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(81,207,102,0.4) } 50% { box-shadow: 0 0 0 16px rgba(81,207,102,0) } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
       `}</style>
 
-      {/* Check circle */}
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <div style={{
-          width: '72px', height: '72px', borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(81,207,102,0.2), rgba(64,192,87,0.1))',
-          border: '2px solid rgba(81,207,102,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 1.25rem',
-          animation: show ? 'checkPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both, ringPulse 2.5s ease 0.6s infinite' : 'none',
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
+        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(81,207,102,0.2), rgba(64,192,87,0.1))', border: '2px solid rgba(81,207,102,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', animation: show ? 'checkPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both, ringPulse 2.5s ease 0.6s infinite' : 'none' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <h2 style={{ margin: '0 0 0.35rem', fontSize: '1.6rem', fontWeight: '900', letterSpacing: '-0.8px', color: 'white', animation: show ? 'fadeUp 0.4s ease 0.3s both' : 'none' }}>
-          Order Confirmed
-        </h2>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', animation: show ? 'fadeUp 0.4s ease 0.4s both' : 'none' }}>
-          Your purchase was successful
-        </p>
+        <h2 style={{ margin: '0 0 0.35rem', fontSize: '1.6rem', fontWeight: '900', letterSpacing: '-0.8px', color: 'white', animation: show ? 'fadeUp 0.4s ease 0.3s both' : 'none' }}>Order Confirmed</h2>
+        <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', animation: show ? 'fadeUp 0.4s ease 0.4s both' : 'none' }}>Your purchase was successful</p>
       </div>
 
-      {/* Order card */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
-        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px',
-        overflow: 'hidden', marginBottom: '1.25rem',
-        animation: show ? 'fadeUp 0.4s ease 0.5s both' : 'none',
-        position: 'relative',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', overflow: 'hidden', marginBottom: '1.25rem', animation: show ? 'fadeUp 0.4s ease 0.5s both' : 'none', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(81,207,102,0.3), transparent)' }} />
-
-        {/* Order meta */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '1.1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(81,207,102,0.04)',
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(81,207,102,0.04)' }}>
           <div>
             <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700', marginBottom: '3px' }}>Order ID</div>
             <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace', letterSpacing: '1px' }}>{orderId}</div>
@@ -113,12 +83,8 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
             <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>{dateStr} · {timeStr}</div>
           </div>
         </div>
-
-        {/* Items list */}
         <div style={{ padding: '0.75rem 1.5rem' }}>
-          <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.75rem' }}>
-            {purchasedItems.length} Item{purchasedItems.length !== 1 ? 's' : ''} Purchased
-          </div>
+          <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.75rem' }}>{purchasedItems.length} Item{purchasedItems.length !== 1 ? 's' : ''} Purchased</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {purchasedItems.map((item, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -136,45 +102,30 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
             ))}
           </div>
         </div>
-
-        {/* Total */}
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.5px' }}>TOTAL PAID</span>
           <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{totalPaid}</span>
         </div>
       </div>
 
-      {/* Status badge */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.6rem',
-        padding: '0.75rem 1.1rem',
-        background: 'rgba(81,207,102,0.07)', border: '1px solid rgba(81,207,102,0.15)',
-        borderRadius: '12px', marginBottom: '1.5rem',
-        animation: show ? 'fadeUp 0.4s ease 0.65s both' : 'none',
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.75rem 1.1rem', background: 'rgba(81,207,102,0.07)', border: '1px solid rgba(81,207,102,0.15)', borderRadius: '12px', marginBottom: '1.5rem', animation: show ? 'fadeUp 0.4s ease 0.65s both' : 'none' }}>
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#51cf66', boxShadow: '0 0 8px rgba(81,207,102,0.6)', flexShrink: 0, animation: 'ringPulse 2s ease infinite' }} />
-        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>
-          Payment confirmed · Check your transaction history for details
-        </span>
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Payment confirmed · Check your transaction history for details</span>
       </div>
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: '0.75rem', animation: show ? 'fadeUp 0.4s ease 0.75s both' : 'none' }}>
-        <button onClick={onBrowse}
-          style={{ flex: 1, padding: '0.8rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
+        <button onClick={onBrowse} style={{ flex: 1, padding: '0.8rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}
-        >← Continue Shopping</button>
-        <button onClick={onViewTransactions}
-          style={{ flex: 1, padding: '0.8rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 4px 15px rgba(232,119,34,0.35)', transition: 'all 0.2s ease' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}>← Continue Shopping</button>
+        <button onClick={onViewTransactions} style={{ flex: 1, padding: '0.8rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 4px 15px rgba(232,119,34,0.35)', transition: 'all 0.2s ease' }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(232,119,34,0.5)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(232,119,34,0.35)' }}
-        >View Transactions →</button>
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(232,119,34,0.35)' }}>View Transactions →</button>
       </div>
     </div>
   )
 }
 
+// ── Cart Item ─────────────────────────────────────────────────
 function CartItem({ cartItem, onRemove, onQtyChange }) {
   const [removing, setRemoving] = useState(false)
   const [hovered, setHovered] = useState(false)
@@ -191,25 +142,28 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
       setRemoving(true)
       if (!isGuest) await API.delete(`/cart/${item.id}`)
       onRemove(isGuest ? item.id : cartItem.id)
-    } catch (err) {
+    } catch {
       alert('Failed to remove item.')
       setRemoving(false)
     }
   }
 
   async function handleQtyChange(newQty) {
-    if (newQty < 1 || newQty > maxQty || updatingQty) return
-    if (isGuest) { onQtyChange(item.id, newQty); return }
-    try {
-      setUpdatingQty(true)
-      await API.patch(`/cart/${item.id}`, { quantity: newQty })
-      onQtyChange(cartItem.id, newQty)
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update quantity.')
-    } finally {
-      setUpdatingQty(false)
-    }
+  // If going below 1, treat as remove
+  if (newQty < 1) {
+    handleRemove()
+    return
   }
+  if (newQty > maxQty || updatingQty) return
+  if (isGuest) { onQtyChange(item.id, newQty); return }
+  try {
+    setUpdatingQty(true)
+    await API.patch(`/cart/${item.id}`, { quantity: newQty })
+    onQtyChange(cartItem.id, newQty)
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to update quantity.')
+  } finally { setUpdatingQty(false) }
+}
 
   return (
     <div
@@ -241,21 +195,25 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
           {currentQty > 1 && <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>₹{item.price} × {currentQty}</span>}
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
-          {item.subcategory && <>
-            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>›</span>
-            <span style={{ color: 'rgba(232,119,34,0.5)', fontSize: '0.75rem', fontWeight: '600' }}>{item.subcategory}</span>
-          </>}
-          {item.seller?.name && <>
-            <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span>
-          </>}
+          {item.subcategory && <><span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>›</span><span style={{ color: 'rgba(232,119,34,0.5)', fontSize: '0.75rem', fontWeight: '600' }}>{item.subcategory}</span></>}
+          {item.seller?.name && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
         </div>
       </div>
 
       {maxQty > 1 && status === 'available' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, opacity: updatingQty ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-          <button onClick={() => handleQtyChange(currentQty - 1)} disabled={currentQty === 1 || updatingQty}
-            style={{ width: '32px', height: '32px', background: 'none', border: 'none', color: currentQty === 1 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.5)', cursor: currentQty === 1 ? 'not-allowed' : 'pointer', fontSize: '1rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>−</button>
+         <button 
+  onClick={() => handleQtyChange(currentQty - 1)} 
+  disabled={updatingQty}
+  style={{ 
+    width: '32px', height: '32px', background: 'none', border: 'none', 
+    color: currentQty === 1 ? 'rgba(255,107,107,0.5)' : 'rgba(255,255,255,0.5)', 
+    cursor: updatingQty ? 'not-allowed' : 'pointer', 
+    fontSize: '1rem', fontWeight: '700', 
+    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+    transition: 'all 0.2s ease' 
+  }}
+>−</button>
           <span style={{ minWidth: '28px', textAlign: 'center', color: 'white', fontWeight: '700', fontSize: '0.85rem' }}>{currentQty}</span>
           <button onClick={() => handleQtyChange(currentQty + 1)} disabled={currentQty === maxQty || updatingQty}
             style={{ width: '32px', height: '32px', background: 'none', border: 'none', color: currentQty === maxQty ? 'rgba(255,255,255,0.15)' : 'rgba(232,119,34,0.7)', cursor: currentQty === maxQty ? 'not-allowed' : 'pointer', fontSize: '1rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}>+</button>
@@ -271,6 +229,7 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
   )
 }
 
+// ── Cart Page ─────────────────────────────────────────────────
 function Cart() {
   const navigate = useNavigate()
   const [cartItems, setCartItems] = useState([])
@@ -295,24 +254,34 @@ function Cart() {
         setLoading(true)
         const res = await API.get('/cart')
         setCartItems(res.data)
-      } catch (err) {
-        console.error('Failed to load cart', err)
-      } finally {
-        setLoading(false)
-      }
+      } catch (err) { console.error('Failed to load cart', err) }
+      finally { setLoading(false) }
     }
     fetchCart()
   }, [])
 
-  function handleRemove(id) { setCartItems(prev => prev.filter(c => c.id !== id)) }
+  // ── Fire navbar badge update whenever cartItems changes ────
+  useEffect(() => {
+    if (!isLoggedIn) return
+    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: cartItems.length } }))
+  }, [cartItems.length, isLoggedIn])
+
+  function handleRemove(id) {
+    setCartItems(prev => prev.filter(c => c.id !== id))
+    // badge update fires automatically via the useEffect above
+  }
+
   function handleQtyChange(id, newQty) {
     setCartItems(prev => prev.map(c => c.id === id ? { ...c, quantity: newQty } : c))
   }
+
   function handleGuestRemove(itemId) {
     const updated = guestItems.filter(i => i.id !== itemId)
     setGuestItems(updated)
     localStorage.setItem('guestCart', JSON.stringify(updated))
+    window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: updated.length } }))
   }
+
   function handleGuestQtyChange(itemId, newQty) {
     const updated = guestItems.map(i => i.id === itemId ? { ...i, cartQty: newQty } : i)
     setGuestItems(updated)
@@ -328,7 +297,6 @@ function Cart() {
     if (!window.confirm(`Buy all ${availableItems.length} available item(s) for ₹${totalPrice}?`)) return
     try {
       setCheckingOut(true)
-      // Snapshot items before clearing
       const snapshot = availableItems.map(c => ({
         title: c.item?.title,
         price: (c.item?.price * (c.quantity || 1)).toFixed(2),
@@ -339,18 +307,19 @@ function Cart() {
       setTotalPaid(totalPrice)
       setCheckedOut(true)
       setCartItems([])
+      // Badge goes to 0 after checkout
+      window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: 0 } }))
     } catch (err) {
       alert(err.response?.data?.error || 'Checkout failed.')
-    } finally {
-      setCheckingOut(false)
-    }
+    } finally { setCheckingOut(false) }
   }
 
   return (
     <div onClick={() => navigate('/')} style={{ minHeight: 'calc(100vh - 70px)', padding: '3rem 4rem', cursor: 'default' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <div onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', margin: '0 auto' }}>
 
-        {/* Header — hide when checked out */}
+        {/* Header */}
         {!checkedOut && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '2rem' }}>
             <div>
@@ -365,22 +334,19 @@ function Cart() {
                 My <span style={{ background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Cart.</span>
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem', margin: 0 }}>
-                {isLoggedIn ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} in your cart` : `${guestItems.length} item${guestItems.length !== 1 ? 's' : ''} in your cart`}
+                {isLoggedIn
+                  ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} in your cart`
+                  : `${guestItems.length} item${guestItems.length !== 1 ? 's' : ''} in your cart`}
               </p>
             </div>
             <div />
           </div>
         )}
 
-        {/* ── Professional Success Screen ── */}
+        {/* Success screen */}
         {checkedOut && (
           <div style={{ maxWidth: '560px', margin: '2rem auto 0' }}>
-            <OrderSuccessScreen
-              purchasedItems={purchasedItems}
-              totalPaid={totalPaid}
-              onBrowse={() => navigate('/')}
-              onViewTransactions={() => navigate('/transactions')}
-            />
+            <OrderSuccessScreen purchasedItems={purchasedItems} totalPaid={totalPaid} onBrowse={() => navigate('/')} onViewTransactions={() => navigate('/transactions')} />
           </div>
         )}
 
@@ -393,9 +359,7 @@ function Cart() {
                 <div style={{ marginBottom: '1.5rem' }}>
                   <p style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '0.75rem' }}>Items ({guestItems.length})</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {guestItems.map(item => (
-                      <CartItem key={item.id} cartItem={item} onRemove={handleGuestRemove} onQtyChange={handleGuestQtyChange} />
-                    ))}
+                    {guestItems.map(item => <CartItem key={item.id} cartItem={item} onRemove={handleGuestRemove} onQtyChange={handleGuestQtyChange} />)}
                   </div>
                 </div>
                 <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', margin: '1.5rem 0' }} />
@@ -412,9 +376,7 @@ function Cart() {
                     <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{guestTotal}</span>
                   </div>
                   <button onClick={() => navigate('/login', { state: { from: '/cart' } })}
-                    style={{ width: '100%', padding: '0.9rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.3)' }}>
-                    Sign In to Buy →
-                  </button>
+                    style={{ width: '100%', padding: '0.9rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.3)' }}>Sign In to Buy →</button>
                   <p style={{ textAlign: 'center', marginTop: '0.75rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>Your cart will be saved when you sign in</p>
                 </div>
               </>
@@ -425,12 +387,11 @@ function Cart() {
         {isLoggedIn && !checkedOut && loading && (
           <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
             <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid #e87722', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading cart...</p>
           </div>
         )}
 
-        {/* Empty logged-in state */}
+        {/* Empty */}
         {isLoggedIn && !checkedOut && !loading && cartItems.length === 0 && (
           <EmptyCartState onBrowse={() => navigate('/')} />
         )}

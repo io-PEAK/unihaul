@@ -3,8 +3,7 @@ import prisma from '../lib/prisma.js'
 // GET /messages/conversations
 export const getConversations = async (req, res) => {
   try {
-    const userId = req.user.userId  // ✅ fixed from req.user.id
-
+    const userId = req.user.userId
     const messages = await prisma.message.findMany({
       where: {
         OR: [{ senderId: userId }, { receiverId: userId }]
@@ -12,7 +11,7 @@ export const getConversations = async (req, res) => {
       include: {
         sender: { select: { id: true, name: true } },
         receiver: { select: { id: true, name: true } },
-        item: { select: { id: true, title: true } },
+        item: { select: { id: true, title: true, status: true, sellerId: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -26,6 +25,8 @@ export const getConversations = async (req, res) => {
           conversation_id: key,
           item_id: msg.itemId,
           item_title: msg.item?.title || 'Item',
+          item_status: msg.item?.status || 'available',
+          item_seller_id: msg.item?.sellerId || null,
           other_user_id: otherUser.id,
           other_user_name: otherUser.name,
           last_message: msg.content,
@@ -39,7 +40,6 @@ export const getConversations = async (req, res) => {
         }
       }
     }
-
     res.json(Array.from(convoMap.values()))
   } catch (err) {
     console.error(err)
@@ -50,7 +50,7 @@ export const getConversations = async (req, res) => {
 // GET /messages/:itemId?otherUserId=
 export const getMessages = async (req, res) => {
   try {
-    const userId = req.user.userId  // ✅ fixed
+    const userId = req.user.userId
     const itemId = parseInt(req.params.itemId)
     const otherUserId = parseInt(req.query.otherUserId)
 
@@ -89,17 +89,15 @@ export const sendMessage = async (req, res) => {
     if (!receiverId || !itemId || !content?.trim()) {
       return res.status(400).json({ error: 'receiverId, itemId, and content are required' })
     }
-
     const message = await prisma.message.create({
       data: {
-        senderId: req.user.userId,  // ✅ fixed
+        senderId: req.user.userId,
         receiverId: parseInt(receiverId),
         itemId: parseInt(itemId),
         content: content.trim(),
         read: false,
       }
     })
-
     res.status(201).json(message)
   } catch (err) {
     console.error(err)
@@ -112,7 +110,7 @@ export const getUnreadCount = async (req, res) => {
   try {
     const count = await prisma.message.count({
       where: {
-        receiverId: req.user.userId,  // ✅ fixed
+        receiverId: req.user.userId,
         read: false,
       }
     })
@@ -123,12 +121,47 @@ export const getUnreadCount = async (req, res) => {
   }
 }
 
+// GET /messages/unread  ← NEW: returns full list for notification dropdown
+export const getUnreadMessages = async (req, res) => {
+  try {
+    const userId = req.user.userId
+
+    const messages = await prisma.message.findMany({
+      where: {
+        receiverId: userId,
+        read: false,
+      },
+      include: {
+        sender: { select: { id: true, name: true } },
+        item:   { select: { id: true, title: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20, // cap at 20 for the dropdown
+    })
+
+    const result = messages.map(msg => ({
+      id:         msg.id,
+      senderId:   msg.sender.id,
+      senderName: msg.sender.name,
+      itemId:     msg.itemId,
+      itemTitle:  msg.item?.title || 'Item',
+      content:    msg.content,
+      createdAt:  msg.createdAt,
+    }))
+
+    res.json(result)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to get unread messages' })
+  }
+}
+
 // POST /messages/mark-all-read
 export const markAllRead = async (req, res) => {
   try {
     await prisma.message.updateMany({
       where: {
-        receiverId: req.user.userId,  // ✅ fixed
+        receiverId: req.user.userId,
         read: false,
       },
       data: { read: true }

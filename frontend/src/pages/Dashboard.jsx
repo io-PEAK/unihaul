@@ -62,41 +62,49 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
 
   const item  = group.item
   const sales = group.sales
-  const itemId = group.groupKey  // stable key set by parent
+  const itemId = group.groupKey
 
-  const [expanded, setExpanded]           = useState(isHighlighted || isNewSale)
+  const [expanded, setExpanded]           = useState(false)
   const [hovered, setHovered]             = useState(false)
   const [deleting, setDeleting]           = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
   const [relistHovered, setRelistHovered] = useState(false)
-  // showNew: orange glow for "Just Sold" — auto-dismisses after 4s
   const [showNew, setShowNew]             = useState(isNewSale)
-  const [flash, setFlash]                 = useState(isHighlighted)
+  const [flash, setFlash]                 = useState(false)
 
+  // ✅ FIX: when isHighlighted becomes true (after data loads), expand + scroll + flash
   useEffect(() => {
-    if (!isNewSale) return
-    const t = setTimeout(() => setShowNew(false), 2000)  
-    return () => clearTimeout(t)
+    if (isHighlighted) {
+      setExpanded(true)
+      setFlash(true)
+      // Small delay so the DOM has rendered before scrolling
+      const t1 = setTimeout(() => {
+        rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      const t2 = setTimeout(() => setFlash(false), 2000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }
+  }, [isHighlighted])
+
+  // Auto-expand if new sale
+  useEffect(() => {
+    if (isNewSale) setExpanded(true)
   }, [isNewSale])
 
   useEffect(() => {
-    if (isHighlighted && rowRef.current) {
-      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      const t = setTimeout(() => setFlash(false), 1500)
-      return () => clearTimeout(t)
-    }
-  }, [isHighlighted])
+    if (!isNewSale) return
+    const t = setTimeout(() => setShowNew(false), 2000)
+    return () => clearTimeout(t)
+  }, [isNewSale])
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return
     try {
       setDeleting(true)
       if (item) {
-        // Item exists — delete it from DB (transactions survive via onDelete: SetNull)
         await API.delete(`/items/${item.id}`)
         onDelete(item.id)
       } else {
-        // Item already deleted from DB — just hide from dashboard view locally
         onDelete(null, stableKey)
       }
     } catch (err) {
@@ -157,7 +165,7 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
             {flash && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(232,119,34,0.2), rgba(232,119,34,0.1))', border: '1px solid rgba(232,119,34,0.4)', color: '#f09030', fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px' }}>
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#f09030" strokeWidth="2.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                Just Sold
+                Viewing
               </div>
             )}
           </div>
@@ -416,8 +424,6 @@ function Dashboard() {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState(null)
   const [postBtnHovered, setPostBtnHovered] = useState(false)
-
-  // freshSaleItemIds: ONLY notifications from this session's load — cleared after mark-seen
   const [freshSaleItemIds, setFreshSaleItemIds] = useState(new Set())
 
   const tabParam        = searchParams.get('tab')
@@ -442,8 +448,6 @@ function Dashboard() {
         ])
         setItems(itemsRes.data)
         setTransactions(txnRes.data)
-
-        // Mark seen FIRST, then set fresh IDs — next reload won't return these as unseen
         try {
           const notifRes = await API.get('/notifications')
           const unseenNotifs = notifRes.data
@@ -451,11 +455,9 @@ function Dashboard() {
             await API.post('/notifications/mark-seen')
             const itemIds = new Set(unseenNotifs.map(n => Number(n.itemId)).filter(Boolean))
             setFreshSaleItemIds(itemIds)
-            // Auto-switch to Sold tab so seller sees their new sales immediately
             setActiveFilter('sold')
           }
         } catch (_) {}
-
       } catch (err) {
         setError('Failed to load your dashboard.')
       } finally {
@@ -480,12 +482,9 @@ function Dashboard() {
   const myId     = user.id
   const soldTxns = transactions.filter(t => t.seller_id === myId)
 
-  // ✅ FIX: use transaction's item_id as group key, but also handle null (deleted items)
-  // Use a stable string key like `item_<id>` or `txn_<id>` for deleted items
   const soldGroups = (() => {
     const map = new Map()
     soldTxns.forEach(t => {
-      // For deleted items, item_id is null — group by transaction id as fallback
       const key = t.item_id != null ? `item_${t.item_id}` : `txn_${t.id}`
       if (!map.has(key)) map.set(key, { sales: [], itemId: t.item_id })
       map.get(key).sales.push(t)
@@ -493,7 +492,7 @@ function Dashboard() {
     return Array.from(map.entries()).map(([key, data]) => {
       const foundItem = data.itemId != null ? items.find(i => i.id === data.itemId) : null
       return {
-        groupKey: data.itemId,  // null for deleted items
+        groupKey: data.itemId,
         stableKey: key,
         item: foundItem || null,
         sales: data.sales.sort((a, b) => new Date(getTimestamp(b) || 0) - new Date(getTimestamp(a) || 0)),
@@ -533,7 +532,6 @@ function Dashboard() {
           </p>
         </div>
 
-        {/* Stats */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', alignItems: 'center' }}>
           {[
             { label: 'Active',  value: activeCount },
@@ -556,7 +554,6 @@ function Dashboard() {
 
         <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
 
-        {/* Filter tabs */}
         <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.5rem' }}>
           {FILTERS.map(f => {
             const isActive = activeFilter === f.key
@@ -599,10 +596,7 @@ function Dashboard() {
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
             {visibleSoldGroups.map(group => (
-              <SoldGroupRow
-                key={group.stableKey}
-                group={group}
-                stableKey={group.stableKey}
+              <SoldGroupRow key={group.stableKey} group={group} stableKey={group.stableKey}
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
                 isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
                 onDelete={handleDelete}
@@ -615,10 +609,7 @@ function Dashboard() {
           if (visibleSoldGroups.length === 0) return <EmptyState label="sold items" />
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {visibleSoldGroups.map(group => (
-              <SoldGroupRow
-                key={group.stableKey}
-                group={group}
-                stableKey={group.stableKey}
+              <SoldGroupRow key={group.stableKey} group={group} stableKey={group.stableKey}
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
                 isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
                 onDelete={handleDelete}

@@ -19,10 +19,7 @@ function buildSpecFilters(category, query) {
   return keys
     .filter(key => query[key] && query[key].trim() !== '')
     .map(key => ({
-      specs: {
-        path: [key],
-        string_contains: query[key].trim(),
-      },
+      specs: { path: [key], string_contains: query[key].trim() },
     }))
 }
 
@@ -39,9 +36,7 @@ export const getItems = async (req, res) => {
           ...specFilters,
         ].filter(Boolean),
       },
-      include: {
-        seller: { select: { id: true, name: true, email: true } },
-      },
+      include: { seller: { select: { id: true, name: true, email: true } } },
       orderBy:
         sortPrice === 'asc'  ? { price: 'asc' }  :
         sortPrice === 'desc' ? { price: 'desc' }  :
@@ -89,13 +84,11 @@ export const createItem = async (req, res) => {
   const sellerId = req.user.userId
 
   const parsedPrice = parseFloat(price)
-  if (isNaN(parsedPrice) || parsedPrice <= 0) {
+  if (isNaN(parsedPrice) || parsedPrice <= 0)
     return res.status(400).json({ error: 'Price must be greater than ₹0.' })
-  }
   const parsedQuantity = parseInt(quantity) || 1
-  if (parsedQuantity < 1) {
+  if (parsedQuantity < 1)
     return res.status(400).json({ error: 'Quantity must be at least 1.' })
-  }
 
   const cleanSpecs = specs && typeof specs === 'object'
     ? Object.fromEntries(Object.entries(specs).filter(([_, v]) => v && String(v).trim() !== ''))
@@ -124,9 +117,8 @@ export const updateItem = async (req, res) => {
   const userId = req.user.userId
 
   const parsedPrice = parseFloat(price)
-  if (isNaN(parsedPrice) || parsedPrice <= 0) {
+  if (isNaN(parsedPrice) || parsedPrice <= 0)
     return res.status(400).json({ error: 'Price must be greater than ₹0.' })
-  }
 
   const cleanSpecs = specs && typeof specs === 'object'
     ? Object.fromEntries(Object.entries(specs).filter(([_, v]) => v && String(v).trim() !== ''))
@@ -155,6 +147,32 @@ export const updateItem = async (req, res) => {
   }
 }
 
+// PATCH /items/:id/status — status-only update (used from messages, etc.)
+export const updateItemStatus = async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+  const userId = req.user.userId
+
+  const allowed = ['available', 'pending', 'sold']
+  if (!status || !allowed.includes(status))
+    return res.status(400).json({ error: `Status must be one of: ${allowed.join(', ')}` })
+
+  try {
+    const item = await prisma.item.findUnique({ where: { id: parseInt(id) } })
+    if (!item) return res.status(404).json({ error: 'Item not found.' })
+    if (item.sellerId !== parseInt(userId)) return res.status(403).json({ error: 'Not your item.' })
+
+    const updated = await prisma.item.update({
+      where: { id: parseInt(id) },
+      data: { status },
+    })
+    res.json(updated)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to update status.' })
+  }
+}
+
 export const deleteItem = async (req, res) => {
   const { id } = req.params
   const userId = req.user.userId
@@ -164,7 +182,6 @@ export const deleteItem = async (req, res) => {
     if (item.sellerId !== parseInt(userId)) return res.status(403).json({ error: 'Not your item.' })
 
     await prisma.message.deleteMany({ where: { itemId: parseInt(id) } })
-    //    itemId will become null via onDelete: SetNull, snapshot fields preserve all data
     await prisma.notification.deleteMany({ where: { itemId: parseInt(id) } })
     await prisma.cartItem.deleteMany({ where: { itemId: parseInt(id) } })
     await prisma.item.delete({ where: { id: parseInt(id) } })

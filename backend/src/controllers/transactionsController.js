@@ -32,6 +32,7 @@ export const createTransaction = async (req, res) => {
         data: {
           userId: item.sellerId,
           itemId: parseInt(itemId),
+          itemTitle: item.title,
           buyerName: buyer.name,
           price: item.price,
           seen: false,
@@ -64,7 +65,6 @@ export const getMyTransactions = async (req, res) => {
       status:       t.status,
       created_at:   t.createdAt,
       item_id:      t.itemId,
-      // ✅ Use snapshot fields — survive item deletion
       item_title:   t.itemTitle,
       price:        t.price,
       quantity:     t.quantity,
@@ -90,7 +90,6 @@ export const deleteTransaction = async (req, res) => {
     const txn = await prisma.transaction.findUnique({ where: { id: txnId } })
     if (!txn) return res.status(404).json({ error: 'Transaction not found.' })
 
-    // Only the buyer or seller of this transaction can delete it
     if (txn.buyerId !== userId && txn.sellerId !== userId) {
       return res.status(403).json({ error: 'Not authorised to delete this transaction.' })
     }
