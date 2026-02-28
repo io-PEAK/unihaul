@@ -6,17 +6,24 @@ export const getNotifications = async (req, res) => {
     const userId = req.user.userId
     const notifications = await prisma.notification.findMany({
       where: { userId, seen: false },
-      include: { item: { select: { id: true, title: true } } },
       orderBy: { createdAt: 'desc' },
     })
-    res.json(notifications)
+    // Return itemId directly — don't include item relation (item may be deleted)
+    res.json(notifications.map(n => ({
+      id: n.id,
+      itemId: n.itemId,
+      buyerName: n.buyerName,
+      price: n.price,
+      seen: n.seen,
+      createdAt: n.createdAt,
+    })))
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch notifications.' })
   }
 }
 
-// POST /notifications/mark-seen — mark all as seen (called when visiting Dashboard)
+// POST /notifications/mark-seen — mark all as seen
 export const markNotificationsSeen = async (req, res) => {
   try {
     const userId = req.user.userId

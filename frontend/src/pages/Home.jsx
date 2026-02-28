@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -19,7 +20,7 @@ const subcategoryMap = {
   'Appliances':       ['Fan', 'Fridge', 'Microwave', 'Washing Machine', 'AC', 'Heater', 'Other'],
   'Games & Hobbies':  ['Board Game', 'Video Game', 'Puzzle', 'Instrument', 'Collectible', 'Other'],
   'Services':         ['Tutoring', 'Repair', 'Design', 'Photography', 'Other'],
-  'Food & Drinks':    ['Homemade', 'Packaged', 'Beverages', 'Snacks', 'Other'],
+  'Food & Drinks':    ['Snack', 'Full Meal', 'Dessert', 'Beverage', 'Breakfast', 'Homemade', 'Packaged'],
 }
 
 const subcategoryLabel = {
@@ -29,55 +30,348 @@ const subcategoryLabel = {
 
 const specFieldsMap = {
   'Electronics': [
-    { key: 'brand', label: 'Brand', placeholder: 'e.g. Dell, Apple' },
-    { key: 'ram', label: 'RAM', placeholder: 'e.g. 8GB, 16GB' },
-    { key: 'storage', label: 'Storage', placeholder: 'e.g. 256GB, 1TB' },
-    { key: 'processor', label: 'Processor', placeholder: 'e.g. Intel i5, M2' },
-    { key: 'display', label: 'Display', placeholder: 'e.g. 15.6", 4K' },
+    { key: 'brand',     label: 'Brand',     placeholder: 'e.g. Dell, Apple' },
+    { key: 'ram',       label: 'RAM',        placeholder: 'e.g. 8GB, 16GB' },
+    { key: 'storage',   label: 'Storage',    placeholder: 'e.g. 256GB, 1TB' },
+    { key: 'processor', label: 'Processor',  placeholder: 'e.g. Intel i5, M2' },
+    { key: 'display',   label: 'Display',    placeholder: 'e.g. 15.6", 4K' },
   ],
   'Clothing': [
-    { key: 'gender', label: 'Gender', placeholder: 'Male / Female / Unisex' },
-    { key: 'color', label: 'Color', placeholder: 'e.g. Black, White' },
-    { key: 'type', label: 'Type', placeholder: 'e.g. T-shirt, Jeans' },
+    { key: 'gender', label: 'Gender', placeholder: 'e.g. Male, Female, Unisex' },
+    { key: 'color',  label: 'Color',  placeholder: 'e.g. Black, Navy Blue' },
+    { key: 'type',   label: 'Type',   placeholder: 'e.g. T-Shirt, Jeans' },
   ],
   'Books & Notes': [
     { key: 'subject', label: 'Subject', placeholder: 'e.g. Physics, Maths' },
-    { key: 'author', label: 'Author', placeholder: 'e.g. H.C. Verma' },
-    { key: 'edition', label: 'Edition', placeholder: 'e.g. 3rd, 2023' },
+    { key: 'author',  label: 'Author',  placeholder: 'e.g. H.C. Verma' },
+    { key: 'edition', label: 'Edition', placeholder: 'e.g. 3rd Edition 2023' },
   ],
   'Furniture': [
-    { key: 'material', label: 'Material', placeholder: 'e.g. Wood, Metal' },
-    { key: 'color', label: 'Color', placeholder: 'e.g. Brown, White' },
+    { key: 'material',   label: 'Material',   placeholder: 'e.g. Wood, Metal' },
+    { key: 'color',      label: 'Color',      placeholder: 'e.g. Brown, White' },
     { key: 'dimensions', label: 'Dimensions', placeholder: 'e.g. 120×60 cm' },
   ],
   'Sports & Fitness': [
     { key: 'sport', label: 'Sport', placeholder: 'e.g. Cricket, Football' },
     { key: 'brand', label: 'Brand', placeholder: 'e.g. Nike, Adidas' },
-    { key: 'size', label: 'Size', placeholder: 'e.g. Size 7, XL' },
+    { key: 'size',  label: 'Size',  placeholder: 'e.g. Size 7, XL' },
   ],
   'Stationery': [
-    { key: 'type', label: 'Type', placeholder: 'e.g. Notebook, Pen set' },
+    { key: 'type',  label: 'Type',  placeholder: 'e.g. Notebook, Pen set' },
     { key: 'brand', label: 'Brand', placeholder: 'e.g. Classmate, Natraj' },
   ],
   'Appliances': [
-    { key: 'brand', label: 'Brand', placeholder: 'e.g. Samsung, LG' },
+    { key: 'brand',    label: 'Brand',    placeholder: 'e.g. Samsung, LG' },
     { key: 'capacity', label: 'Capacity', placeholder: 'e.g. 5kg, 200L' },
-    { key: 'color', label: 'Color', placeholder: 'e.g. White, Silver' },
+    { key: 'color',    label: 'Color',    placeholder: 'e.g. White, Silver' },
   ],
   'Games & Hobbies': [
     { key: 'platform', label: 'Platform', placeholder: 'e.g. PS5, PC, Mobile' },
-    { key: 'type', label: 'Type', placeholder: 'e.g. Strategy, Action' },
-    { key: 'brand', label: 'Brand', placeholder: 'e.g. Sony, Nintendo' },
+    { key: 'type',     label: 'Type',     placeholder: 'e.g. Strategy, Action' },
+    { key: 'brand',    label: 'Brand',    placeholder: 'e.g. Sony, Nintendo' },
   ],
   'Services': [
-    { key: 'mode', label: 'Mode', placeholder: 'Online / Offline / Both' },
-    { key: 'experience', label: 'Experience', placeholder: 'e.g. 2 years' },
+    { key: 'mode',       label: 'Mode',       placeholder: 'e.g. Online, Offline' },
+    { key: 'experience', label: 'Experience', placeholder: 'e.g. 2 years, Beginner' },
   ],
   'Food & Drinks': [
-    { key: 'type', label: 'Type', placeholder: 'e.g. Snack, Meal' },
-    { key: 'ingredients', label: 'Ingredients', placeholder: 'Main ingredients' },
-    { key: 'allergens', label: 'Allergens', placeholder: 'e.g. Nuts, Gluten' },
+    { key: 'diet',     label: 'Diet',     placeholder: 'e.g. Vegetarian, Vegan' },
+    { key: 'contains', label: 'Contains', placeholder: 'e.g. Nuts, Dairy'       },
   ],
+}
+
+const specSuggestionsMap = {
+  'Electronics': {
+    brand:     ['Apple', 'Dell', 'HP', 'Lenovo', 'Samsung', 'Sony', 'Asus', 'Acer', 'OnePlus', 'Xiaomi', 'LG', 'MSI'],
+    ram:       ['4GB', '8GB', '12GB', '16GB', '32GB', '64GB'],
+    storage:   ['128GB', '256GB', '512GB', '1TB', '2TB', '500GB SSD', '1TB HDD'],
+    processor: ['Intel i3', 'Intel i5', 'Intel i7', 'Intel i9', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3', 'Snapdragon 8'],
+    display:   ['13.3"', '14"', '15.6"', '16"', '17.3"', '6.1"', '6.7"', '4K', 'FHD', 'OLED', 'AMOLED'],
+  },
+  'Clothing': {
+    gender: ['Male', 'Female', 'Unisex', 'Kids'],
+    color:  ['Black', 'White', 'Navy Blue', 'Grey', 'Red', 'Green', 'Yellow', 'Pink', 'Brown', 'Beige', 'Maroon'],
+    type:   ['T-Shirt', 'Jeans', 'Shirt', 'Kurta', 'Hoodie', 'Jacket', 'Saree', 'Salwar', 'Shorts', 'Ethnic Wear', 'Formal Wear', 'Sportswear'],
+  },
+  'Books & Notes': {
+    subject: ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English', 'Economics', 'Management', 'Engineering Maths', 'Data Structures'],
+    edition: ['1st Edition', '2nd Edition', '3rd Edition', '4th Edition', '5th Edition', '2021', '2022', '2023', '2024'],
+  },
+  'Furniture': {
+    material:   ['Solid Wood', 'Plywood', 'MDF', 'Metal', 'Steel', 'Glass', 'Plastic', 'Bamboo'],
+    color:      ['Brown', 'White', 'Black', 'Natural Wood', 'Grey', 'Walnut', 'Oak'],
+    dimensions: ['90×200cm (Single)', '135×200cm (Double)', '120×60cm', '80×80cm', '150×75cm'],
+  },
+  'Sports & Fitness': {
+    sport: ['Cricket', 'Football', 'Basketball', 'Badminton', 'Tennis', 'Cycling', 'Swimming', 'Gym', 'Yoga', 'Table Tennis'],
+    brand: ['Nike', 'Adidas', 'Puma', 'Reebok', 'SG', 'SS', 'Yonex', 'Cosco', 'Decathlon', 'Under Armour'],
+    size:  ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Size 5', 'Size 6', 'Size 7', 'One Size'],
+  },
+  'Stationery': {
+    type:  ['Notebook', 'Pen Set', 'Pencil Box', 'Highlighters', 'Sticky Notes', 'Markers', 'Folders', 'Art Supplies', 'Geometry Box'],
+    brand: ['Classmate', 'Natraj', 'Camlin', 'Apsara', 'Reynolds', 'Cello', 'Parker', 'Pilot', 'Staedtler', 'Faber-Castell'],
+  },
+  'Appliances': {
+    brand:    ['Samsung', 'LG', 'Whirlpool', 'Bosch', 'IFB', 'Havells', 'Bajaj', 'Usha', 'Voltas', 'Godrej'],
+    capacity: ['5kg', '6kg', '7kg', '8kg', '150L', '200L', '250L', '300L', '0.5 ton', '1 ton', '1.5 ton'],
+    color:    ['White', 'Silver', 'Black', 'Grey', 'Stainless Steel'],
+  },
+  'Games & Hobbies': {
+    platform: ['PS5', 'PS4', 'Xbox Series X', 'Xbox One', 'Nintendo Switch', 'PC', 'Mobile', 'Board Game'],
+    type:     ['Action', 'Strategy', 'RPG', 'Sports', 'Racing', 'Puzzle', 'Simulation', 'Adventure', 'FPS', 'Horror'],
+    brand:    ['Sony', 'Nintendo', 'Microsoft', 'EA', 'Ubisoft', 'Activision', 'Lego', 'Hasbro', 'Mattel'],
+  },
+  'Services': {
+    mode:       ['Online', 'Offline', 'Both Online & Offline', 'Home Visit', 'Remote'],
+    experience: ['Beginner', '6 months', '1 year', '2 years', '3+ years', '5+ years', 'Student', 'Professional'],
+  },
+  'Food & Drinks': {
+    type:     ['Snack', 'Full Meal', 'Dessert', 'Beverage', 'Breakfast', 'Homemade', 'Packaged'],
+    diet:     ['Vegetarian', 'Non-Vegetarian', 'Vegan', 'Gluten-Free'],
+    contains: ['No Allergens', 'Nuts', 'Dairy', 'Gluten', 'Soy', 'Eggs', 'Shellfish'],
+  },
+}
+
+// ─── Shared dark dropdown style ───────────────────────────────────────────────
+const dropMenuStyle = {
+  background: 'linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,20,0.99) 100%)',
+  border: '1px solid rgba(232,119,34,0.3)',
+  maxHeight: '200px', overflowY: 'auto',
+  boxShadow: '0 20px 48px rgba(0,0,0,0.85)',
+  borderRadius: '0 0 9px 9px',
+  borderTop: 'none',
+}
+
+// ─── Smart Spec Input with suggestions dropdown ──────────────────────────────
+function FilterSpecInput({ fieldKey, value, placeholder, onChange, suggestions = [], openKey, setOpenKey }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null)
+  const wrapRef = useRef(null)
+  const [focused, setFocused] = useState(false)
+  const [dropRect, setDropRect] = useState(null)
+  const isOpen = openKey === fieldKey
+
+  const filtered = value
+    ? suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase())
+    : suggestions
+
+  useEffect(() => {
+    function onOut(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target) && !e.target.closest('[data-portal-dropdown]')) {
+        if (isOpen) setOpenKey(null)
+        setFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [isOpen, setOpenKey])
+
+  // Update dropdown position on scroll so it tracks the input
+  useEffect(() => {
+    if (!isOpen) return
+    function onScroll() {
+      if (wrapRef.current) {
+        const r = wrapRef.current.getBoundingClientRect()
+        setDropRect({ top: r.bottom, left: r.left, width: r.width })
+      }
+    }
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [isOpen])
+
+  function openDrop() {
+    if (wrapRef.current) {
+      const r = wrapRef.current.getBoundingClientRect()
+      setDropRect({ top: r.bottom, left: r.left, width: r.width })
+    }
+    setOpenKey(fieldKey)
+  }
+
+  const dropdown = isOpen && filtered.length > 0 && dropRect && createPortal(
+    <div data-portal-dropdown
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+      ...dropMenuStyle,
+      position: 'fixed',
+      top: dropRect.top,
+      left: dropRect.left,
+      width: dropRect.width,
+      zIndex: 99999999,
+    }}>
+      {filtered.map((s, i) => {
+        const matchIdx = value ? s.toLowerCase().indexOf(value.toLowerCase()) : -1
+        return (
+          <div key={s}
+            data-portal-dropdown
+            onMouseDown={e => { e.preventDefault(); onChange(s); setOpenKey(null) }}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{
+              padding: '0.45rem 0.85rem', fontSize: '0.78rem', cursor: 'pointer',
+              color: hoveredIdx === i ? '#f0a040' : 'rgba(255,255,255,0.7)',
+              background: hoveredIdx === i ? 'rgba(232,119,34,0.1)' : 'transparent',
+              transition: 'all 0.12s', borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            }}
+          >
+            {matchIdx >= 0 ? (
+              <span>
+                {s.slice(0, matchIdx)}
+                <span style={{ color: '#e87722', fontWeight: '700' }}>{s.slice(matchIdx, matchIdx + value.length)}</span>
+                {s.slice(matchIdx + value.length)}
+              </span>
+            ) : s}
+          </div>
+        )
+      })}
+    </div>,
+    document.body
+  )
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={e => { onChange(e.target.value); openDrop() }}
+          onFocus={() => { setFocused(true); openDrop() }}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%',
+            padding: suggestions.length > 0 ? '0.52rem 1.8rem 0.52rem 0.85rem' : '0.52rem 0.85rem',
+            background: 'rgba(255,255,255,0.05)',
+            border: focused ? '1px solid rgba(232,119,34,0.45)' : value ? '1px solid rgba(232,119,34,0.38)' : '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '9px',
+            color: value ? 'white' : undefined, fontSize: '0.8rem',
+            outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+            appearance: 'none', WebkitAppearance: 'none',
+          }}
+        />
+        {suggestions.length > 0 && (
+          <button
+            type="button"
+            onMouseDown={e => { e.preventDefault(); if (isOpen) { setOpenKey(null) } else { openDrop() } }}
+            style={{
+              position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem',
+              color: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'rgba(232,119,34,0.6)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+          >
+            <svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor"
+              style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M8 11L3 6h10z"/>
+            </svg>
+          </button>
+        )}
+      </div>
+      {dropdown}
+    </div>
+  )
+}
+
+// ─── Custom Category dropdown for filter panel ────────────────────────────────
+function FilterCategorySelect({ value, onChange, options, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const [hIdx, setHIdx] = useState(null)
+  const [dropRect, setDropRect] = useState(null)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target) && !e.target.closest('[data-portal-dropdown]'))
+        setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Update dropdown position on scroll
+  useEffect(() => {
+    if (!open) return
+    function onScroll() {
+      if (wrapRef.current) {
+        const r = wrapRef.current.getBoundingClientRect()
+        setDropRect({ top: r.bottom, left: r.left, width: r.width })
+      }
+    }
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [open])
+
+  function openDrop() {
+    if (wrapRef.current) {
+      const r = wrapRef.current.getBoundingClientRect()
+      setDropRect({ top: r.bottom, left: r.left, width: r.width })
+    }
+    setOpen(true)
+  }
+
+  const dropdown = open && dropRect && createPortal(
+    <div data-portal-dropdown
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+      ...dropMenuStyle,
+      position: 'fixed',
+      top: dropRect.top,
+      left: dropRect.left,
+      width: dropRect.width,
+      zIndex: 99999999,
+    }}>
+      {['', ...options].map((opt, i) => {
+        const lbl = opt || placeholder
+        const isActive = opt === value
+        return (
+          <div key={opt}
+            data-portal-dropdown
+            onMouseDown={e => { e.preventDefault(); onChange(opt); setOpen(false) }}
+            onMouseEnter={() => setHIdx(i)} onMouseLeave={() => setHIdx(null)}
+            style={{
+              padding: '0.45rem 0.85rem', fontSize: '0.78rem', cursor: 'pointer',
+              color: isActive ? '#f0a040' : hIdx === i ? '#f0a040' : 'rgba(255,255,255,0.7)',
+              background: isActive ? 'rgba(232,119,34,0.12)' : hIdx === i ? 'rgba(232,119,34,0.08)' : 'transparent',
+              borderBottom: i < options.length ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              fontWeight: isActive ? '600' : '400',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}
+          >
+            {isActive && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1,6 4,9 11,3" stroke="#f0a040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            {!isActive && <span style={{ width: '9px' }} />}
+            {lbl}
+          </div>
+        )
+      })}
+    </div>,
+    document.body
+  )
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onMouseDown={() => { if (open) setOpen(false); else openDrop() }}
+        style={{
+          width: '100%', padding: '0.52rem 2rem 0.52rem 0.85rem',
+          background: 'rgba(255,255,255,0.05)',
+          border: open ? '1px solid rgba(232,119,34,0.45)' : value ? '1px solid rgba(232,119,34,0.3)' : '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '9px',
+          color: value ? 'white' : 'rgba(255,255,255,0.3)', fontSize: '0.8rem',
+          cursor: 'pointer', outline: 'none', textAlign: 'left', boxSizing: 'border-box',
+          transition: 'border-color 0.2s', display: 'flex', alignItems: 'center',
+        }}
+      >
+        <span style={{ flex: 1 }}>{value || placeholder}</span>
+        <span style={{
+          position: 'absolute', right: '0.75rem', top: '50%',
+          transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.2s',
+        }}>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.3)"><path d="M8 11L3 6h10z"/></svg>
+        </span>
+      </button>
+      {dropdown}
+    </div>
+  )
 }
 
 const statusOptions = ['available', 'pending', 'sold']
@@ -227,8 +521,17 @@ function Home() {
   const statusMenuRef = useRef(null)
   const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
 
+  // One spec dropdown open at a time
+  const [openSpecKey, setOpenSpecKey] = useState(null)
+
   // Single source of truth — filters applied live, no draft
-  const [filters, setFilters] = useState({ ...emptyFilters })
+  // Restore from sessionStorage so filters survive back-navigation
+  const [filters, setFilters] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('homeFilters')
+      return saved ? JSON.parse(saved) : { ...emptyFilters }
+    } catch { return { ...emptyFilters } }
+  })
 
   const subcats    = subcategoryMap[filters.category]  || []
   const subLabel   = subcategoryLabel[filters.category] || 'Subcategory'
@@ -250,6 +553,11 @@ function Home() {
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
+
+  // Persist filters across navigation (back button from item detail)
+  useEffect(() => {
+    sessionStorage.setItem('homeFilters', JSON.stringify(filters))
+  }, [filters])
 
   function setCategory(cat) {
     setFilters(f => ({ ...f, category: cat, subcategory: '', specs: {} }))
@@ -459,6 +767,7 @@ function Home() {
             width: '360px',
             maxHeight: `calc(100vh - ${panelPos.top}px - 16px)`,
             overflowY: 'auto',
+            overflowX: 'visible',
             background: 'linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,19,0.99) 100%)',
             backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)',
             border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px',
@@ -507,16 +816,12 @@ function Home() {
               {/* Category — live apply */}
               <div>
                 <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', fontWeight: '700', marginBottom: '0.55rem' }}>Category</div>
-                <div style={{ position: 'relative' }}>
-                  <select value={filters.category} onChange={e => setCategory(e.target.value)}
-                    style={{ ...pi, paddingRight: '2rem', cursor: 'pointer', color: filters.category ? 'white' : 'rgba(255,255,255,0.3)' }}>
-                    <option value="">All Categories</option>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.3)"><path d="M8 11L3 6h10z"/></svg>
-                  </div>
-                </div>
+                <FilterCategorySelect
+                  value={filters.category}
+                  onChange={val => setCategory(val)}
+                  options={categories}
+                  placeholder="All Categories"
+                />
               </div>
 
               {/* Subcategory chips — live apply */}
@@ -540,7 +845,7 @@ function Home() {
                 </div>
               )}
 
-              {/* Specs — live apply via debounce (already handled in useEffect) */}
+              {/* Specs — smart suggestions + free type */}
               {specFields.length > 0 && (
                 <div style={{ animation: 'chipIn 0.25s ease' }}>
                   <div style={{ height: '1px', background: 'rgba(255,255,255,0.055)', marginBottom: '1.1rem' }} />
@@ -554,28 +859,20 @@ function Home() {
                     {specFields.map(f => (
                       <div key={f.key}>
                         <div style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700', marginBottom: '0.3rem' }}>{f.label}</div>
-                        <input type="text" value={filters.specs[f.key] || ''} placeholder={f.placeholder}
-                          onChange={e => setFilters(d => ({ ...d, specs: { ...d.specs, [f.key]: e.target.value } }))}
-                          style={{
-                            ...pi,
-                            border: filters.specs[f.key] ? '1px solid rgba(232,119,34,0.38)' : '1px solid rgba(255,255,255,0.07)',
-                            color: filters.specs[f.key] ? 'white' : undefined,
-                          }}
-                          onFocus={e => e.target.style.borderColor = 'rgba(232,119,34,0.45)'}
-                          onBlur={e => e.target.style.borderColor = filters.specs[f.key] ? 'rgba(232,119,34,0.38)' : 'rgba(255,255,255,0.07)'}
+                        <FilterSpecInput
+                          fieldKey={f.key}
+                          value={filters.specs[f.key] || ''}
+                          placeholder={f.placeholder}
+                          onChange={val => setFilters(d => ({ ...d, specs: { ...d.specs, [f.key]: val } }))}
+                          suggestions={(specSuggestionsMap[filters.category] || {})[f.key] || []}
+                          openKey={openSpecKey}
+                          setOpenKey={setOpenSpecKey}
                         />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Live indicator */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', paddingTop: '0.25rem' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#51cf66', boxShadow: '0 0 6px #51cf6680', display: 'inline-block', animation: 'chipIn 0.3s ease' }} />
-                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: '600' }}>Filters apply instantly</span>
-              </div>
-
             </div>
           </div>
         )}

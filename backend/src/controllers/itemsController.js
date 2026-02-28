@@ -1,6 +1,5 @@
 import prisma from '../lib/prisma.js'
 
-// ─── Spec fields per category ────────────────────────────────────────────────
 const CATEGORY_SPEC_KEYS = {
   'Electronics':      ['brand', 'ram', 'storage', 'processor', 'display'],
   'Clothing':         ['gender', 'color', 'type'],
@@ -15,7 +14,6 @@ const CATEGORY_SPEC_KEYS = {
   'Other':            [],
 }
 
-// Build Prisma AND conditions for JSON spec filters from query params
 function buildSpecFilters(category, query) {
   const keys = CATEGORY_SPEC_KEYS[category] || []
   return keys
@@ -28,13 +26,10 @@ function buildSpecFilters(category, query) {
     }))
 }
 
-// ─── GET /items ──────────────────────────────────────────────────────────────
 export const getItems = async (req, res) => {
   const { search, category, subcategory, sortPrice, ...rest } = req.query
-
   try {
     const specFilters = category ? buildSpecFilters(category, rest) : []
-
     const items = await prisma.item.findMany({
       where: {
         AND: [
@@ -52,7 +47,6 @@ export const getItems = async (req, res) => {
         sortPrice === 'desc' ? { price: 'desc' }  :
         { createdAt: 'desc' },
     })
-
     res.json(items)
   } catch (err) {
     console.error(err)
@@ -60,7 +54,6 @@ export const getItems = async (req, res) => {
   }
 }
 
-// ─── GET /items/mine ─────────────────────────────────────────────────────────
 export const getMyItems = async (req, res) => {
   const userId = req.user.userId
   try {
@@ -76,7 +69,6 @@ export const getMyItems = async (req, res) => {
   }
 }
 
-// ─── GET /items/:id ──────────────────────────────────────────────────────────
 export const getItemById = async (req, res) => {
   const { id } = req.params
   try {
@@ -92,7 +84,6 @@ export const getItemById = async (req, res) => {
   }
 }
 
-// ─── POST /items ─────────────────────────────────────────────────────────────
 export const createItem = async (req, res) => {
   const { title, description, price, category, subcategory, imageUrl, condition, quantity, specs } = req.body
   const sellerId = req.user.userId
@@ -101,13 +92,11 @@ export const createItem = async (req, res) => {
   if (isNaN(parsedPrice) || parsedPrice <= 0) {
     return res.status(400).json({ error: 'Price must be greater than ₹0.' })
   }
-
   const parsedQuantity = parseInt(quantity) || 1
   if (parsedQuantity < 1) {
     return res.status(400).json({ error: 'Quantity must be at least 1.' })
   }
 
-  // Strip empty values before saving to DB
   const cleanSpecs = specs && typeof specs === 'object'
     ? Object.fromEntries(Object.entries(specs).filter(([_, v]) => v && String(v).trim() !== ''))
     : null
@@ -115,13 +104,8 @@ export const createItem = async (req, res) => {
   try {
     const item = await prisma.item.create({
       data: {
-        title,
-        description,
-        price: parsedPrice,
-        category,
-        subcategory: subcategory || null,
-        imageUrl,
-        condition,
+        title, description, price: parsedPrice, category,
+        subcategory: subcategory || null, imageUrl, condition,
         quantity: parsedQuantity,
         specs: cleanSpecs && Object.keys(cleanSpecs).length > 0 ? cleanSpecs : undefined,
         sellerId: parseInt(sellerId),
@@ -134,7 +118,6 @@ export const createItem = async (req, res) => {
   }
 }
 
-// ─── PUT /items/:id ──────────────────────────────────────────────────────────
 export const updateItem = async (req, res) => {
   const { id } = req.params
   const { title, description, price, category, subcategory, imageUrl, status, condition, quantity, specs } = req.body
@@ -157,14 +140,8 @@ export const updateItem = async (req, res) => {
     const updated = await prisma.item.update({
       where: { id: parseInt(id) },
       data: {
-        title,
-        description,
-        price: parsedPrice,
-        category,
-        subcategory: subcategory || null,
-        imageUrl,
-        status,
-        condition,
+        title, description, price: parsedPrice, category,
+        subcategory: subcategory || null, imageUrl, status, condition,
         ...(quantity !== undefined && { quantity: parseInt(quantity) }),
         ...(specs !== undefined && {
           specs: cleanSpecs && Object.keys(cleanSpecs).length > 0 ? cleanSpecs : undefined,
@@ -178,7 +155,6 @@ export const updateItem = async (req, res) => {
   }
 }
 
-// ─── DELETE /items/:id ───────────────────────────────────────────────────────
 export const deleteItem = async (req, res) => {
   const { id } = req.params
   const userId = req.user.userId
@@ -188,7 +164,7 @@ export const deleteItem = async (req, res) => {
     if (item.sellerId !== parseInt(userId)) return res.status(403).json({ error: 'Not your item.' })
 
     await prisma.message.deleteMany({ where: { itemId: parseInt(id) } })
-    await prisma.transaction.deleteMany({ where: { itemId: parseInt(id) } })
+    //    itemId will become null via onDelete: SetNull, snapshot fields preserve all data
     await prisma.notification.deleteMany({ where: { itemId: parseInt(id) } })
     await prisma.cartItem.deleteMany({ where: { itemId: parseInt(id) } })
     await prisma.item.delete({ where: { id: parseInt(id) } })

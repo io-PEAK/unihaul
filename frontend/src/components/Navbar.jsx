@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import API from '../api/axios'
 
-function NavLink({ to, label, isActive, onClick, showDot }) {
+function NavLink({ to, label, isActive, onClick, showDot, onDotClick }) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
@@ -29,13 +29,18 @@ function NavLink({ to, label, isActive, onClick, showDot }) {
         }} />
       )}
       {showDot && (
-        <div style={{
-          position: 'absolute', top: '2px', right: '2px',
-          width: '8px', height: '8px', borderRadius: '50%',
-          background: '#ff4444',
-          boxShadow: '0 0 6px rgba(255,68,68,0.8)',
-          border: '1.5px solid rgba(20,18,40,0.9)',
-        }} />
+        <div
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onDotClick && onDotClick() }}
+          title="New sale — click to view"
+          style={{
+            position: 'absolute', top: '2px', right: '2px',
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: '#ff4444',
+            boxShadow: '0 0 6px rgba(255,68,68,0.8)',
+            border: '1.5px solid rgba(20,18,40,0.9)',
+            cursor: 'pointer',
+          }}
+        />
       )}
     </Link>
   )
@@ -127,7 +132,6 @@ function Navbar({ hasUnseenNotifications }) {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      // ✅ FIX: read guest cart from localStorage instead of forcing 0
       const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
       setCartCount(guestCart.length)
       return
@@ -147,6 +151,11 @@ function Navbar({ hasUnseenNotifications }) {
     localStorage.removeItem('pendingNotifications')
     setCartCount(0)
     navigate('/')
+  }
+
+  // When user clicks the red dot on Dashboard link → go straight to sold tab
+  function handleDotClick() {
+    navigate('/dashboard?tab=sold')
   }
 
   return (
@@ -197,19 +206,12 @@ function Navbar({ hasUnseenNotifications }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
                   <span style={{ fontSize: '1.3rem', fontWeight: '900', color: 'white', letterSpacing: '-1px', textTransform: 'uppercase' }}>Student</span>
-                  <span style={{
-                    fontSize: '1.3rem', fontWeight: '900', letterSpacing: '-1px', textTransform: 'uppercase',
-                    background: 'linear-gradient(135deg, #e87722, #f5a623)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                  }}>Shop</span>
+                  <span style={{ fontSize: '1.3rem', fontWeight: '900', letterSpacing: '-1px', textTransform: 'uppercase', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Shop</span>
                 </div>
-                <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '2.5px', textTransform: 'uppercase', marginTop: '-1px' }}>
-                  Campus Buy & Sell
-                </div>
+                <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '2.5px', textTransform: 'uppercase', marginTop: '-1px' }}>Campus Buy & Sell</div>
               </div>
             </Link>
             <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.08)', marginLeft: '0.5rem' }} />
-            {/* ✅ FIX: always pass cartCount directly (no more isLoggedIn ? cartCount : 0) */}
             <CartIcon count={cartCount} />
             <HistoryIcon />
           </div>
@@ -234,6 +236,7 @@ function Navbar({ hasUnseenNotifications }) {
               label="Dashboard"
               isActive={location.pathname === '/dashboard'}
               showDot={hasUnseenNotifications}
+              onDotClick={handleDotClick}
             />
             {isLoggedIn ? (
               <button
