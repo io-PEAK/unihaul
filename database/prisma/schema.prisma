@@ -7,41 +7,66 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   name         String
-  email        String        @unique
+  email        String    @unique
   passwordHash String
-  createdAt    DateTime      @default(now())
 
-  items        Item[]
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
-  buyerTxns    Transaction[] @relation("BuyerTransactions")
-  sellerTxns   Transaction[] @relation("SellerTransactions")
-  cartItems    CartItem[]
-  notifications Notification[]
+  phone        String?
+  avatar       String?
+  bio          String?
+
+  institution      String?
+  institutionType  String?
+  city             String?
+  state            String?
+
+  notificationsEnabled Boolean @default(true)
+  theme                String  @default("ember")
+
+  googleId     String?   @unique
+  authProvider String    @default("local")
+
+  profileComplete Boolean @default(true)
+
+  createdAt    DateTime  @default(now())
+
+  items            Item[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  buyerTxns        Transaction[]  @relation("BuyerTransactions")
+  sellerTxns       Transaction[]  @relation("SellerTransactions")
+  cartItems        CartItem[]
+  notifications    Notification[]
 }
 
 model Item {
-  id          Int           @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   title       String
   description String?
   price       Float
   category    String
   subcategory String?
   condition   String
-  status      String        @default("available")
-  quantity    Int           @default(1)
+  status      String   @default("available")
+  quantity    Int      @default(1)
   specs       Json?
+  createdAt   DateTime @default(now())
+
   imageUrl    String?
-  createdAt   DateTime      @default(now())
+  images      String[]
+
+  sellerInstitution     String?
+  sellerInstitutionType String?
+  sellerCity            String?
+  sellerState           String?
 
   sellerId    Int
   seller      User          @relation(fields: [sellerId], references: [id])
 
-  messages     Message[]
-  transactions Transaction[]
-  cartItems    CartItem[]
+  messages      Message[]
+  transactions  Transaction[]
+  cartItems     CartItem[]
   notifications Notification[]
 }
 
@@ -55,9 +80,9 @@ model Message {
   receiverId Int
   itemId     Int
 
-  sender     User @relation("SentMessages", fields: [senderId], references: [id])
+  sender     User @relation("SentMessages",    fields: [senderId],   references: [id])
   receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  item       Item @relation(fields: [itemId], references: [id])
+  item       Item @relation(fields: [itemId],  references: [id])
 }
 
 model Transaction {
@@ -70,12 +95,12 @@ model Transaction {
   itemTitle    String   @default("")
   itemCategory String   @default("")
 
-  itemId    Int?          
+  itemId    Int?
   buyerId   Int
   sellerId  Int
 
-  item      Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  buyer     User  @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  item      Item? @relation(fields: [itemId],   references: [id], onDelete: SetNull)
+  buyer     User  @relation("BuyerTransactions", fields: [buyerId],  references: [id])
   seller    User  @relation("SellerTransactions", fields: [sellerId], references: [id])
 }
 

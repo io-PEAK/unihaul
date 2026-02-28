@@ -2,24 +2,35 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const ThemeContext = createContext()
 
+export const THEMES = [
+  { id: 'ember',    label: 'Ember',    desc: 'Dark • Orange',      preview: ['#080810', '#e87722'] },
+  { id: 'midnight', label: 'Midnight', desc: 'Dark Navy • Blue',   preview: ['#070b14', '#4f8ef7'] },
+  { id: 'chalk',    label: 'Chalk',    desc: 'Light • Warm',       preview: ['#f2f0eb', '#e87722'] },
+]
+
 export function ThemeProvider({ children }) {
-  const [mode, setMode] = useState(() => {
-    return localStorage.getItem('theme') || 'default'
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'ember'
   })
 
   useEffect(() => {
-    localStorage.setItem('theme', mode)
-    if (mode === 'black') {
-      document.documentElement.setAttribute('data-theme', 'black')
-    } else {
-      document.documentElement.removeAttribute('data-theme')
-    }
-  }, [mode])
+    localStorage.setItem('theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
-  const toggle = () => setMode(prev => (prev === 'default' ? 'black' : 'default'))
+  // Cycle through themes: ember → midnight → chalk → ember
+  const toggle = () => {
+    const ids = THEMES.map(t => t.id)
+    const idx = ids.indexOf(theme)
+    setTheme(ids[(idx + 1) % ids.length])
+  }
+
+  const setThemeById = (id) => {
+    if (THEMES.find(t => t.id === id)) setTheme(id)
+  }
 
   return (
-    <ThemeContext.Provider value={{ mode, toggle }}>
+    <ThemeContext.Provider value={{ theme, toggle, setThemeById, themes: THEMES }}>
       {children}
     </ThemeContext.Provider>
   )
