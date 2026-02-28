@@ -70,13 +70,13 @@ model Transaction {
   itemTitle    String   @default("")
   itemCategory String   @default("")
 
-  itemId    Int
+  itemId    Int?          
   buyerId   Int
   sellerId  Int
 
-  item      Item @relation(fields: [itemId], references: [id])
-  buyer     User @relation("BuyerTransactions", fields: [buyerId], references: [id])
-  seller    User @relation("SellerTransactions", fields: [sellerId], references: [id])
+  item      Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  buyer     User  @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller    User  @relation("SellerTransactions", fields: [sellerId], references: [id])
 }
 
 model CartItem {

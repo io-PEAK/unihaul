@@ -2,20 +2,141 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
 
+// ── Transaction Detail Modal ──────────────────────────────────
+function TxnDetailModal({ txn, onClose }) {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const isBuyer = txn.buyer_id === user.id
+  const isDeleted = !txn.item_id
+  // "Listing removed" info is only relevant to the seller — they deleted it
+  const showListingRemoved = isDeleted && !isBuyer
+
+  const qty = txn.quantity || 1
+  const totalPrice = txn.price  // price stored in DB is already the total
+  const unitPrice = qty > 1 ? Math.round(totalPrice / qty) : totalPrice
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '1.5rem' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.5rem', maxWidth: '520px', width: '100%', position: 'relative', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }}
+      >
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)' }} />
+
+        {/* Close button */}
+        <button onClick={onClose}
+          style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
+        >&times;</button>
+
+        {/* Category — only show "Listing Removed" badge to seller */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+          {txn.category && (
+            <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>{txn.category}</span>
+          )}
+          {showListingRemoved && (
+            <span style={{ fontSize: '0.6rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,107,107,0.7)', fontWeight: '700', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.15)', padding: '2px 8px', borderRadius: '20px' }}>Listing Removed</span>
+          )}
+        </div>
+
+        {/* Title */}
+        <h2 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-1px', color: 'rgba(255,255,255,0.95)', margin: '0 0 1.5rem 0', lineHeight: 1.1 }}>
+          {txn.item_title || 'Deleted Item'}
+        </h2>
+
+        {/* Price — unit price prominent, total shown if multi-qty */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          {qty > 1 ? (
+            // Multi-quantity: show unit price as main, breakdown below
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', display: 'inline-block' }}>
+                  &#8377;{unitPrice}
+                </div>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600' }}>per unit</span>
+              </div>
+              <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', fontWeight: '500' }}>
+                  &#8377;{unitPrice} &times; {qty} units
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.7rem' }}>=</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'rgba(255,255,255,0.7)' }}>
+                  &#8377;{totalPrice} total
+                </span>
+              </div>
+            </div>
+          ) : (
+            // Single unit: just show the price cleanly
+            <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', display: 'inline-block' }}>
+              &#8377;{totalPrice}
+            </div>
+          )}
+        </div>
+
+        <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
+
+        {/* Info grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '1.5rem' }}>
+          {[
+            { label: isBuyer ? 'Seller' : 'Buyer', value: isBuyer ? txn.seller_name : txn.buyer_name },
+            { label: 'Category', value: txn.category || '—' },
+            { label: 'Role', value: isBuyer ? 'Bought' : 'Sold', isRole: true },
+            { label: 'Quantity', value: `${qty} unit${qty > 1 ? 's' : ''}` },
+            { label: 'Date', value: txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—', fullWidth: true },
+          ].map(({ label, value, isRole, fullWidth }) => (
+            <div key={label} style={{ gridColumn: fullWidth ? '1 / -1' : 'auto', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.85rem 1rem', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)' }} />
+              <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: '0.35rem', fontWeight: '700' }}>{label}</div>
+              {isRole ? (
+                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>
+                  {value}
+                </span>
+              ) : (
+                <div style={{ fontWeight: '600', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', letterSpacing: '-0.2px' }}>{value}</div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Status bar — always shows Purchase/Sale completed. Seller also sees listing note. */}
+        <div style={{ textAlign: 'center', padding: '0.75rem', borderRadius: '12px', fontSize: '0.82rem', fontWeight: '600', letterSpacing: '0.3px', background: isBuyer ? 'rgba(116,185,255,0.06)' : 'rgba(81,207,102,0.06)', border: isBuyer ? '1px solid rgba(116,185,255,0.1)' : '1px solid rgba(81,207,102,0.1)', color: isBuyer ? 'rgba(116,185,255,0.6)' : 'rgba(81,207,102,0.6)' }}>
+          {isBuyer ? 'Purchase completed' : 'Sale completed'}
+        </div>
+
+        {/* Seller-only note: listing was removed after sale */}
+        {showListingRemoved && (
+          <div style={{ marginTop: '0.65rem', textAlign: 'center', padding: '0.6rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '500', color: 'rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.04)', border: '1px solid rgba(255,107,107,0.08)' }}>
+            You removed this listing after the sale
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Transaction Row ───────────────────────────────────────────
-function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
+function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen }) {
   const [hovered, setHovered] = useState(false)
   const [trashHovered, setTrashHovered] = useState(false)
-  const navigate = useNavigate()
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isBuyer = txn.buyer_id === user.id
   const role = isBuyer ? 'Bought' : 'Sold'
   const otherParty = isBuyer ? (txn.seller_name || 'Seller') : (txn.buyer_name || 'Buyer')
+  const qty = txn.quantity || 1
 
   function handleClick(e) {
     if (selectMode) { onToggle(); return }
-    if (txn.item_id) navigate(`/items/${txn.item_id}`, { state: { from: '/transactions' } })
+    onOpen()
   }
 
   const showCheckbox = hovered || selectMode
@@ -34,15 +155,11 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
           ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)'
           : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: selected
-          ? '1px solid rgba(232,119,34,0.3)'
-          : hovered ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.06)',
+        border: selected ? '1px solid rgba(232,119,34,0.3)' : hovered ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.06)',
         borderRadius: '16px', padding: '1.25rem 1.5rem',
         transition: 'all 0.2s ease', cursor: 'pointer',
         position: 'relative', overflow: 'hidden',
-        boxShadow: selected
-          ? '0 4px 20px rgba(232,119,34,0.1)'
-          : hovered ? '0 8px 24px rgba(0,0,0,0.18)' : '0 4px 15px rgba(0,0,0,0.08)',
+        boxShadow: selected ? '0 4px 20px rgba(232,119,34,0.1)' : hovered ? '0 8px 24px rgba(0,0,0,0.18)' : '0 4px 15px rgba(0,0,0,0.08)',
       }}
     >
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
@@ -74,38 +191,19 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {txn.item_title || 'Deleted Item'}
           </h3>
-          {/* ✅ Quantity badge */}
-          {txn.quantity > 1 && (
-            <span style={{
-              fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px',
-              background: 'rgba(232,119,34,0.15)', color: '#e87722',
-              border: '1px solid rgba(232,119,34,0.3)',
-              padding: '2px 8px', borderRadius: '20px', flexShrink: 0,
-            }}>×{txn.quantity}</span>
+          {qty > 1 && (
+            <span style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px', background: 'rgba(232,119,34,0.15)', color: '#e87722', border: '1px solid rgba(232,119,34,0.3)', padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>&times;{qty}</span>
           )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* ✅ Show snapshot total price, with unit breakdown if qty > 1 */}
           <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            ₹{txn.price}
+            &#8377;{txn.price}
           </span>
-          {txn.quantity > 1 && (
-            <span style={{ fontSize: '0.72rem', color: 'rgba(232,119,34,0.55)', fontWeight: '500' }}>
-              ₹{(txn.price / txn.quantity).toFixed(2)} × {txn.quantity}
-            </span>
-          )}
-
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{otherParty}</span>
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-          <span style={{
-            fontSize: '0.7rem', fontWeight: '700',
-            color: isBuyer ? '#74b9ff' : '#51cf66',
-            background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)',
-            padding: '2px 10px', borderRadius: '20px',
-            border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)',
-          }}>{role}</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>{role}</span>
           {txn.created_at && (
             <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)' }}>
               {new Date(txn.created_at).toLocaleDateString()}
@@ -121,17 +219,8 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
             onClick={e => { e.stopPropagation(); onDelete() }}
             onMouseEnter={() => setTrashHovered(true)}
             onMouseLeave={() => setTrashHovered(false)}
-            title="Delete transaction"
-            style={{
-              width: '32px', height: '32px', borderRadius: '9px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: trashHovered ? 'rgba(255,77,77,0.18)' : 'rgba(255,107,107,0.08)',
-              border: trashHovered ? '1px solid rgba(255,77,77,0.35)' : '1px solid rgba(255,107,107,0.12)',
-              transition: 'all 0.2s ease',
-              boxShadow: trashHovered ? '0 0 14px rgba(255,77,77,0.25)' : 'none',
-              transform: trashHovered ? 'scale(1.1)' : 'scale(1)',
-            }}>
-            <svg width="14" height="15" viewBox="0 0 16 17" fill="none" style={{ transition: 'all 0.2s ease' }}>
+            style={{ width: '32px', height: '32px', borderRadius: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: trashHovered ? 'rgba(255,77,77,0.18)' : 'rgba(255,107,107,0.08)', border: trashHovered ? '1px solid rgba(255,77,77,0.35)' : '1px solid rgba(255,107,107,0.12)', transition: 'all 0.2s ease', boxShadow: trashHovered ? '0 0 14px rgba(255,77,77,0.25)' : 'none', transform: trashHovered ? 'scale(1.1)' : 'scale(1)' }}>
+            <svg width="14" height="15" viewBox="0 0 16 17" fill="none">
               <path d="M2 4h12" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round"/>
               <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round"/>
               <path d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -139,9 +228,7 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
             </svg>
           </div>
         ) : (
-          <span style={{ color: hovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.12)', transition: 'color 0.2s ease', fontSize: '1rem' }}>
-            {txn.item_id ? '→' : ''}
-          </span>
+          <span style={{ color: hovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.12)', transition: 'color 0.2s ease', fontSize: '1rem' }}>&#8594;</span>
         )}
       </div>
     </div>
@@ -151,8 +238,7 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete }) {
 // ── Confirm Modal ─────────────────────────────────────────────
 function ConfirmModal({ count, onConfirm, onCancel }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}
-      onClick={onCancel}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }} onClick={onCancel}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.99) 0%, rgba(14,12,20,0.99) 100%)', border: '1px solid rgba(255,107,107,0.2)', borderRadius: '20px', padding: '2rem 2.25rem', maxWidth: '340px', width: '90%', textAlign: 'center' }}>
         <div style={{ width: '48px', height: '48px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
           <svg width="20" height="21" viewBox="0 0 16 17" fill="none">
@@ -162,9 +248,7 @@ function ConfirmModal({ count, onConfirm, onCancel }) {
             <path d="M6.5 7.5v4M9.5 7.5v4" stroke="rgba(255,77,77,0.7)" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
         </div>
-        <h3 style={{ color: 'white', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.4rem' }}>
-          Delete {count > 1 ? `${count} transactions` : 'this transaction'}?
-        </h3>
+        <h3 style={{ color: 'white', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.4rem' }}>Delete {count > 1 ? `${count} transactions` : 'this transaction'}?</h3>
         <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem', marginBottom: '1.5rem' }}>This action cannot be undone.</p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
           <button onClick={onCancel} style={{ padding: '0.6rem 1.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }}>Cancel</button>
@@ -177,14 +261,15 @@ function ConfirmModal({ count, onConfirm, onCancel }) {
 
 // ── Main ──────────────────────────────────────────────────────
 function Transactions() {
-  const navigate = useNavigate()
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('All')
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
-  const [confirmIds, setConfirmIds] = useState(null) // null | number[] — ids pending delete confirm
+  const [confirmIds, setConfirmIds] = useState(null)
+  const [search, setSearch] = useState('')
+  const [openTxn, setOpenTxn] = useState(null)
 
   useEffect(() => {
     API.get('/transactions')
@@ -201,11 +286,22 @@ function Transactions() {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
-  const filtered = filter === 'All'
+  const baseFiltered = filter === 'All'
     ? transactions
     : filter === 'Bought'
     ? transactions.filter(t => t.buyer_id === user.id)
     : transactions.filter(t => t.seller_id === user.id)
+
+  const filtered = search.trim()
+    ? baseFiltered.filter(t => {
+        const q = search.toLowerCase()
+        return (
+          (t.item_title || '').toLowerCase().includes(q) ||
+          (t.buyer_name || '').toLowerCase().includes(q) ||
+          (t.seller_name || '').toLowerCase().includes(q)
+        )
+      })
+    : baseFiltered
 
   function toggleSelect(id) {
     if (!selectMode) setSelectMode(true)
@@ -232,7 +328,8 @@ function Transactions() {
   return (
     <div style={{ padding: '3rem 4rem', maxWidth: '900px', margin: '0 auto' }}>
 
-      {/* Confirm modal */}
+      {openTxn && <TxnDetailModal txn={openTxn} onClose={() => setOpenTxn(null)} />}
+
       {confirmIds && (
         <ConfirmModal
           count={confirmIds.length}
@@ -250,27 +347,33 @@ function Transactions() {
         <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', fontWeight: '400' }}>All your purchases and sales in one place.</p>
       </div>
 
+      {/* Search */}
+      <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2.2" strokeLinecap="round" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by item, buyer, or seller..."
+          style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 1rem 0.65rem 2.75rem', background: 'rgba(255,255,255,0.05)', border: search ? '1px solid rgba(232,119,34,0.35)' : '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', color: 'white', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', transition: 'border 0.2s ease' }}
+          onFocus={e => e.target.style.border = '1px solid rgba(232,119,34,0.4)'}
+          onBlur={e => e.target.style.border = search ? '1px solid rgba(232,119,34,0.35)' : '1px solid rgba(255,255,255,0.07)'}
+        />
+        {search && (
+          <div onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: '1rem', lineHeight: 1 }}>&times;</div>
+        )}
+      </div>
+
       {/* Filter + Select row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {['All', 'Bought', 'Sold'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease',
-              border: filter === f ? '1px solid transparent' : '1px solid rgba(255,255,255,0.06)',
-              background: filter === f ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(255,255,255,0.04)',
-              color: filter === f ? 'white' : 'rgba(255,255,255,0.45)',
-              boxShadow: filter === f ? '0 4px 15px rgba(232,119,34,0.3)' : 'none',
-            }}>{f}</button>
+            <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease', border: filter === f ? '1px solid transparent' : '1px solid rgba(255,255,255,0.06)', background: filter === f ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(255,255,255,0.04)', color: filter === f ? 'white' : 'rgba(255,255,255,0.45)', boxShadow: filter === f ? '0 4px 15px rgba(232,119,34,0.3)' : 'none' }}>{f}</button>
           ))}
         </div>
         {filtered.length > 0 && (
-          <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()) }} style={{
-            padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease',
-            background: selectMode ? 'rgba(232,119,34,0.1)' : 'rgba(255,255,255,0.04)',
-            border: selectMode ? '1px solid rgba(232,119,34,0.3)' : '1px solid rgba(255,255,255,0.06)',
-            color: selectMode ? '#e87722' : 'rgba(255,255,255,0.4)',
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-          }}>
+          <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()) }} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', background: selectMode ? 'rgba(232,119,34,0.1)' : 'rgba(255,255,255,0.04)', border: selectMode ? '1px solid rgba(232,119,34,0.3)' : '1px solid rgba(255,255,255,0.06)', color: selectMode ? '#e87722' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
             </svg>
@@ -279,23 +382,14 @@ function Transactions() {
         )}
       </div>
 
-      {/* Select mode toolbar */}
+      {/* Select toolbar */}
       {selectMode && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, rgba(232,119,34,0.07) 0%, rgba(232,119,34,0.02) 100%)',
-          border: '1px solid rgba(232,119,34,0.18)', borderRadius: '14px',
-          padding: '0.75rem 1.25rem', marginBottom: '1rem',
-          animation: 'fadeSlideIn 0.2s ease',
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(232,119,34,0.07) 0%, rgba(232,119,34,0.02) 100%)', border: '1px solid rgba(232,119,34,0.18)', borderRadius: '14px', padding: '0.75rem 1.25rem', marginBottom: '1rem', animation: 'fadeSlideIn 0.2s ease' }}>
           <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
             <button
-              onClick={() => {
-                if (selected.size === filtered.length) { setSelected(new Set()); setSelectMode(false) }
-                else setSelected(new Set(filtered.map(t => t.id)))
-              }}
+              onClick={() => { if (selected.size === filtered.length) { setSelected(new Set()); setSelectMode(false) } else setSelected(new Set(filtered.map(t => t.id))) }}
               style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)', transition: 'all 0.2s ease' }}
               onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
@@ -304,14 +398,7 @@ function Transactions() {
           <button
             disabled={selected.size === 0}
             onClick={() => selected.size > 0 && setConfirmIds([...selected])}
-            style={{
-              padding: '0.35rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700',
-              cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
-              background: selected.size > 0 ? 'rgba(255,77,77,0.1)' : 'rgba(255,255,255,0.03)',
-              border: selected.size > 0 ? '1px solid rgba(255,77,77,0.22)' : '1px solid rgba(255,255,255,0.05)',
-              color: selected.size > 0 ? '#ff6b6b' : 'rgba(255,255,255,0.2)',
-              display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s ease',
-            }}>
+            style={{ padding: '0.35rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size > 0 ? 'rgba(255,77,77,0.1)' : 'rgba(255,255,255,0.03)', border: selected.size > 0 ? '1px solid rgba(255,77,77,0.22)' : '1px solid rgba(255,255,255,0.05)', color: selected.size > 0 ? '#ff6b6b' : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s ease' }}>
             <svg width="12" height="12" viewBox="0 0 16 17" fill="none">
               <path d="M2 4h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
               <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
@@ -356,7 +443,7 @@ function Transactions() {
       )}
       {!loading && !error && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }}>∅</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }}>&#8709;</div>
           <p style={{ fontSize: '1rem', fontWeight: '500', color: 'rgba(255,255,255,0.35)' }}>No transactions yet.</p>
         </div>
       )}
@@ -370,6 +457,7 @@ function Transactions() {
               selected={selected.has(txn.id)}
               onToggle={() => toggleSelect(txn.id)}
               onDelete={() => setConfirmIds([txn.id])}
+              onOpen={() => setOpenTxn(txn)}
             />
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -36,9 +36,9 @@ const specFieldsMap = {
     { key: 'display',   label: 'Display',    placeholder: 'e.g. 15.6", 4K OLED',      span: 2 },
   ],
   'Clothing': [
-    { key: 'gender', label: 'Gender',  placeholder: 'Male / Female / Unisex', span: 1 },
-    { key: 'color',  label: 'Color',   placeholder: 'e.g. Black, Navy Blue',  span: 1 },
-    { key: 'type',   label: 'Type',    placeholder: 'e.g. T-shirt, Jeans',    span: 2 },
+    { key: 'gender', label: 'Gender', placeholder: 'e.g. Male, Female, Unisex', span: 1 },
+    { key: 'color',  label: 'Color',  placeholder: 'e.g. Black, Navy Blue',     span: 1 },
+    { key: 'type',   label: 'Type',   placeholder: 'e.g. T-shirt, Jeans',       span: 2 },
   ],
   'Books & Notes': [
     { key: 'subject', label: 'Subject', placeholder: 'e.g. Physics, Maths',   span: 1 },
@@ -70,16 +70,224 @@ const specFieldsMap = {
     { key: 'brand',    label: 'Brand',    placeholder: 'e.g. Sony, Nintendo, EA', span: 2 },
   ],
   'Services': [
-    { key: 'mode',       label: 'Mode',       placeholder: 'Online / Offline / Both', span: 1 },
-    { key: 'experience', label: 'Experience', placeholder: 'e.g. 2 years, Beginner',  span: 1 },
+    { key: 'mode',       label: 'Mode',       placeholder: 'e.g. Online, Offline', span: 1 },
+    { key: 'experience', label: 'Experience', placeholder: 'e.g. 2 years',         span: 1 },
   ],
   'Food & Drinks': [
-    { key: 'type',        label: 'Type',        placeholder: 'e.g. Snack, Full Meal',    span: 2 },
-    { key: 'ingredients', label: 'Ingredients', placeholder: 'Main ingredients',          span: 1 },
-    { key: 'allergens',   label: 'Allergens',   placeholder: 'e.g. Nuts, Gluten, Dairy', span: 1 },
+    { key: 'diet',        label: 'Diet',     placeholder: 'e.g. Vegetarian, Vegan', span: 1 },
+    { key: 'contains',    label: 'Contains', placeholder: 'e.g. Nuts, Dairy',       span: 1 },
   ],
 }
 
+// ─── Spec suggestions ─────────────────────────────────────────────────────────
+const specSuggestionsMap = {
+  'Electronics': {
+    brand:     ['Apple', 'Dell', 'HP', 'Lenovo', 'Samsung', 'Sony', 'Asus', 'Acer', 'Microsoft', 'LG', 'OnePlus', 'Xiaomi'],
+    ram:       ['2GB', '4GB', '6GB', '8GB', '12GB', '16GB', '32GB', '64GB'],
+    storage:   ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'],
+    processor: ['Intel i3', 'Intel i5', 'Intel i7', 'Intel i9', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3', 'Snapdragon'],
+    display:   ['11"', '13"', '14"', '15.6"', '16"', 'Full HD', '4K', 'OLED', 'Retina Display'],
+  },
+  'Clothing': {
+    gender: ['Male', 'Female', 'Unisex', 'Kids'],
+    color:  ['Black', 'White', 'Navy Blue', 'Grey', 'Red', 'Green', 'Brown', 'Beige', 'Multicolor'],
+    type:   ['T-shirt', 'Shirt', 'Jeans', 'Trousers', 'Jacket', 'Hoodie', 'Kurta', 'Saree', 'Shorts', 'Dress', 'Sweater'],
+  },
+  'Books & Notes': {
+    subject: ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English', 'Computer Science', 'Economics', 'History', 'Geography'],
+    author:  ['H.C. Verma', 'R.D. Sharma', 'S.L. Arora', 'NCERT', 'Arihant', 'DC Pandey', 'P.K. Nag'],
+    edition: ['1st Edition', '2nd Edition', '3rd Edition', '4th Edition', '2022 Edition', '2023 Edition', '2024 Edition', 'Latest Edition'],
+  },
+  'Furniture': {
+    material:   ['Wood', 'Solid Wood', 'Plywood', 'Metal', 'Steel', 'Plastic', 'Glass', 'Cane', 'MDF'],
+    color:      ['Brown', 'White', 'Black', 'Natural Wood', 'Walnut', 'Oak', 'Mahogany'],
+    dimensions: ['Single Bed (90×190cm)', 'Double Bed (120×190cm)', '2-Seater', '3-Seater', '4-Seater', 'L-Shaped'],
+  },
+  'Sports & Fitness': {
+    sport: ['Cricket', 'Football', 'Basketball', 'Badminton', 'Tennis', 'Table Tennis', 'Gym', 'Yoga', 'Cycling', 'Swimming'],
+    brand: ['Nike', 'Adidas', 'Puma', 'Reebok', 'SG', 'MRF', 'Yonex', 'Decathlon', 'Under Armour'],
+    size:  ['XS', 'S', 'M', 'L', 'XL', 'Size 3', 'Size 4', 'Size 5', 'Size 6', 'Size 7'],
+  },
+  'Stationery': {
+    type:  ['Notebook', 'Pen Set', 'Pencil Set', 'Marker Set', 'Geometry Box', 'Art Kit', 'Calculator', 'Highlighters', 'Sticky Notes'],
+    brand: ['Classmate', 'Natraj', 'Camlin', 'Reynolds', 'Cello', 'Faber-Castell', 'Staedtler', 'Casio'],
+  },
+  'Appliances': {
+    brand:    ['Samsung', 'LG', 'Whirlpool', 'Haier', 'Godrej', 'Voltas', 'IFB', 'Bosch', 'Bajaj', 'Philips'],
+    capacity: ['5L', '10L', '15L', '5kg', '6.5kg', '7kg', '8kg', '150L', '200L', '250L', '300L'],
+    color:    ['White', 'Silver', 'Black', 'Graphite', 'Grey'],
+  },
+  'Games & Hobbies': {
+    platform: ['PS4', 'PS5', 'Xbox One', 'Xbox Series X', 'PC', 'Nintendo Switch', 'Mobile', 'Board Game'],
+    type:     ['Action', 'Strategy', 'RPG', 'Sports', 'Racing', 'Puzzle', 'Adventure', 'Simulation', 'FPS'],
+    brand:    ['Sony', 'Microsoft', 'Nintendo', 'EA', 'Ubisoft', 'Activision', 'Hasbro'],
+  },
+  'Services': {
+    mode:       ['Online', 'Offline', 'Both Online & Offline'],
+    experience: ['Beginner', '6 Months', '1 Year', '2 Years', '3+ Years', 'Expert'],
+  },
+  'Food & Drinks': {
+    type:     ['Snack', 'Full Meal', 'Dessert', 'Beverage', 'Breakfast', 'Homemade', 'Packaged'],
+    diet:     ['Vegetarian', 'Non-Vegetarian', 'Vegan', 'Gluten-Free'],
+    contains: ['No Allergens', 'Nuts', 'Dairy', 'Gluten', 'Soy', 'Eggs', 'Shellfish'],
+  },
+}
+
+// ─── Shared dropdown item ────────────────────────────────────────────────────
+function DropItem({ label, onSelect, isFirst, isLast, active }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onMouseDown={e => { e.preventDefault(); onSelect() }}
+      style={{
+        padding: '0.52rem 0.9rem', cursor: 'pointer', fontSize: '0.84rem',
+        color: active ? '#f0a040' : hovered ? '#f0a040' : 'rgba(255,255,255,0.75)',
+        background: active ? 'rgba(232,119,34,0.12)' : hovered ? 'rgba(232,119,34,0.08)' : 'transparent',
+        borderTop: !isFirst ? '1px solid rgba(255,255,255,0.05)' : 'none',
+        borderRadius: isLast ? '0 0 11px 11px' : '0',
+        transition: 'all 0.1s ease',
+        fontWeight: active || hovered ? '600' : '400',
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+      }}
+    >
+      {active && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1,6 4,9 11,3" stroke="#f0a040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      {!active && <span style={{ width: '9px' }} />}
+      {label}
+    </div>
+  )
+}
+
+const dropdownMenuStyle = {
+  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999,
+  background: 'linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,20,0.99) 100%)',
+  border: '1px solid rgba(232,119,34,0.25)', borderTop: 'none',
+  borderRadius: '0 0 12px 12px', maxHeight: '200px', overflowY: 'auto',
+  boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
+}
+
+// ─── CustomSelect — replaces native <select> with dark-themed dropdown ────────
+function CustomSelect({ value, onChange, options, placeholder, focusKey, focusedField, setFocusedField, disabled }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+  const isFocused = focusedField === focusKey
+
+  useEffect(() => {
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false); if (isFocused) setFocusedField(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isFocused, setFocusedField])
+
+  const selectedLabel = options.find(o => (o.value ?? o) === value)?.label ?? (typeof options[0] === 'string' ? value : null) ?? value
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onMouseDown={() => {
+          if (disabled) return
+          setFocusedField(open ? null : focusKey)
+          setOpen(o => !o)
+        }}
+        style={{
+          width: '100%', padding: '0.7rem 2.5rem 0.7rem 1rem',
+          background: isFocused ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+          border: isFocused ? '1px solid rgba(232,119,34,0.35)' : '1px solid rgba(255,255,255,0.06)',
+          borderRadius: open ? '12px 12px 0 0' : '12px',
+          color: value ? 'white' : 'rgba(255,255,255,0.28)',
+          fontSize: '0.9rem', fontWeight: '400', letterSpacing: '0.2px',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          outline: 'none', textAlign: 'left', boxSizing: 'border-box',
+          transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
+          opacity: disabled ? 0.4 : 1,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {value ? selectedLabel : placeholder}
+        </span>
+        <span style={{
+          position: 'absolute', right: '1rem', top: '50%', transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`,
+          transition: 'transform 0.2s', pointerEvents: 'none',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.4)"><path d="M8 11L3 6h10z"/></svg>
+        </span>
+      </button>
+      {open && !disabled && (
+        <div style={{ ...dropdownMenuStyle, borderRadius: '0 0 12px 12px' }}>
+          {options.map((opt, i) => {
+            const val = opt.value ?? opt
+            const lbl = opt.label ?? opt
+            return (
+              <DropItem key={val} label={lbl} active={val === value}
+                isFirst={i === 0} isLast={i === options.length - 1}
+                onSelect={() => { onChange(val); setOpen(false); setFocusedField(null) }}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── SpecInput — one open at a time via openKey/setOpenKey ───────────────────
+function SpecInput({ fieldKey, category, value, onChange, placeholder, openKey, setOpenKey, focusedField, setFocusedField }) {
+  const wrapRef = useRef(null)
+  const isOpen = openKey === fieldKey
+  const isFocused = focusedField === `spec-${fieldKey}`
+
+  const all = specSuggestionsMap[category]?.[fieldKey] || []
+  const filtered = value
+    ? all.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase())
+    : all
+
+  useEffect(() => {
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        if (isOpen) setOpenKey(null)
+        if (isFocused) setFocusedField(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isOpen, isFocused, setOpenKey, setFocusedField])
+
+  const showDrop = isOpen && filtered.length > 0
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        type="text" value={value} placeholder={placeholder}
+        onChange={e => { onChange(e.target.value); setOpenKey(fieldKey) }}
+        onFocus={() => { setFocusedField(`spec-${fieldKey}`); setOpenKey(fieldKey) }}
+        style={{
+          width: '100%', padding: '0.6rem 0.85rem',
+          background: isFocused ? 'rgba(255,255,255,0.1)' : value ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.04)',
+          border: isFocused ? '1px solid rgba(232,119,34,0.4)' : value ? '1px solid rgba(232,119,34,0.2)' : '1px solid rgba(255,255,255,0.06)',
+          borderRadius: showDrop ? '10px 10px 0 0' : '10px',
+          color: 'white', fontSize: '0.83rem',
+          outline: 'none', transition: 'background 0.2s, border 0.2s', boxSizing: 'border-box',
+        }}
+      />
+      {showDrop && (
+        <div style={{ ...dropdownMenuStyle, borderRadius: '0 0 10px 10px', maxHeight: '170px' }}>
+          {filtered.map((s, i) => (
+            <DropItem key={s} label={s} isFirst={i === 0} isLast={i === filtered.length - 1}
+              onSelect={() => { onChange(s); setOpenKey(null); setFocusedField(null) }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── PostItem ─────────────────────────────────────────────────────────────────
 function PostItem() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -96,6 +304,7 @@ function PostItem() {
   })
   const [specs, setSpecs]               = useState(prefill?.specs || {})
   const [focusedField, setFocusedField] = useState(null)
+  const [openSpecKey, setOpenSpecKey]   = useState(null)
   const [btnHovered, setBtnHovered]     = useState(false)
   const [loading, setLoading]           = useState(false)
   const [error, setError]               = useState(null)
@@ -114,10 +323,6 @@ function PostItem() {
     }
   }
 
-  function handleSpecChange(key, value) {
-    setSpecs(s => ({ ...s, [key]: value }))
-  }
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
@@ -127,9 +332,7 @@ function PostItem() {
     }
     if (parseFloat(form.price) <= 0) { setError('Price must be greater than ₹0.'); return }
     if (parseInt(form.quantity) < 1) { setError('Quantity must be at least 1.'); return }
-
     const cleanSpecs = Object.fromEntries(Object.entries(specs).filter(([, v]) => v && v.trim() !== ''))
-
     try {
       setLoading(true)
       await API.post('/items', {
@@ -178,20 +381,16 @@ function PostItem() {
     </div>
   )
 
-  const specInputStyle = (key) => ({
-    width: '100%', padding: '0.6rem 0.85rem',
-    background: focusedField === `spec-${key}` ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-    border: focusedField === `spec-${key}` ? '1px solid rgba(232,119,34,0.4)' : specs[key] ? '1px solid rgba(232,119,34,0.2)' : '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '10px', color: 'white', fontSize: '0.83rem',
-    outline: 'none', transition: 'all 0.2s ease', boxSizing: 'border-box',
-  })
-
   return (
     <div
-       onClick={() => navigate('/')}
+      onClick={() => navigate('/')}
       style={{ minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', cursor: 'default' }}
     >
-      <style>{`input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.2); } select option { background: #1a1225; color: white; }`}</style>
+      <style>{`
+        input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.2); }
+        select option { background: #1a1225; color: white; }
+        @keyframes specsIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+      `}</style>
       <div
         onClick={e => e.stopPropagation()}
         style={{
@@ -200,10 +399,10 @@ function PostItem() {
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.75rem',
           boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
-          position: 'relative', overflow: 'hidden',
+          position: 'relative', overflow: 'visible',
         }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', borderRadius: '24px 24px 0 0' }} />
 
         <div style={{ marginBottom: '2.25rem' }}>
           <h1 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
@@ -216,8 +415,17 @@ function PostItem() {
         </div>
 
         {success && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: 'rgba(81,207,102,0.1)', border: '1px solid rgba(81,207,102,0.2)', borderRadius: '12px', color: '#51cf66', fontSize: '0.85rem', fontWeight: '600', textAlign: 'center' }}>
-            ✓ Item posted! Redirecting to dashboard...
+          <div style={{ marginBottom: '1.25rem', padding: '1rem 1.1rem', background: 'linear-gradient(135deg, rgba(81,207,102,0.08), rgba(64,192,87,0.04))', border: '1px solid rgba(81,207,102,0.25)', borderRadius: '14px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(81,207,102,0.4), transparent)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(81,207,102,0.15)', border: '1px solid rgba(81,207,102,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#51cf66', marginBottom: '2px' }}>Listing Published</div>
+                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>Redirecting to your dashboard…</div>
+              </div>
+            </div>
           </div>
         )}
         {error && (
@@ -226,7 +434,7 @@ function PostItem() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ overflow: 'visible' }}>
 
           {/* Title + Price */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.15rem' }}>
@@ -244,40 +452,38 @@ function PostItem() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.15rem' }}>
             <div>
               <label style={labelStyle('category')}>Category</label>
-              <div style={{ position: 'relative' }}>
-                <select name="category" value={form.category} onChange={handleChange} onFocus={() => setFocusedField('category')} onBlur={() => setFocusedField(null)} style={selectStyle('category')}>
-                  <option value="">Select category</option>
-                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <ArrowIcon />
-              </div>
+              <CustomSelect
+                value={form.category}
+                onChange={val => { setForm(f => ({ ...f, category: val, subcategory: '' })); setSpecs({}) }}
+                options={[...categories.map(c => ({ value: c, label: c }))]}
+                placeholder="Select category"
+                focusKey="category" focusedField={focusedField} setFocusedField={setFocusedField}
+              />
             </div>
             <div>
               <label style={labelStyle('condition')}>Condition</label>
-              <div style={{ position: 'relative' }}>
-                <select name="condition" value={form.condition} onChange={handleChange} onFocus={() => setFocusedField('condition')} onBlur={() => setFocusedField(null)} style={selectStyle('condition')}>
-                  <option value="">Select condition</option>
-                  {['Like New', 'Good', 'Fair', 'Poor'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <ArrowIcon />
-              </div>
+              <CustomSelect
+                value={form.condition}
+                onChange={val => setForm(f => ({ ...f, condition: val }))}
+                options={['Like New', 'Good', 'Fair', 'Poor'].map(c => ({ value: c, label: c }))}
+                placeholder="Select condition"
+                focusKey="condition" focusedField={focusedField} setFocusedField={setFocusedField}
+              />
             </div>
           </div>
 
           {/* Subcategory + Quantity */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.15rem' }}>
-            {/* ✅ FIX: removed opacity dimming — was opacity: subcategories.length === 0 ? 0.35 : 1 */}
             <div>
-              <label style={labelStyle('subcategory')}>
-                {subcategoryLabel[form.category] || 'Subcategory'}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <select name="subcategory" value={form.subcategory} onChange={handleChange} onFocus={() => setFocusedField('subcategory')} onBlur={() => setFocusedField(null)} disabled={subcategories.length === 0} style={{ ...selectStyle('subcategory'), cursor: subcategories.length === 0 ? 'not-allowed' : 'pointer' }}>
-                  <option value="">{subcategories.length === 0 ? 'N/A' : 'Select...'}</option>
-                  {subcategories.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ArrowIcon />
-              </div>
+              <label style={labelStyle('subcategory')}>{subcategoryLabel[form.category] || 'Subcategory'}</label>
+              <CustomSelect
+                value={form.subcategory}
+                onChange={val => setForm(f => ({ ...f, subcategory: val }))}
+                options={subcategories.map(s => ({ value: s, label: s }))}
+                placeholder={subcategories.length === 0 ? 'N/A' : 'Select...'}
+                focusKey="subcategory" focusedField={focusedField} setFocusedField={setFocusedField}
+                disabled={subcategories.length === 0}
+              />
             </div>
             <div>
               <label style={labelStyle('quantity')}>Quantity</label>
@@ -285,8 +491,7 @@ function PostItem() {
             </div>
           </div>
 
-          {/* ── Specs Section ─────────────────────────────────────────────── */}
-          {/* ✅ FIX: removed "(optional)" text, icon and label at full brightness */}
+          {/* ── Specs with suggestions ────────────────────────────────────── */}
           {specFields.length > 0 && (
             <div style={{
               marginBottom: '1.15rem',
@@ -294,8 +499,8 @@ function PostItem() {
               border: '1px solid rgba(232,119,34,0.15)',
               borderRadius: '16px', padding: '1.15rem',
               animation: 'specsIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275)',
+              overflow: 'visible', position: 'relative', zIndex: 10,
             }}>
-              <style>{`@keyframes specsIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }`}</style>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.85)" strokeWidth="2.2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
@@ -303,21 +508,30 @@ function PostItem() {
                 <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.9)', fontWeight: '800' }}>
                   {form.category} Specifications
                 </span>
+                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.2)', fontWeight: '500', marginLeft: 'auto' }}>
+                  type or pick a suggestion
+                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', overflow: 'visible' }}>
                 {specFields.map(field => (
-                  <div key={field.key} style={{ gridColumn: field.span === 2 ? 'span 2' : 'span 1' }}>
-                    <div style={{ fontSize: '0.6rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: focusedField === `spec-${field.key}` ? 'rgba(232,119,34,0.75)' : 'rgba(255,255,255,0.5)', fontWeight: '700', marginBottom: '0.35rem', transition: 'color 0.2s' }}>
+                  <div key={field.key} style={{ gridColumn: field.span === 2 ? 'span 2' : 'span 1', overflow: 'visible' }}>
+                    <div style={{
+                      fontSize: '0.6rem', letterSpacing: '1.2px', textTransform: 'uppercase',
+                      color: focusedField === `spec-${field.key}` ? 'rgba(232,119,34,0.75)' : 'rgba(255,255,255,0.5)',
+                      fontWeight: '700', marginBottom: '0.35rem', transition: 'color 0.2s',
+                    }}>
                       {field.label}
                     </div>
-                    <input
-                      type="text"
+                    <SpecInput
+                      fieldKey={field.key}
+                      category={form.category}
                       value={specs[field.key] || ''}
-                      onChange={e => handleSpecChange(field.key, e.target.value)}
-                      onFocus={() => setFocusedField(`spec-${field.key}`)}
-                      onBlur={() => setFocusedField(null)}
+                      onChange={val => setSpecs(s => ({ ...s, [field.key]: val }))}
                       placeholder={field.placeholder}
-                      style={specInputStyle(field.key)}
+                      openKey={openSpecKey}
+                      setOpenKey={setOpenSpecKey}
+                      focusedField={focusedField}
+                      setFocusedField={setFocusedField}
                     />
                   </div>
                 ))}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import API from '../api/axios'
 
 const categories = [
@@ -10,7 +10,6 @@ const categories = [
 const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor']
 const statuses = ['available', 'pending']
 
-// ✅ Spec fields per category — mirrors PostItem
 const SPEC_FIELDS = {
   'Electronics':      [{ key: 'brand', label: 'Brand' }, { key: 'ram', label: 'RAM' }, { key: 'storage', label: 'Storage' }, { key: 'processor', label: 'Processor' }, { key: 'display', label: 'Display' }],
   'Clothing':         [{ key: 'gender', label: 'Gender' }, { key: 'color', label: 'Color' }, { key: 'type', label: 'Type' }],
@@ -32,75 +31,148 @@ const FILTERS = [
   { key: 'sold',    label: 'Sold' },
 ]
 
-function formatDate(dateStr) {
-  const d = new Date(dateStr)
+function safeDate(val) {
+  if (!val) return null
+  const d = new Date(val)
+  return isNaN(d.getTime()) ? null : d
+}
+
+function getTimestamp(obj) {
+  return obj?.createdAt || obj?.created_at || null
+}
+
+function formatDate(obj) {
+  const raw = typeof obj === 'string' ? obj : getTimestamp(obj)
+  const d = safeDate(raw)
+  if (!d) return '—'
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
-function formatTime(dateStr) {
-  const d = new Date(dateStr)
+
+function formatTime(obj) {
+  const raw = typeof obj === 'string' ? obj : getTimestamp(obj)
+  const d = safeDate(raw)
+  if (!d) return ''
   return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
-// ── Sold item row with expandable sale history ──────────────────────────────
-function SoldGroupRow({ group, isNewSale, onDelete }) {
+// ── SoldGroupRow ──────────────────────────────────────────────
+function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) {
   const navigate = useNavigate()
-  const [expanded, setExpanded] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const rowRef = useRef(null)
+
+  const item  = group.item
+  const sales = group.sales
+  const itemId = group.groupKey  // stable key set by parent
+
+  const [expanded, setExpanded]           = useState(isHighlighted || isNewSale)
+  const [hovered, setHovered]             = useState(false)
+  const [deleting, setDeleting]           = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
   const [relistHovered, setRelistHovered] = useState(false)
+  // showNew: orange glow for "Just Sold" — auto-dismisses after 4s
+  const [showNew, setShowNew]             = useState(isNewSale)
+  const [flash, setFlash]                 = useState(isHighlighted)
 
-  const item = group.item
-  const sales = group.sales
+  useEffect(() => {
+    if (!isNewSale) return
+    const t = setTimeout(() => setShowNew(false), 2000)  
+    return () => clearTimeout(t)
+  }, [isNewSale])
+
+  useEffect(() => {
+    if (isHighlighted && rowRef.current) {
+      rowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const t = setTimeout(() => setFlash(false), 1500)
+      return () => clearTimeout(t)
+    }
+  }, [isHighlighted])
 
   async function handleDelete() {
-    if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return
+    if (!window.confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return
     try {
       setDeleting(true)
-      await API.delete(`/items/${item.id}`)
-      onDelete(item.id)
+      if (item) {
+        // Item exists — delete it from DB (transactions survive via onDelete: SetNull)
+        await API.delete(`/items/${item.id}`)
+        onDelete(item.id)
+      } else {
+        // Item already deleted from DB — just hide from dashboard view locally
+        onDelete(null, stableKey)
+      }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to delete.')
       setDeleting(false)
     }
   }
 
+  const displayTitle    = item?.title    || sales[0]?.item_title || 'Deleted item'
+  const displayPrice    = item?.price    || sales[0]?.price      || '—'
+  const displayCategory = item?.category || sales[0]?.item_category || ''
+  const listedRaw       = item?.createdAt || item?.created_at || null
+  const listedDate      = safeDate(listedRaw)
+
   return (
-    <div style={{
-      background: isNewSale
-        ? 'linear-gradient(135deg, rgba(81,207,102,0.08) 0%, rgba(255,255,255,0.02) 100%)'
-        : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-      backdropFilter: 'blur(20px)',
-      border: isNewSale ? '1px solid rgba(81,207,102,0.25)' : hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
-      borderRadius: '16px', overflow: 'hidden', transition: 'all 0.3s ease',
-      boxShadow: isNewSale ? '0 4px 20px rgba(81,207,102,0.1)' : hovered ? '0 8px 25px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
-      opacity: deleting ? 0.5 : 1,
-    }}
+    <div
+      ref={rowRef}
+      style={{
+        background: flash
+          ? 'linear-gradient(135deg, rgba(232,119,34,0.12) 0%, rgba(232,119,34,0.04) 100%)'
+          : showNew
+            ? 'linear-gradient(135deg, rgba(81,207,102,0.08) 0%, rgba(255,255,255,0.02) 100%)'
+            : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: flash
+          ? '1px solid rgba(232,119,34,0.5)'
+          : showNew
+            ? '1px solid rgba(81,207,102,0.25)'
+            : hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px', overflow: 'hidden', transition: 'all 0.4s ease',
+        boxShadow: flash
+          ? '0 4px 24px rgba(232,119,34,0.2)'
+          : showNew ? '0 4px 20px rgba(81,207,102,0.1)' : hovered ? '0 8px 25px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
+        opacity: deleting ? 0.5 : 1,
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div style={{ height: '1px', background: isNewSale ? 'linear-gradient(90deg, transparent, rgba(81,207,102,0.3), transparent)' : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
+      <div style={{ height: '1px', background: flash
+        ? 'linear-gradient(90deg, transparent, rgba(232,119,34,0.5), transparent)'
+        : showNew
+          ? 'linear-gradient(90deg, transparent, rgba(81,207,102,0.3), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
 
       <div style={{ padding: '1.25rem 1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{item.title}</h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{displayTitle}</h3>
             <div style={{ fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,107,107,0.1)', color: '#ff6b6b', border: '1px solid rgba(255,107,107,0.15)', whiteSpace: 'nowrap' }}>
-            Sold {sales.reduce((sum, s) => sum + (s.quantity || 1), 0)}×
+              Sold {sales.reduce((sum, s) => sum + (s.quantity || 1), 0)}×
             </div>
-            {isNewSale && (
+            {showNew && !flash && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(81,207,102,0.15), rgba(64,192,87,0.1))', border: '1px solid rgba(81,207,102,0.35)', color: '#51cf66', fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', animation: 'pulse-green 2.5s ease-in-out infinite' }}>
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 New Sale
               </div>
             )}
+            {flash && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(232,119,34,0.2), rgba(232,119,34,0.1))', border: '1px solid rgba(232,119,34,0.4)', color: '#f09030', fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px' }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#f09030" strokeWidth="2.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Just Sold
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{item.price}</span>
-            <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
-            <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
-            <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem' }}>Listed {formatDate(item.createdAt)} · {formatTime(item.createdAt)}</span>
+            <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{displayPrice}</span>
+            {displayCategory && <>
+              <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{displayCategory}</span>
+            </>}
+            {listedDate && <>
+              <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)' }} />
+              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem' }}>
+                Listed {listedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {listedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </span>
+            </>}
           </div>
         </div>
 
@@ -113,7 +185,7 @@ function SoldGroupRow({ group, isNewSale, onDelete }) {
             History
           </button>
           <button
-            onClick={() => navigate('/post', { state: { prefill: { title: item.title, price: item.price, category: item.category, condition: item.condition, description: item.description } } })}
+            onClick={() => navigate('/post', { state: { prefill: { title: displayTitle, price: displayPrice, category: displayCategory, condition: item?.condition, description: item?.description } } })}
             onMouseEnter={() => setRelistHovered(true)} onMouseLeave={() => setRelistHovered(false)}
             style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: relistHovered ? 'rgba(232,119,34,0.18)' : 'rgba(232,119,34,0.08)', color: relistHovered ? '#f09030' : 'rgba(232,119,34,0.7)', border: relistHovered ? '1px solid rgba(232,119,34,0.4)' : '1px solid rgba(232,119,34,0.2)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -130,21 +202,29 @@ function SoldGroupRow({ group, isNewSale, onDelete }) {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)', padding: '0.75rem 1.75rem 1rem' }}>
           <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.75rem' }}>Sale History</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {sales.map((sale, i) => (
-              <div key={sale.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(232,119,34,0.15)', border: '1px solid rgba(232,119,34,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: '800', color: '#e87722', flexShrink: 0 }}>{i + 1}</div>
-                  <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>{sale.buyer_name}</div>
-                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>Buyer</div>
+            {sales.map((sale, i) => {
+              const saleTs   = getTimestamp(sale)
+              const saleDate = safeDate(saleTs)
+              return (
+                <div key={sale.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(232,119,34,0.15)', border: '1px solid rgba(232,119,34,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: '800', color: '#e87722', flexShrink: 0 }}>{i + 1}</div>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>{sale.buyer_name}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>Buyer</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{sale.price}</div>
+                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>
+                      {saleDate
+                        ? `${saleDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · ${saleDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+                        : '—'}
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{sale.price}</div>
-                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>{formatDate(sale.createdAt)} · {formatTime(sale.createdAt)}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -153,39 +233,31 @@ function SoldGroupRow({ group, isNewSale, onDelete }) {
   )
 }
 
-// ── Active/Pending listing row ───────────────────────────────────────────────
+// ── ListingRow ────────────────────────────────────────────────
 function ListingRow({ item, onDelete, onUpdate }) {
-  const [hovered, setHovered] = useState(false)
-  const [editHovered, setEditHovered] = useState(false)
+  const [hovered, setHovered]             = useState(false)
+  const [editHovered, setEditHovered]     = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting]           = useState(false)
+  const [editing, setEditing]             = useState(false)
+  const [saving, setSaving]               = useState(false)
   const [editForm, setEditForm] = useState({
-    title: item.title,
-    price: item.price,
-    category: item.category,
-    condition: item.condition,
-    description: item.description || '',
-    status: item.status,
+    title: item.title, price: item.price, category: item.category,
+    condition: item.condition, description: item.description || '', status: item.status,
   })
-
-  // ✅ NEW: spec fields state — pre-filled from existing item.specs
   const [editSpecs, setEditSpecs] = useState(() => {
     const existing = item.specs && typeof item.specs === 'object' ? item.specs : {}
-    const fields = SPEC_FIELDS[item.category] || []
-    const initial = {}
+    const fields   = SPEC_FIELDS[item.category] || []
+    const initial  = {}
     fields.forEach(f => { initial[f.key] = existing[f.key] || '' })
     return initial
   })
 
   const status = item.status?.toLowerCase()
 
-  // ✅ When category changes in edit form, reset specs to blank for new category
-  // but preserve any keys that overlap
   function handleCategoryChange(newCategory) {
     const newFields = SPEC_FIELDS[newCategory] || []
-    const newSpecs = {}
+    const newSpecs  = {}
     newFields.forEach(f => { newSpecs[f.key] = editSpecs[f.key] || '' })
     setEditForm(prev => ({ ...prev, category: newCategory }))
     setEditSpecs(newSpecs)
@@ -204,21 +276,11 @@ function ListingRow({ item, onDelete, onUpdate }) {
 
   async function handleSave() {
     const parsedPrice = parseFloat(editForm.price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      alert('Price must be greater than ₹0.')
-      return
-    }
-    // Clean specs — remove empty strings before sending
-    const cleanSpecs = Object.fromEntries(
-      Object.entries(editSpecs).filter(([, v]) => v && String(v).trim() !== '')
-    )
+    if (isNaN(parsedPrice) || parsedPrice <= 0) { alert('Price must be greater than ₹0.'); return }
+    const cleanSpecs = Object.fromEntries(Object.entries(editSpecs).filter(([, v]) => v && String(v).trim() !== ''))
     try {
       setSaving(true)
-      const res = await API.put(`/items/${item.id}`, {
-        ...editForm,
-        price: parsedPrice,
-        specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null,
-      })
+      const res = await API.put(`/items/${item.id}`, { ...editForm, price: parsedPrice, specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null })
       onUpdate(res.data)
       setEditing(false)
     } catch (err) {
@@ -235,9 +297,7 @@ function ListingRow({ item, onDelete, onUpdate }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: hovered
-          ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)'
-          : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+        background: hovered ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
         backdropFilter: 'blur(20px)',
         border: editing ? '1px solid rgba(232,119,34,0.3)' : hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
         borderRadius: '16px', padding: '1.25rem 1.75rem',
@@ -247,7 +307,6 @@ function ListingRow({ item, onDelete, onUpdate }) {
     >
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
 
-      {/* View mode */}
       {!editing && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -271,32 +330,22 @@ function ListingRow({ item, onDelete, onUpdate }) {
         </div>
       )}
 
-      {/* Edit mode */}
       {editing && (
         <div>
-          <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.7)', fontWeight: '700', marginBottom: '1rem' }}>
-            Editing: {item.title}
-          </div>
-
+          <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.7)', fontWeight: '700', marginBottom: '1rem' }}>Editing: {item.title}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            {/* Title — full width */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Title</label>
               <input value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} style={inputStyle} />
             </div>
-
-            {/* Price */}
             <div>
               <label style={labelStyle}>Price (₹)</label>
               <input type="number" min="1" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} style={inputStyle} />
             </div>
-
-            {/* Category */}
             <div>
               <label style={labelStyle}>Category</label>
               <div style={{ position: 'relative' }}>
-                <select value={editForm.category} onChange={e => handleCategoryChange(e.target.value)}
-                  style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
+                <select value={editForm.category} onChange={e => handleCategoryChange(e.target.value)} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -304,13 +353,10 @@ function ListingRow({ item, onDelete, onUpdate }) {
                 </div>
               </div>
             </div>
-
-            {/* Condition */}
             <div>
               <label style={labelStyle}>Condition</label>
               <div style={{ position: 'relative' }}>
-                <select value={editForm.condition} onChange={e => setEditForm({ ...editForm, condition: e.target.value })}
-                  style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
+                <select value={editForm.condition} onChange={e => setEditForm({ ...editForm, condition: e.target.value })} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
                   {conditions.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -318,13 +364,10 @@ function ListingRow({ item, onDelete, onUpdate }) {
                 </div>
               </div>
             </div>
-
-            {/* Status */}
             <div>
               <label style={labelStyle}>Status</label>
               <div style={{ position: 'relative' }}>
-                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
+                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
                   {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -332,40 +375,24 @@ function ListingRow({ item, onDelete, onUpdate }) {
                 </div>
               </div>
             </div>
-
-            {/* Description — full width */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Description</label>
               <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
           </div>
-
-          {/* ✅ NEW: Specs section — only shown if this category has spec fields */}
           {currentSpecFields.length > 0 && (
             <div style={{ marginBottom: '0.75rem', background: 'rgba(232,119,34,0.04)', border: '1px solid rgba(232,119,34,0.12)', borderRadius: '12px', padding: '1rem 1.15rem' }}>
-              <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.6)', fontWeight: '800', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.6)" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-                </svg>
-                Specifications (optional)
-              </div>
+              <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.6)', fontWeight: '800', marginBottom: '0.75rem' }}>Specifications (optional)</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                 {currentSpecFields.map(field => (
                   <div key={field.key}>
                     <label style={labelStyle}>{field.label}</label>
-                    <input
-                      value={editSpecs[field.key] || ''}
-                      onChange={e => setEditSpecs(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      placeholder={`e.g. ${field.key === 'ram' ? '8GB' : field.key === 'storage' ? '256GB' : field.key === 'brand' ? 'Samsung' : '...'}`}
-                      style={{ ...inputStyle, color: editSpecs[field.key] ? 'white' : 'rgba(255,255,255,0.25)' }}
-                    />
+                    <input value={editSpecs[field.key] || ''} onChange={e => setEditSpecs(prev => ({ ...prev, [field.key]: e.target.value }))} style={{ ...inputStyle, color: editSpecs[field.key] ? 'white' : 'rgba(255,255,255,0.25)' }} />
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Save / Cancel */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
             <button onClick={() => setEditing(false)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', fontWeight: '600' }}>Cancel</button>
             <button onClick={handleSave} disabled={saving} style={{ padding: '0.4rem 1.25rem', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #e87722, #f09030)', color: saving ? 'rgba(255,255,255,0.3)' : 'white', border: 'none', fontSize: '0.8rem', fontWeight: '700', boxShadow: saving ? 'none' : '0 4px 15px rgba(232,119,34,0.3)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
@@ -376,30 +403,32 @@ function ListingRow({ item, onDelete, onUpdate }) {
   )
 }
 
-const labelStyle = {
-  display: 'block', fontSize: '0.6rem', letterSpacing: '1.5px',
-  textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)',
-  fontWeight: '700', marginBottom: '0.35rem',
-}
-const inputStyle = {
-  width: '100%', padding: '0.55rem 0.85rem', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '10px', color: 'white', fontSize: '0.85rem',
-  outline: 'none', fontFamily: 'inherit',
-}
+const labelStyle = { display: 'block', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '0.35rem' }
+const inputStyle  = { width: '100%', padding: '0.55rem 0.85rem', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: 'white', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }
 
-// ── Dashboard ────────────────────────────────────────────────────────────────
+// ── Dashboard ─────────────────────────────────────────────────
 function Dashboard() {
   const navigate = useNavigate()
-  const [items, setItems] = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [postBtnHovered, setPostBtnHovered] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('active')
-  const [newSaleItemIds, setNewSaleItemIds] = useState(new Set())
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [items, setItems]               = useState([])
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState(null)
+  const [postBtnHovered, setPostBtnHovered] = useState(false)
+
+  // freshSaleItemIds: ONLY notifications from this session's load — cleared after mark-seen
+  const [freshSaleItemIds, setFreshSaleItemIds] = useState(new Set())
+
+  const tabParam        = searchParams.get('tab')
+  const highlightItemId = searchParams.get('item') ? parseInt(searchParams.get('item')) : null
+  const [activeFilter, setActiveFilter] = useState(tabParam || 'active')
+
+  useEffect(() => {
+    if (tabParam) setActiveFilter(tabParam)
+  }, [tabParam])
+
+  const user     = JSON.parse(localStorage.getItem('user') || '{}')
   const username = user.name || user.username || 'there'
 
   useEffect(() => {
@@ -414,15 +443,16 @@ function Dashboard() {
         setItems(itemsRes.data)
         setTransactions(txnRes.data)
 
+        // Mark seen FIRST, then set fresh IDs — next reload won't return these as unseen
         try {
           const notifRes = await API.get('/notifications')
-          const soldItemIds = new Set(notifRes.data.map(n => n.itemId))
-          setNewSaleItemIds(soldItemIds)
-          if (soldItemIds.size > 0) {
-            setTimeout(async () => {
-              setNewSaleItemIds(new Set())
-              try { await API.post('/notifications/mark-seen') } catch (_) {}
-            }, 2000)
+          const unseenNotifs = notifRes.data
+          if (unseenNotifs.length > 0) {
+            await API.post('/notifications/mark-seen')
+            const itemIds = new Set(unseenNotifs.map(n => Number(n.itemId)).filter(Boolean))
+            setFreshSaleItemIds(itemIds)
+            // Auto-switch to Sold tab so seller sees their new sales immediately
+            setActiveFilter('sold')
           }
         } catch (_) {}
 
@@ -435,28 +465,47 @@ function Dashboard() {
     fetchData()
   }, [])
 
-  function handleDelete(id) { setItems(prev => prev.filter(i => i.id !== id)) }
-  function handleUpdate(updatedItem) { setItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i)) }
+  const [hiddenGroupKeys, setHiddenGroupKeys] = useState(new Set())
+  function handleDelete(id, stableKey) {
+    if (id != null) setItems(prev => prev.filter(i => i.id !== id))
+    if (stableKey) setHiddenGroupKeys(prev => new Set([...prev, stableKey]))
+  }
+  function handleUpdate(updatedItem)  { setItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i)) }
+  function handleTabChange(key)       { setActiveFilter(key); setSearchParams({}) }
 
   const activeCount  = items.filter(i => i.status?.toLowerCase() === 'available').length
   const pendingCount = items.filter(i => i.status?.toLowerCase() === 'pending').length
   const soldCount    = items.filter(i => i.status?.toLowerCase() === 'sold').length
 
-  const myId = user.id
+  const myId     = user.id
   const soldTxns = transactions.filter(t => t.seller_id === myId)
 
+  // ✅ FIX: use transaction's item_id as group key, but also handle null (deleted items)
+  // Use a stable string key like `item_<id>` or `txn_<id>` for deleted items
   const soldGroups = (() => {
     const map = new Map()
     soldTxns.forEach(t => {
-      if (!map.has(t.item_id)) map.set(t.item_id, { sales: [] })
-      map.get(t.item_id).sales.push(t)
+      // For deleted items, item_id is null — group by transaction id as fallback
+      const key = t.item_id != null ? `item_${t.item_id}` : `txn_${t.id}`
+      if (!map.has(key)) map.set(key, { sales: [], itemId: t.item_id })
+      map.get(key).sales.push(t)
     })
-    return Array.from(map.entries()).map(([itemId, data]) => ({
-      item: items.find(i => i.id === itemId) || { id: itemId, title: data.sales[0]?.item_title, price: data.sales[0]?.price, category: '', createdAt: null },
-      sales: data.sales.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    })).sort((a, b) => new Date(b.sales[0]?.createdAt) - new Date(a.sales[0]?.createdAt))
+    return Array.from(map.entries()).map(([key, data]) => {
+      const foundItem = data.itemId != null ? items.find(i => i.id === data.itemId) : null
+      return {
+        groupKey: data.itemId,  // null for deleted items
+        stableKey: key,
+        item: foundItem || null,
+        sales: data.sales.sort((a, b) => new Date(getTimestamp(b) || 0) - new Date(getTimestamp(a) || 0)),
+      }
+    }).sort((a, b) => {
+      const aTs = getTimestamp(a.sales[0]) || 0
+      const bTs = getTimestamp(b.sales[0]) || 0
+      return new Date(bTs) - new Date(aTs)
+    })
   })()
 
+  const visibleSoldGroups = soldGroups.filter(g => !hiddenGroupKeys.has(g.stableKey))
   const activeItems     = items.filter(i => i.status?.toLowerCase() === 'available')
   const pendingItems    = items.filter(i => i.status?.toLowerCase() === 'pending')
   const allNonSoldItems = items.filter(i => i.status?.toLowerCase() !== 'sold')
@@ -487,10 +536,10 @@ function Dashboard() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', alignItems: 'center' }}>
           {[
-            { label: 'Active', value: activeCount },
+            { label: 'Active',  value: activeCount },
             { label: 'Pending', value: pendingCount },
-            { label: 'Sold', value: soldCount },
-            { label: 'Total', value: items.length },
+            { label: 'Sold',    value: soldCount },
+            { label: 'Total',   value: items.length },
           ].map(stat => (
             <div key={stat.label} style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '72px', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
@@ -512,7 +561,9 @@ function Dashboard() {
           {FILTERS.map(f => {
             const isActive = activeFilter === f.key
             return (
-              <button key={f.key} onClick={() => setActiveFilter(f.key)} style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(255,255,255,0.06)', color: isActive ? 'white' : 'rgba(255,255,255,0.5)', border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? '0 4px 15px rgba(232,119,34,0.3)' : 'none' }}>{f.label}</button>
+              <button key={f.key} onClick={() => handleTabChange(f.key)} style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(255,255,255,0.06)', color: isActive ? 'white' : 'rgba(255,255,255,0.5)', border: isActive ? 'none' : '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? '0 4px 15px rgba(232,119,34,0.3)' : 'none' }}>
+                {f.label}
+              </button>
             )
           })}
         </div>
@@ -535,36 +586,45 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Active / Pending */}
         {!loading && !error && (activeFilter === 'active' || activeFilter === 'pending') && (() => {
           const list = activeFilter === 'active' ? activeItems : pendingItems
           if (list.length === 0) return <EmptyState label={activeFilter + ' listings'} />
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
-            </div>
-          )
+          return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
+          </div>
         })()}
 
-        {/* All */}
         {!loading && !error && activeFilter === 'all' && (() => {
           if (allNonSoldItems.length === 0 && soldGroups.length === 0) return <EmptyState label="listings" />
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
-              {soldGroups.map(group => <SoldGroupRow key={group.item.id} group={group} isNewSale={newSaleItemIds.has(group.item.id)} onDelete={handleDelete} />)}
-            </div>
-          )
+          return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
+            {visibleSoldGroups.map(group => (
+              <SoldGroupRow
+                key={group.stableKey}
+                group={group}
+                stableKey={group.stableKey}
+                isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
+                isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
         })()}
 
-        {/* Sold */}
         {!loading && !error && activeFilter === 'sold' && (() => {
-          if (soldGroups.length === 0) return <EmptyState label="sold items" />
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {soldGroups.map(group => <SoldGroupRow key={group.item.id} group={group} isNewSale={newSaleItemIds.has(group.item.id)} onDelete={handleDelete} />)}
-            </div>
-          )
+          if (visibleSoldGroups.length === 0) return <EmptyState label="sold items" />
+          return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {visibleSoldGroups.map(group => (
+              <SoldGroupRow
+                key={group.stableKey}
+                group={group}
+                stableKey={group.stableKey}
+                isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
+                isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
         })()}
 
       </div>
