@@ -6,18 +6,22 @@ import {
   getUnreadCount,
   getUnreadMessages,
   markAllRead,
+  deleteConversation,
 } from '../controllers/messagesController.js'
 import authMiddleware from '../middleware/auth.js'
 
 const router = express.Router()
 
-// ⚠️ Specific static routes MUST come before /:itemId (wildcard)
-router.get('/unread-count',  authMiddleware, getUnreadCount)
-router.get('/unread',        authMiddleware, getUnreadMessages)   // ← NEW
-router.get('/conversations', authMiddleware, getConversations)
+// Specific static routes MUST come before /:itemId (wildcard)
+router.get('/unread-count',   authMiddleware, getUnreadCount)
+router.get('/unread',         authMiddleware, getUnreadMessages)
+router.get('/conversations',  authMiddleware, getConversations)
 router.post('/mark-all-read', authMiddleware, markAllRead)
 
-// Wildcard route last — otherwise /unread matches /:itemId
+// Delete whole conversation (all messages between you and someone about an item)
+router.delete('/conversation/:itemId/:otherUserId', authMiddleware, deleteConversation)
+
+// Wildcard route last — otherwise /unread etc. would match /:itemId
 router.get('/:itemId', authMiddleware, getMessages)
 router.post('/',       authMiddleware, sendMessage)
 

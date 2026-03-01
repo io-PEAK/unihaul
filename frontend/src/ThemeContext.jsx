@@ -3,9 +3,9 @@ import { createContext, useContext, useState, useEffect } from 'react'
 const ThemeContext = createContext()
 
 export const THEMES = [
-  { id: 'ember',    label: 'Ember',    desc: 'Dark • Orange',      preview: ['#080810', '#e87722'] },
-  { id: 'midnight', label: 'Midnight', desc: 'Dark Navy • Blue',   preview: ['#070b14', '#4f8ef7'] },
-  { id: 'chalk',    label: 'Chalk',    desc: 'Light • Warm',       preview: ['#f2f0eb', '#e87722'] },
+  { id: 'ember',    label: 'Ember',    desc: 'Dark • Orange',   preview: ['#080810', '#e87722'] },
+  { id: 'midnight', label: 'Midnight', desc: 'Dark Navy • Blue', preview: ['#070b14', '#4f8ef7'] },
+  { id: 'chalk',    label: 'Chalk',    desc: 'Light • Indigo',  preview: ['#f2f0eb', '#4f46e5'] },
 ]
 
 export function ThemeProvider({ children }) {
@@ -18,7 +18,6 @@ export function ThemeProvider({ children }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Cycle through themes: ember → midnight → chalk → ember
   const toggle = () => {
     const ids = THEMES.map(t => t.id)
     const idx = ids.indexOf(theme)

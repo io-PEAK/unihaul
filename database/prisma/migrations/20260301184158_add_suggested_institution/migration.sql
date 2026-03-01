@@ -15,6 +15,8 @@ CREATE TABLE "User" (
     "theme" TEXT NOT NULL DEFAULT 'ember',
     "googleId" TEXT,
     "authProvider" TEXT NOT NULL DEFAULT 'local',
+    "saleNotifications" BOOLEAN NOT NULL DEFAULT true,
+    "messageNotifications" BOOLEAN NOT NULL DEFAULT true,
     "profileComplete" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -99,6 +101,33 @@ CREATE TABLE "Notification" (
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "OtpCode" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "code" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "newEmail" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OtpCode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SuggestedInstitution" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "city" TEXT,
+    "state" TEXT,
+    "type" TEXT NOT NULL DEFAULT 'college',
+    "count" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SuggestedInstitution_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -107,6 +136,9 @@ CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CartItem_userId_itemId_key" ON "CartItem"("userId", "itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SuggestedInstitution_name_key" ON "SuggestedInstitution"("name");
 
 -- AddForeignKey
 ALTER TABLE "Item" ADD CONSTRAINT "Item_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -140,3 +172,6 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OtpCode" ADD CONSTRAINT "OtpCode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

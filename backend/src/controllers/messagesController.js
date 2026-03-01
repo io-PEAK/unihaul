@@ -121,24 +121,19 @@ export const getUnreadCount = async (req, res) => {
   }
 }
 
-// GET /messages/unread  ← NEW: returns full list for notification dropdown
+// GET /messages/unread
 export const getUnreadMessages = async (req, res) => {
   try {
     const userId = req.user.userId
-
     const messages = await prisma.message.findMany({
-      where: {
-        receiverId: userId,
-        read: false,
-      },
+      where: { receiverId: userId, read: false },
       include: {
         sender: { select: { id: true, name: true } },
         item:   { select: { id: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20, // cap at 20 for the dropdown
+      take: 20,
     })
-
     const result = messages.map(msg => ({
       id:         msg.id,
       senderId:   msg.sender.id,
@@ -148,7 +143,6 @@ export const getUnreadMessages = async (req, res) => {
       content:    msg.content,
       createdAt:  msg.createdAt,
     }))
-
     res.json(result)
   } catch (err) {
     console.error(err)
@@ -160,15 +154,41 @@ export const getUnreadMessages = async (req, res) => {
 export const markAllRead = async (req, res) => {
   try {
     await prisma.message.updateMany({
-      where: {
-        receiverId: req.user.userId,
-        read: false,
-      },
+      where: { receiverId: req.user.userId, read: false },
       data: { read: true }
     })
     res.json({ success: true })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to mark messages as read' })
+  }
+}
+
+// DELETE /messages/conversation/:itemId/:otherUserId
+// Deletes all messages between current user and otherUser about a specific item
+export const deleteConversation = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const itemId = parseInt(req.params.itemId)
+    const otherUserId = parseInt(req.params.otherUserId)
+
+    if (!itemId || !otherUserId) {
+      return res.status(400).json({ error: 'itemId and otherUserId are required' })
+    }
+
+    const { count } = await prisma.message.deleteMany({
+      where: {
+        itemId,
+        OR: [
+          { senderId: userId, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: userId },
+        ]
+      }
+    })
+
+    res.json({ success: true, deleted: count })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to delete conversation' })
   }
 }

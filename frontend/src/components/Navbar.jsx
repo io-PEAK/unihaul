@@ -352,7 +352,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   useEffect(() => {
     if (!isLoggedIn) return
     fetchUnreadCounts()
-    const interval = setInterval(fetchUnreadCounts, 30000)
+    const interval = setInterval(fetchUnreadCounts, 120000) /* every 2 mins */
     return () => clearInterval(interval)
   }, [isLoggedIn])
 
@@ -767,7 +767,7 @@ function Navbar({ registerOpenBell }) {
           {/* CENTER: Greeting */}
           {isLoggedIn && (
             <div className="greeting-center" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.5px', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
-              Hi, {user?.name?.split(' ')[0] || user?.username || 'there'}
+              Hi, {user?.firstName || user?.name?.split(' ')[0] || 'there'}
             </div>
           )}
 

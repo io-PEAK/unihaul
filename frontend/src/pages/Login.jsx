@@ -13,7 +13,6 @@ function Login() {
 
   const from = location.state?.from || '/'
 
-  // Determine a friendly message for why they were redirected
   const fromMessage = from.startsWith('/cart')
     ? 'Sign in to complete your purchase'
     : from !== '/'
@@ -34,7 +33,7 @@ function Login() {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
 
-      // ✅ Merge guest cart into real cart after login
+      // Merge guest cart
       try {
         const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
         if (guestCart.length > 0) {
@@ -49,19 +48,18 @@ function Login() {
         }
       } catch (_) {}
 
-      // ✅ Fetch unseen notifications right after login
-      try {
-        const notifRes = await API.get('/notifications', {
-          headers: { Authorization: `Bearer ${res.data.token}` }
-        })
-        if (notifRes.data.length > 0) {
-          localStorage.setItem('pendingNotifications', JSON.stringify(notifRes.data))
-        }
-      } catch (_) {}
-
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Try again.')
+      const code = err.response?.data?.code
+      const status = err.response?.status
+
+      // ✅ Email not registered → redirect to register with email pre-filled
+      if (status === 404 || code === 'USER_NOT_FOUND') {
+        navigate('/register', { state: { email: form.email, message: 'No account found. Create one below!' } })
+        return
+      }
+
+      setError(err.response?.data?.error || 'Login failed. Try again.')
     } finally {
       setLoading(false)
     }

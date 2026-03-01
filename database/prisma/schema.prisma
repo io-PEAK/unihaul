@@ -8,7 +8,8 @@ datasource db {
 
 model User {
   id           Int       @id @default(autoincrement())
-  name         String
+  firstName    String   @default("")
+  lastName     String   @default("")
   email        String    @unique
   passwordHash String
 
@@ -27,8 +28,9 @@ model User {
   googleId     String?   @unique
   authProvider String    @default("local")
 
-  profileComplete Boolean @default(true)
-
+  saleNotifications    Boolean @default(true)
+  messageNotifications Boolean @default(true)
+  profileComplete      Boolean @default(true)
   createdAt    DateTime  @default(now())
 
   items            Item[]
@@ -38,6 +40,7 @@ model User {
   sellerTxns       Transaction[]  @relation("SellerTransactions")
   cartItems        CartItem[]
   notifications    Notification[]
+  otpCodes  OtpCode[]
 }
 
 model Item {
@@ -130,4 +133,26 @@ model Notification {
 
   user      User  @relation(fields: [userId], references: [id])
   item      Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+}
+
+model OtpCode {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  code      String
+  type      String
+  newEmail  String?
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SuggestedInstitution {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  city      String?
+  state     String?
+  type      String   @default("college")
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
 }

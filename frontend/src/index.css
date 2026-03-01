@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 /* ── Reset ─────────────────────────────────────────────────── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -100,9 +99,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
 }
 
 /* ── CHALK (light, warm white — deep indigo accent) ──────────── */
-/* Indigo is the right call for light ecommerce: Flipkart, Meesho,  */
-/* Amazon India all use deep blue/indigo on white. High contrast,   */
-/* trustworthy, professional. Orange is a dark-theme accent.        */
 [data-theme="chalk"] {
   --accent:           #4f46e5;
   --accent-alt:       #6366f1;

@@ -6,11 +6,46 @@ import { faker } from '@faker-js/faker'
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
+// ── Constants matching your real app data ──────────────────────
+const CATEGORIES: Record<string, string[]> = {
+  'Books & Notes':    ['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', 'Reference Books', 'Notes'],
+  'Electronics':      ['Phones', 'Laptops', 'Tablets', 'Earphones', 'Chargers', 'Accessories'],
+  'Food & Drinks':    ['Snacks', 'Beverages', 'Homemade', 'Meal Plans'],
+  'Clothing':         ['Tops', 'Bottoms', 'Shoes', 'Accessories', 'Uniforms'],
+  'Furniture':        ['Chairs', 'Tables', 'Beds', 'Shelves', 'Lamps'],
+  'Sports & Fitness': ['Cricket', 'Football', 'Badminton', 'Gym Equipment', 'Cycles'],
+  'Stationery':       ['Pens', 'Notebooks', 'Art Supplies', 'Calculators'],
+  'Appliances':       ['Fan', 'Iron', 'Kettle', 'Heater', 'Extension Boards'],
+  'Games & Hobbies':  ['Board Games', 'Video Games', 'Cards', 'Musical Instruments'],
+  'Services':         ['Tutoring', 'Designing', 'Coding Help', 'Photography'],
+  'Other':            ['Miscellaneous'],
+}
+const CATEGORY_NAMES = Object.keys(CATEGORIES)
+const CONDITIONS     = ['New', 'Like New', 'Good', 'Fair', 'Poor']
+const STATUSES       = ['available', 'available', 'available', 'pending', 'sold']
+const THEMES         = ['ember', 'ember', 'ember', 'midnight', 'chalk']
+const INST_TYPES     = ['college', 'college', 'college', 'school']
+const CITIES         = ['Delhi', 'Mumbai', 'Chennai', 'Bangalore', 'Hyderabad', 'Pune', 'Jaipur', 'Kolkata', 'Ahmedabad', 'Lucknow']
+const STATES         = ['Delhi', 'Maharashtra', 'Tamil Nadu', 'Karnataka', 'Telangana', 'Rajasthan', 'West Bengal', 'Gujarat', 'Uttar Pradesh']
+const MSG_TEMPLATES  = [
+  'Is this still available?',
+  'Can you do a lower price?',
+  'Where can we meet for the handover?',
+  'What condition is it exactly?',
+  'Is there any warranty left?',
+  'Can I see it before buying?',
+  'Does it come with all accessories?',
+  'How old is this?',
+  'Any scratches or damage?',
+  'Can you deliver to the hostel?',
+]
+
 async function main() {
   console.log('🌱 Starting seed...')
 
-  // Clear existing data (order matters due to foreign keys)
+  // Clear in correct FK order (children before parents)
   await prisma.notification.deleteMany()
+  await prisma.cartItem.deleteMany()
   await prisma.transaction.deleteMany()
   await prisma.message.deleteMany()
   await prisma.item.deleteMany()
@@ -20,98 +55,124 @@ async function main() {
   // ─── USERS (100) ───────────────────────────────────────────
   const users = []
   for (let i = 0; i < 100; i++) {
-    const user = await prisma.user.create({
+    const city  = faker.helpers.arrayElement(CITIES)
+    const state = faker.helpers.arrayElement(STATES)
+    const user  = await prisma.user.create({
       data: {
-        name: faker.person.fullName(),
-        email: faker.internet.email(),
+        name:         faker.person.fullName(),
+        email:        faker.internet.email().toLowerCase(),
         passwordHash: faker.string.alphanumeric(60),
+        phone:        faker.helpers.maybe(() => faker.phone.number(), { probability: 0.7 }),
+        avatar:       faker.helpers.maybe(() => faker.image.avatar(),  { probability: 0.5 }),
+        bio:          faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.4 }),
+        institution:     faker.company.name() + ' ' + faker.helpers.arrayElement(['College', 'Institute', 'University', 'School']),
+        institutionType: faker.helpers.arrayElement(INST_TYPES),
+        city,
+        state,
+        notificationsEnabled: true,
+        saleNotifications:    faker.datatype.boolean({ probability: 0.85 }),
+        messageNotifications: faker.datatype.boolean({ probability: 0.90 }),
+        theme:          faker.helpers.arrayElement(THEMES),
+        googleId:       null,
+        authProvider:   'local',
+        profileComplete: true,
       },
     })
     users.push(user)
   }
   console.log(`✅ Created ${users.length} users`)
 
-  // ─── ITEMS (500) ───────────────────────────────────────────
-  const categories = [
-    'Books & Notes',
-    'Electronics',
-    'Food & Drinks',
-    'Clothing',
-    'Furniture',
-    'Sports & Fitness',
-    'Stationery',
-    'Appliances',
-    'Games & Hobbies',
-    'Services',
-    'Other',
-  ]
-  const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor']
-  const statuses = ['available', 'pending', 'sold']
-
+  // ─── ITEMS (300) ───────────────────────────────────────────
   const items = []
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 300; i++) {
+    const seller      = faker.helpers.arrayElement(users)
+    const category    = faker.helpers.arrayElement(CATEGORY_NAMES)
+    const subcategory = faker.helpers.arrayElement(CATEGORIES[category])
     const item = await prisma.item.create({
       data: {
-        title: faker.commerce.productName(),
-        description: faker.commerce.productDescription(),
-        price: parseFloat(faker.commerce.price({ min: 50, max: 5000 })),
-        category: faker.helpers.arrayElement(categories),
-        condition: faker.helpers.arrayElement(conditions),
-        status: faker.helpers.arrayElement(statuses),
-        imageUrl: faker.image.url(),
-        sellerId: faker.helpers.arrayElement(users).id,
+        title:       faker.commerce.productName(),
+        price:       parseFloat(faker.commerce.price({ min: 50, max: 5000 })),
+        category,
+        condition:   faker.helpers.arrayElement(CONDITIONS),
+        description: faker.helpers.maybe(() => faker.commerce.productDescription(), { probability: 0.8 }),
+        subcategory,
+        status:      faker.helpers.arrayElement(STATUSES),
+        quantity:    faker.helpers.arrayElement([1, 1, 1, 2, 3]),
+        specs:       faker.helpers.maybe(() => ({
+          brand:  faker.company.name(),
+          model:  faker.string.alphanumeric(6).toUpperCase(),
+          color:  faker.color.human(),
+        }), { probability: 0.3 }),
+        imageUrl: faker.helpers.maybe(() => `https://picsum.photos/seed/${faker.string.alphanumeric(6)}/400/300`, { probability: 0.7 }),
+        images:   [],
+        sellerInstitution:     seller.institution,
+        sellerInstitutionType: seller.institutionType,
+        sellerCity:            seller.city,
+        sellerState:           seller.state,
+        sellerId: seller.id,
       },
     })
     items.push(item)
   }
   console.log(`✅ Created ${items.length} items`)
 
-  // ─── MESSAGES (500) ────────────────────────────────────────
-  for (let i = 0; i < 500; i++) {
-    const sender = faker.helpers.arrayElement(users)
+  // ─── MESSAGES (200) ────────────────────────────────────────
+  for (let i = 0; i < 200; i++) {
+    const sender   = faker.helpers.arrayElement(users)
     const receiver = faker.helpers.arrayElement(users.filter(u => u.id !== sender.id))
-    const item = faker.helpers.arrayElement(items)
+    const item     = faker.helpers.arrayElement(items)
     await prisma.message.create({
       data: {
-        content: faker.helpers.arrayElement([
-          'Is this still available?',
-          'Can you do a lower price?',
-          'Where can we meet?',
-          'What condition is it in?',
-          'Is there any warranty?',
-          faker.lorem.sentence(),
-        ]),
-        senderId: sender.id,
+        content:    faker.helpers.arrayElement(MSG_TEMPLATES),
+        read:       faker.datatype.boolean({ probability: 0.6 }),
+        senderId:   sender.id,
         receiverId: receiver.id,
-        itemId: item.id,
+        itemId:     item.id,
       },
     })
   }
-  console.log(`✅ Created 500 messages`)
+  console.log(`✅ Created 200 messages`)
 
-  // ─── TRANSACTIONS (500) ────────────────────────────────────
-  for (let i = 0; i < 500; i++) {
-    const item = faker.helpers.arrayElement(items)
+  // ─── TRANSACTIONS (100) ────────────────────────────────────
+  for (let i = 0; i < 100; i++) {
+    const item  = faker.helpers.arrayElement(items)
     const buyer = faker.helpers.arrayElement(users.filter(u => u.id !== item.sellerId))
     await prisma.transaction.create({
       data: {
-        itemId: item.id,
-        buyerId: buyer.id,
-        sellerId: item.sellerId,
-        status: faker.helpers.arrayElement(['pending', 'completed', 'cancelled']),
+        status:       faker.helpers.arrayElement(['pending', 'completed', 'cancelled']),
+        quantity:     1,
+        price:        item.price,
+        itemTitle:    item.title,
+        itemCategory: item.category,
+        itemId:       item.id,
+        buyerId:      buyer.id,
+        sellerId:     item.sellerId,
       },
     })
   }
-  console.log(`✅ Created 500 transactions`)
+  console.log(`✅ Created 100 transactions`)
 
-  console.log('🎉 Database seeded successfully!')
+  // ─── NOTIFICATIONS (for completed transactions) ─────────────
+  const completedTxns = await prisma.transaction.findMany({ where: { status: 'completed' } })
+  for (const txn of completedTxns) {
+    const buyer = users.find(u => u.id === txn.buyerId)
+    await prisma.notification.create({
+      data: {
+        userId:    txn.sellerId,
+        itemId:    txn.itemId,
+        itemTitle: txn.itemTitle,
+        buyerName: buyer?.name || 'Unknown Buyer',
+        price:     txn.price,
+        seen:      faker.datatype.boolean({ probability: 0.4 }),
+      },
+    })
+  }
+  console.log(`✅ Created ${completedTxns.length} notifications`)
+
+  console.log('\n🎉 Database seeded successfully!')
+  console.log(`   Users: 100 | Items: 300 | Messages: 200 | Transactions: 100`)
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .catch((e) => { console.error('❌ Seed failed:', e); process.exit(1) })
+  .finally(async () => { await prisma.$disconnect() })
