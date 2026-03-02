@@ -8,7 +8,7 @@ export const getCart = async (req, res) => {
       where: { userId },
       include: {
         item: {
-          include: { seller: { select: { id: true, name: true, email: true } } }
+          include: { seller: { select: { id: true, firstName: true, lastName: true, email: true } } }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -79,7 +79,7 @@ export const updateCartQuantity = async (req, res) => {
     const updated = await prisma.cartItem.update({
       where: { userId_itemId: { userId, itemId } },
       data: { quantity: qty },
-      include: { item: { include: { seller: { select: { id: true, name: true, email: true } } } } },
+      include: { item: { include: { seller: { select: { id: true, firstName: true, lastName: true, email: true } } } } },
     })
     res.json(updated)
   } catch (err) {
@@ -105,7 +105,11 @@ export const removeFromCart = async (req, res) => {
 export const checkout = async (req, res) => {
   const userId = parseInt(req.user.userId)
   try {
-    const buyer = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+    const buyer = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true }
+    })
+    const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim()
 
     const cartItems = await prisma.cartItem.findMany({
       where: { userId },
@@ -147,7 +151,7 @@ export const checkout = async (req, res) => {
             userId: c.item.sellerId,
             itemId: c.itemId,
             itemTitle: c.item.title,
-            buyerName: buyer.name,
+            buyerName,
             price: totalPrice,
             seen: false,
           },

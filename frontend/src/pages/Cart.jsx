@@ -196,7 +196,7 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
           {item.subcategory && <><span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>›</span><span style={{ color: 'rgba(232,119,34,0.5)', fontSize: '0.75rem', fontWeight: '600' }}>{item.subcategory}</span></>}
-          {item.seller?.name && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
+          {`${item.seller?.firstName} ${item.seller?.lastName}`.trim() && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
         </div>
       </div>
 

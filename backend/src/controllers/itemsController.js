@@ -36,7 +36,7 @@ export const getItems = async (req, res) => {
           ...specFilters,
         ].filter(Boolean),
       },
-      include: { seller: { select: { id: true, name: true, email: true } } },
+      include: { seller: { select: { id: true, firstName: true, lastName: true, email: true } } },
       orderBy:
         sortPrice === 'asc'  ? { price: 'asc' }  :
         sortPrice === 'desc' ? { price: 'desc' }  :
@@ -54,7 +54,7 @@ export const getMyItems = async (req, res) => {
   try {
     const items = await prisma.item.findMany({
       where: { sellerId: parseInt(userId) },
-      include: { seller: { select: { id: true, name: true, email: true } } },
+      include: { seller: { select: { id: true, firstName: true, lastName: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     })
     res.json(items)
@@ -69,7 +69,7 @@ export const getItemById = async (req, res) => {
   try {
     const item = await prisma.item.findUnique({
       where: { id: parseInt(id) },
-      include: { seller: { select: { id: true, name: true, email: true } } },
+      include: { seller: { select: { id: true, firstName: true, lastName: true, email: true } } },
     })
     if (!item) return res.status(404).json({ error: 'Item not found.' })
     res.json(item)

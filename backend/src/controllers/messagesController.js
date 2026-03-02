@@ -9,8 +9,8 @@ export const getConversations = async (req, res) => {
         OR: [{ senderId: userId }, { receiverId: userId }]
       },
       include: {
-        sender: { select: { id: true, name: true } },
-        receiver: { select: { id: true, name: true } },
+        sender: { select: { id: true, firstName: true, lastName: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true } },
         item: { select: { id: true, title: true, status: true, sellerId: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -28,7 +28,7 @@ export const getConversations = async (req, res) => {
           item_status: msg.item?.status || 'available',
           item_seller_id: msg.item?.sellerId || null,
           other_user_id: otherUser.id,
-          other_user_name: otherUser.name,
+          other_user_name: `${otherUser.firstName} ${otherUser.lastName}`.trim(),
           last_message: msg.content,
           last_message_at: msg.createdAt,
           unread_count: (!msg.read && msg.receiverId === userId) ? 1 : 0,
@@ -128,7 +128,7 @@ export const getUnreadMessages = async (req, res) => {
     const messages = await prisma.message.findMany({
       where: { receiverId: userId, read: false },
       include: {
-        sender: { select: { id: true, name: true } },
+        sender: { select: { id: true, firstName: true, lastName: true } },
         item:   { select: { id: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -137,7 +137,7 @@ export const getUnreadMessages = async (req, res) => {
     const result = messages.map(msg => ({
       id:         msg.id,
       senderId:   msg.sender.id,
-      senderName: msg.sender.name,
+      senderName: `${msg.sender.firstName} ${msg.sender.lastName}`.trim(),
       itemId:     msg.itemId,
       itemTitle:  msg.item?.title || 'Item',
       content:    msg.content,

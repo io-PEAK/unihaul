@@ -435,7 +435,7 @@ function Dashboard() {
   }, [tabParam])
 
   const user     = JSON.parse(localStorage.getItem('user') || '{}')
-  const username = user.name || user.username || 'there'
+  const username = user.firstName || 'there'
 
   useEffect(() => {
     const fetchData = async () => {

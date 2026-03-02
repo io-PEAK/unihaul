@@ -736,49 +736,66 @@ export default function Settings() {
 
                       {/* ── Type picker: shown if not set yet OR user clicked Change type ── */}
                       {(!form.institutionType || changingType) && (
-                        <Field label="What are you?">
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {['college', 'school'].map(t => (
-                              <button key={t}
-                                onClick={() => {
-                                  set('institutionType', t)
-                                  // clear fields when picking a new type
-                                  set('institution', '')
-                                  set('city', '')
-                                  set('state', '')
-                                  setChangingType(false)
-                                }}
-                                style={{ flex: 1, padding: '0.625rem', fontSize: '0.85rem', fontWeight: '700', textTransform: 'capitalize', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.15s ease', border: form.institutionType === t ? '1px solid var(--accent)' : '1px solid var(--border)', background: form.institutionType === t ? 'var(--accent-soft)' : 'var(--bg-input)', color: form.institutionType === t ? 'var(--accent)' : 'var(--text-secondary)' }}
-                              >
-                                {t === 'college' ? '🎓 College / University' : '🏫 School'}
-                              </button>
-                            ))}
+                        <div>
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            {[
+                              {
+                                id: 'college',
+                                label: 'College Student',
+                                icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                              },
+                              {
+                                id: 'school',
+                                label: 'School Student',
+                                icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                              }
+                            ].map(t => {
+                              const isSelected = form.institutionType === t.id
+                              return (
+                                <button key={t.id}
+                                  onClick={() => {
+                                    set('institutionType', t.id)
+                                    set('institution', '')
+                                    set('city', '')
+                                    set('state', '')
+                                    setChangingType(false)
+                                  }}
+                                  style={{ flex: 1, padding: '0.875rem 1rem', textAlign: 'left', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.18s ease', border: isSelected ? '2px solid var(--accent)' : '2px solid var(--border)', background: isSelected ? 'var(--accent-soft)' : 'var(--bg-input)', display: 'flex', alignItems: 'center', gap: '0.625rem' }}
+                                >
+                                  <span style={{ color: isSelected ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', flexShrink: 0 }}>{t.icon}</span>
+                                  <span style={{ fontSize: '0.875rem', fontWeight: '700', color: isSelected ? 'var(--accent)' : 'var(--text-primary)' }}>{t.label}</span>
+                                </button>
+                              )
+                            })}
                           </div>
-                          {changingType && (
-                            <p style={{ fontSize: '0.68rem', color: '#f97316', marginTop: '0.4rem', fontWeight: '500' }}>
-                              ⚠️ Changing your type will clear your current institution details.
-                            </p>
-                          )}
-                        </Field>
+                        </div>
                       )}
+
+                      {/* Warning — only when changing an existing saved type */}
+                      
 
                       {/* ── Institution form: only shown once type is chosen ── */}
                       {form.institutionType && !changingType && (
                         <>
                           {/* Type badge + change link */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius-sm)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ fontSize: '1rem' }}>{form.institutionType === 'college' ? '🎓' : '🏫'}</span>
-                              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--accent)', textTransform: 'capitalize' }}>{form.institutionType}</span>
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>student</span>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                              {form.institutionType === 'college'
+                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                                : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                              }
+                              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--accent)', textTransform: 'capitalize' }}>
+                                {form.institutionType === 'college' ? 'College' : 'School'} student
+                              </span>
                             </div>
                             <button
                               onClick={() => setChangingType(true)}
-                              style={{ fontSize: '0.68rem', fontWeight: '600', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)', padding: '0.2rem 0.4rem', borderRadius: '4px', transition: 'color 0.15s' }}
-                              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-                              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: '600', color: 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontFamily: 'var(--font-body)', padding: '0.25rem 0.625rem', transition: 'all 0.15s ease' }}
+                              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.background = 'var(--accent-soft)' }}
+                              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'none' }}
                             >
-                              Change type
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              Change
                             </button>
                           </div>
 
@@ -807,10 +824,7 @@ export default function Settings() {
                         </>
                       )}
 
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', padding: '0.875rem 1rem', borderRadius: 'var(--radius-sm)', fontSize: '0.72rem', lineHeight: '1.6', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent)', marginTop: form.institutionType && !changingType ? '0' : '0.5rem' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '0.1rem' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <span>Your institution is shown on your listings so students from the same place can find your items easily.</span>
-                      </div>
+                      {/* Info strip removed — too cluttered */}
                     </Section>
                   </div>
                 )}

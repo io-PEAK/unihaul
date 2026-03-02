@@ -310,7 +310,7 @@ function Messages() {
           if (existing) { setActiveConvo(existing); setNewConvoMode(false) }
           else {
             setNewConvoMode(true)
-            setActiveConvo({ item_id: incomingItem.id, item_title: incomingItem.title, item_status: incomingItem.status || 'available', item_seller_id: incomingItem.seller?.id, other_user_name: incomingItem.seller?.name || 'Seller', other_user_id: incomingItem.seller?.id, isNew: true })
+            setActiveConvo({ item_id: incomingItem.id, item_title: incomingItem.title, item_status: incomingItem.status || 'available', item_seller_id: incomingItem.seller?.id, other_user_name: `${incomingItem.seller?.firstName} ${incomingItem.seller?.lastName}`.trim() || 'Seller', other_user_id: incomingItem.seller?.id, isNew: true })
           }
         } else if (res.data.length > 0) {
           setActiveConvo(res.data[0])

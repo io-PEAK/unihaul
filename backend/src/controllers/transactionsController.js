@@ -5,7 +5,7 @@ export const createTransaction = async (req, res) => {
   const buyerId = req.user.userId
   const { itemId } = req.body
   try {
-    const buyer = await prisma.user.findUnique({ where: { id: parseInt(buyerId) }, select: { name: true } })
+    const buyer = await prisma.user.findUnique({ where: { id: parseInt(buyerId) }, select: { firstName: true, lastName: true } })
     const item = await prisma.item.findUnique({ where: { id: parseInt(itemId) } })
     if (!item) return res.status(404).json({ error: 'Item not found.' })
     if (item.status !== 'available') return res.status(400).json({ error: 'Item is not available.' })
@@ -33,7 +33,7 @@ export const createTransaction = async (req, res) => {
           userId: item.sellerId,
           itemId: parseInt(itemId),
           itemTitle: item.title,
-          buyerName: buyer.name,
+          buyerName: `${buyer.firstName} ${buyer.lastName}`.trim(),
           price: item.price,
           seen: false,
         },
@@ -54,8 +54,8 @@ export const getMyTransactions = async (req, res) => {
     const transactions = await prisma.transaction.findMany({
       where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
       include: {
-        buyer:  { select: { id: true, name: true } },
-        seller: { select: { id: true, name: true } },
+        buyer:  { select: { id: true, firstName: true, lastName: true, email: true } },
+        seller: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -71,8 +71,8 @@ export const getMyTransactions = async (req, res) => {
       category:     t.itemCategory,
       buyer_id:     t.buyerId,
       seller_id:    t.sellerId,
-      buyer_name:   t.buyer.name,
-      seller_name:  t.seller.name,
+      buyer_name: `${t.buyer.firstName} ${t.buyer.lastName}`.trim(),
+      seller_name: `${t.seller.firstName} ${t.seller.lastName}`.trim(),
     }))
 
     res.json(result)

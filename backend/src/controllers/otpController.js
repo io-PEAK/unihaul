@@ -94,7 +94,7 @@ export async function changeEmail(req, res) {
       where: { id: userId },
       data: { email: normalizedEmail },
       select: {
-        id: true, name: true, email: true, phone: true, avatar: true, bio: true,
+        id: true, firstName: true, lastName: true, email: true, phone: true, avatar: true, bio: true,
         institution: true, institutionType: true, city: true, state: true,
         theme: true, authProvider: true, profileComplete: true,
         notificationsEnabled: true, saleNotifications: true, messageNotifications: true,

@@ -131,7 +131,7 @@ function ItemDetail() {
     : []
 
   const infoGrid = [
-    { label: 'Seller',    value: item.seller?.name || 'Unknown' },
+    { label: 'Seller',    value: `${item.seller?.firstName} ${item.seller?.lastName}`.trim() || 'Unknown' },
     { label: 'Condition', value: item.condition },
     { label: 'Category',  value: item.category },
     { label: 'Status',    value: status, isStatus: true },
