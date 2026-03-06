@@ -5,48 +5,53 @@ import prisma from '../lib/prisma.js'
 const { searchInstitutions, getStates } = institutions
 const router = express.Router()
 
-// GET /institutions/search?q=&type=&limit=
+// GET /institutions/search?q=&type=&limit=&state=
 router.get('/search', async (req, res) => {
   try {
-    const { q = '', type = 'all', limit = 20 } = req.query
+    const { q = '', type = 'all', limit = 20, state = '' } = req.query
     const lim = Math.min(parseInt(limit) || 20, 50)
-    if (!q.trim()) return res.json([])
 
     // Source 1 — local dataset (highest priority)
-    const local = searchInstitutions(q, type, lim)
+    // when state is provided, returns all institutions in that state (used by LocationPicker to load cities)
+    const local = searchInstitutions(q, type, lim, state)
     const seen = new Set(local.map(i => i.name.toLowerCase()))
     const merged = [...local]
 
-    // Source 2 — user-submitted unknowns
-    const suggested = await prisma.suggestedInstitution.findMany({
-      where: {
-        name: { contains: q, mode: 'insensitive' },
-        ...(type !== 'all' ? { type } : {})
-      },
-      orderBy: { count: 'desc' },
-      take: lim
-    })
-    for (const s of suggested) {
-      if (!seen.has(s.name.toLowerCase())) {
-        merged.push({ name: s.name, city: s.city || '', state: s.state || '', type: s.type })
-        seen.add(s.name.toLowerCase())
+    // skip DB sources if this is just a state→cities lookup (no query needed)
+    if (q.trim()) {
+      // Source 2 — user-submitted unknowns
+      const suggested = await prisma.suggestedInstitution.findMany({
+        where: {
+          name: { contains: q, mode: 'insensitive' },
+          ...(type !== 'all' ? { type } : {}),
+          ...(state ? { state: { equals: state, mode: 'insensitive' } } : {})
+        },
+        orderBy: { count: 'desc' },
+        take: lim
+      })
+      for (const s of suggested) {
+        if (!seen.has(s.name.toLowerCase())) {
+          merged.push({ name: s.name, city: s.city || '', state: s.state || '', type: s.type })
+          seen.add(s.name.toLowerCase())
+        }
       }
-    }
 
-    // Source 3 — distinct institutions from user profiles
-    const userInsts = await prisma.user.findMany({
-      where: {
-        institution: { contains: q, mode: 'insensitive' },
-        ...(type !== 'all' ? { institutionType: type } : {})
-      },
-      select: { institution: true, institutionType: true, city: true, state: true },
-      distinct: ['institution'],
-      take: lim
-    })
-    for (const u of userInsts) {
-      if (u.institution && !seen.has(u.institution.toLowerCase())) {
-        merged.push({ name: u.institution, city: u.city || '', state: u.state || '', type: u.institutionType || 'college' })
-        seen.add(u.institution.toLowerCase())
+      // Source 3 — distinct institutions from user profiles
+      const userInsts = await prisma.user.findMany({
+        where: {
+          institution: { contains: q, mode: 'insensitive' },
+          ...(type !== 'all' ? { institutionType: type } : {}),
+          ...(state ? { state: { equals: state, mode: 'insensitive' } } : {})
+        },
+        select: { institution: true, institutionType: true, city: true, state: true },
+        distinct: ['institution'],
+        take: lim
+      })
+      for (const u of userInsts) {
+        if (u.institution && !seen.has(u.institution.toLowerCase())) {
+          merged.push({ name: u.institution, city: u.city || '', state: u.state || '', type: u.institutionType || 'college' })
+          seen.add(u.institution.toLowerCase())
+        }
       }
     }
 

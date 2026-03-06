@@ -2,6 +2,10 @@ import prisma from '../lib/prisma.js'
 import institutions from '../data/institutions.js'
 const { searchInstitutions } = institutions
 
+const toTitleCase = s => s
+  ? s.trim().replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+  : null
+
 const userSelect = {
   id: true, firstName: true, lastName: true, email: true,
   phone: true, avatar: true, bio: true,
@@ -56,8 +60,8 @@ export const updateProfile = async (req, res) => {
         ...(bio              !== undefined && { bio: bio?.trim() || null }),
         ...(institution      !== undefined && { institution: institution?.trim() || null }),
         ...(institutionType  !== undefined && { institutionType }),
-        ...(city             !== undefined && { city: city?.trim() || null }),
-        ...(state            !== undefined && { state: state?.trim() || null }),
+        ...(city             !== undefined && { city: toTitleCase(city) || null }),
+        ...(state            !== undefined && { state: toTitleCase(state) || null }),
         ...(saleNotifications    !== undefined && { saleNotifications:    Boolean(saleNotifications) }),
         ...(messageNotifications !== undefined && { messageNotifications: Boolean(messageNotifications) }),
         ...(theme            !== undefined && { theme }),
@@ -102,8 +106,8 @@ export const completeProfile = async (req, res) => {
         phone:           phone?.trim() || null,
         institution:     institution.trim(),
         institutionType,
-        city:            city?.trim() || null,
-        state:           state?.trim() || null,
+        city:            toTitleCase(city) || null,
+        state:           toTitleCase(state) || null,
         profileComplete: true,
       },
       select: userSelect,

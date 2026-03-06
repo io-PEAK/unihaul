@@ -55,6 +55,41 @@ function cleanName(raw) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// STATE NORMALIZER — fixes casing + known aliases from CSV data
+// e.g. "delhi ncr" / "Delhi NCR" / "delhi NCR" → all become "Delhi NCR"
+// e.g. "Orissa" → "Odisha", "Pondicherry" → "Puducherry"
+// runs on every institution at load time so getStates() is always clean
+// ─────────────────────────────────────────────────────────────
+function normalizeState(state) {
+  if (!state) return ''
+  const map = {
+    'delhi ncr':           'Delhi NCR',
+    'delhi':               'Delhi',
+    'uttar pradesh':       'Uttar Pradesh',
+    'madhya pradesh':      'Madhya Pradesh',
+    'andhra pradesh':      'Andhra Pradesh',
+    'arunachal pradesh':   'Arunachal Pradesh',
+    'himachal pradesh':    'Himachal Pradesh',
+    'tamil nadu':          'Tamil Nadu',
+    'tamilnadu':           'Tamil Nadu',
+    'west bengal':         'West Bengal',
+    'jammu & kashmir':     'Jammu & Kashmir',
+    'jammu and kashmir':   'Jammu & Kashmir',
+    'jammu':               'Jammu & Kashmir',
+    'orissa':              'Odisha',
+    'pondicherry':         'Puducherry',
+    'uttaranchal':         'Uttarakhand',
+    'maharastra':          'Maharashtra',
+    'andaman':             'Andaman & Nicobar',
+    'andaman and nicobar': 'Andaman & Nicobar',
+    'dadra':               'Dadra & Nagar Haveli',
+    'daman':               'Daman & Diu',
+  }
+  const key = state.toLowerCase().trim()
+  return map[key] || state.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+}
+
+// ─────────────────────────────────────────────────────────────
 // SOURCE 1 — FAMOUS COLLEGES (always shown first, can't be deduped away)
 // ─────────────────────────────────────────────────────────────
 const FAMOUS_COLLEGES = [
@@ -380,7 +415,8 @@ function loadAll() {
     const key = dedupKey(inst.name)
     if (!key || seen.has(key)) return
     seen.add(key)
-    all.push(inst)
+    // normalize state + trim city at load time so all downstream code is clean
+    all.push({ ...inst, state: normalizeState(inst.state), city: (inst.city || '').trim() })
   }
 
   // 1. Famous colleges (priority — shown first in results)
@@ -429,7 +465,10 @@ function loadAll() {
 // PUBLIC API
 // ─────────────────────────────────────────────────────────────
 
-/** Search by name, city, or state. type: 'college' | 'school' | 'all' */
+/** Search by name, city, or state. type: 'college' | 'school' | 'all'
+ *  state param: optional — filters to a single state (used by LocationPicker
+ *  to load cities when user expands a state in the Area tab)
+ */
 const ALIASES = {
   'dps':  'delhi public school',
   'kv':   'kendriya vidyalaya',
@@ -445,14 +484,17 @@ const ALIASES = {
   'amu':  'aligarh muslim',
 }
 
-export function searchInstitutions(query = '', type = 'all', limit = 20) {
+export function searchInstitutions(query = '', type = 'all', limit = 20, state = '') {
   const raw = query.toLowerCase().trim()
-  if (!raw) return []
-  const q = ALIASES[raw] ?? raw
-  
+  const q   = ALIASES[raw] ?? raw
+
   return loadAll()
     .filter(i => {
       if (type !== 'all' && i.type !== type) return false
+      // state filter — used when loading cities for a specific state
+      if (state && i.state.toLowerCase() !== state.toLowerCase()) return false
+      // empty query returns everything matching type/state filter
+      if (!q) return true
       return (
         i.name.toLowerCase().includes(q) ||
         (i.city  || '').toLowerCase().includes(q) ||
@@ -464,7 +506,13 @@ export function searchInstitutions(query = '', type = 'all', limit = 20) {
 
 export function getStates(type = 'all') {
   const all = type === 'all' ? loadAll() : loadAll().filter(i => i.type === type)
-  return [...new Set(all.map(i => i.state).filter(Boolean))].sort()
+  const seen = new Map() // lowercase key → normalized value (deduplicates "Delhi ncr" / "Delhi NCR" etc)
+  for (const i of all) {
+    if (!i.state) continue
+    const key = i.state.toLowerCase().trim()
+    if (!seen.has(key)) seen.set(key, i.state)
+  }
+  return [...seen.values()].sort()
 }
 
 export function getByState(state, type = 'all') {

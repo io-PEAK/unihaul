@@ -3,25 +3,92 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
-import authRoutes from './src/routes/auth.js'
-import itemRoutes from './src/routes/items.js'
-import messageRoutes from './src/routes/messages.js'
-import transactionRoutes from './src/routes/transactions.js'
-import cartRoutes from './src/routes/cart.js'
-import notificationRoutes from './src/routes/notifications.js'
-import userRoutes from './src/routes/users.js'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
+
+import authRoutes from './src/routes/authRoute.js'
+import googleAuthRoutes from './src/routes/googleAuthRoute.js'
+import itemRoutes from './src/routes/itemsRoute.js'
+import messageRoutes from './src/routes/messagesRoute.js'
+import transactionRoutes from './src/routes/transactionsRoute.js'
+import cartRoutes from './src/routes/cartRoute.js'
+import notificationRoutes from './src/routes/notificationsRoute.js'
+import userRoutes from './src/routes/usersRoute.js'
 import institutionsRoutes from './src/routes/institutionsRoute.js'
+import uploadRoutes from './src/routes/uploadRoute.js'
 
 dotenv.config()
 const app = express()
 
-app.use(helmet())
+// ── Create HTTP server + attach Socket.io ─────────────────────
+const httpServer = createServer(app)
 
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   process.env.FRONTEND_URL,
 ].filter(Boolean)
+
+export const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+})
+
+// ── Online users map: userId → Set of socketIds ───────────────
+const onlineUsers = new Map()
+io._onlineUsers = onlineUsers  // exposed so controllers can emit to specific users
+
+io.on('connection', (socket) => {
+  const userId = String(socket.handshake.auth?.userId)
+  if (!userId || userId === 'undefined') return
+
+  // Track socket
+  if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set())
+  onlineUsers.get(userId).add(socket.id)
+
+  // Tell everyone this user is now online
+  io.emit('user-online', { userId })
+
+  // Send the newly connected socket the full current online list
+  // so their UI immediately shows correct status without waiting for an event
+  socket.emit('online-list', { userIds: Array.from(onlineUsers.keys()) })
+
+  // ── Typing events ──────────────────────────────────────────
+  socket.on('typing-start', ({ toUserId, itemId }) => {
+    onlineUsers.get(String(toUserId))?.forEach(sid =>
+      io.to(sid).emit('typing-start', { fromUserId: userId, itemId })
+    )
+  })
+
+  // Client can request a fresh online list at any time (e.g. when switching convos)
+  socket.on('get-online-list', () => {
+    socket.emit('online-list', { userIds: Array.from(onlineUsers.keys()) })
+  })
+
+  socket.on('typing-stop', ({ toUserId, itemId }) => {
+    onlineUsers.get(String(toUserId))?.forEach(sid =>
+      io.to(sid).emit('typing-stop', { fromUserId: userId, itemId })
+    )
+  })
+
+  // ── Disconnect ────────────────────────────────────────────
+  socket.on('disconnect', () => {
+    const sockets = onlineUsers.get(userId)
+    if (sockets) {
+      sockets.delete(socket.id)
+      // Only mark offline when ALL tabs are closed
+      if (sockets.size === 0) {
+        onlineUsers.delete(userId)
+        io.emit('user-offline', { userId })
+      }
+    }
+  })
+})
+
+// ── Express middleware ────────────────────────────────────────
+app.use(helmet())
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -51,13 +118,15 @@ app.use(generalLimiter)
 
 // ── Routes ────────────────────────────────────────────────────
 app.use('/auth',          authLimiter, authRoutes)
+app.use('/auth',          authLimiter, googleAuthRoutes)
 app.use('/items',         itemRoutes)
 app.use('/messages',      messageRoutes)
 app.use('/transactions',  transactionRoutes)
 app.use('/cart',          cartRoutes)
 app.use('/notifications', notificationRoutes)
-app.use('/users',         userRoutes)           // ← was missing
-app.use('/institutions',  institutionsRoutes)   // ← was missing
+app.use('/users',         userRoutes)
+app.use('/institutions',  institutionsRoutes)
+app.use('/upload',        uploadRoutes)
 
 app.get('/', (req, res) => res.json({ message: 'Student Shop API is running!' }))
 
@@ -72,5 +141,6 @@ app.use((err, req, res, next) => {
   })
 })
 
-const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+// ── Start (httpServer not app.listen) ─────────────────────────
+const PORT = process.env.PORT || 8000
+httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`))

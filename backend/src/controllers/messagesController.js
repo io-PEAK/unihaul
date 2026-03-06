@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { io } from '../../server.js'
 
 // GET /messages/conversations
 export const getConversations = async (req, res) => {
@@ -9,9 +10,9 @@ export const getConversations = async (req, res) => {
         OR: [{ senderId: userId }, { receiverId: userId }]
       },
       include: {
-        sender: { select: { id: true, firstName: true, lastName: true } },
-        receiver: { select: { id: true, firstName: true, lastName: true } },
-        item: { select: { id: true, title: true, status: true, sellerId: true } },
+        sender: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        item: { select: { id: true, title: true, status: true, sellerId: true, images: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -27,8 +28,10 @@ export const getConversations = async (req, res) => {
           item_title: msg.item?.title || 'Item',
           item_status: msg.item?.status || 'available',
           item_seller_id: msg.item?.sellerId || null,
+          item_image: msg.item?.images?.[0] || null,
           other_user_id: otherUser.id,
           other_user_name: `${otherUser.firstName} ${otherUser.lastName}`.trim(),
+          other_user_avatar: otherUser.avatar || null,
           last_message: msg.content,
           last_message_at: msg.createdAt,
           unread_count: (!msg.read && msg.receiverId === userId) ? 1 : 0,
@@ -98,6 +101,28 @@ export const sendMessage = async (req, res) => {
         read: false,
       }
     })
+
+    // ── Enrich payload for Navbar notification (no extra query cost — parallel) ──
+    const [sender, item] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.user.userId }, select: { firstName: true, lastName: true, avatar: true } }),
+      prisma.item.findUnique({ where: { id: parseInt(itemId) }, select: { title: true } }),
+    ])
+    const richMessage = {
+      ...message,
+      senderName: sender ? `${sender.firstName} ${sender.lastName}`.trim() : '',
+      senderAvatar: sender?.avatar || null,
+      itemTitle: item?.title || '',
+    }
+
+    // ── Push new message in real time via socket ───────────
+    const onlineUsers = io?._onlineUsers
+    if (onlineUsers) {
+      const targets = [String(parseInt(receiverId)), String(req.user.userId)]
+      targets.forEach(uid => {
+        onlineUsers.get(uid)?.forEach(sid => io.to(sid).emit('new-message', richMessage))
+      })
+    }
+
     res.status(201).json(message)
   } catch (err) {
     console.error(err)
@@ -128,20 +153,21 @@ export const getUnreadMessages = async (req, res) => {
     const messages = await prisma.message.findMany({
       where: { receiverId: userId, read: false },
       include: {
-        sender: { select: { id: true, firstName: true, lastName: true } },
+        sender: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         item:   { select: { id: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
     const result = messages.map(msg => ({
-      id:         msg.id,
-      senderId:   msg.sender.id,
-      senderName: `${msg.sender.firstName} ${msg.sender.lastName}`.trim(),
-      itemId:     msg.itemId,
-      itemTitle:  msg.item?.title || 'Item',
-      content:    msg.content,
-      createdAt:  msg.createdAt,
+      id:           msg.id,
+      senderId:     msg.sender.id,
+      senderName:   `${msg.sender.firstName} ${msg.sender.lastName}`.trim(),
+      senderAvatar: msg.sender.avatar || null,
+      itemId:       msg.itemId,
+      itemTitle:    msg.item?.title || 'Item',
+      content:      msg.content,
+      createdAt:    msg.createdAt,
     }))
     res.json(result)
   } catch (err) {

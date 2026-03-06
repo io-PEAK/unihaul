@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
+import LocationPicker from '../components/LocationPicker'
+import { defaultLocation } from '../utils/locationUtils'
 
 // ─── Data maps ────────────────────────────────────────────────────────────────
 const categories = [
@@ -134,8 +136,8 @@ const specSuggestionsMap = {
 
 // ─── Shared dark dropdown style ───────────────────────────────────────────────
 const dropMenuStyle = {
-  background: 'linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,20,0.99) 100%)',
-  border: '1px solid rgba(232,119,34,0.3)',
+  background: 'var(--glass-bg-deep)',
+  border: '1px solid var(--border-accent)',
   maxHeight: '200px', overflowY: 'auto',
   boxShadow: '0 20px 48px rgba(0,0,0,0.85)',
   borderRadius: '0 0 9px 9px',
@@ -207,15 +209,15 @@ function FilterSpecInput({ fieldKey, value, placeholder, onChange, suggestions =
             onMouseLeave={() => setHoveredIdx(null)}
             style={{
               padding: '0.45rem 0.85rem', fontSize: '0.78rem', cursor: 'pointer',
-              color: hoveredIdx === i ? '#f0a040' : 'rgba(255,255,255,0.7)',
-              background: hoveredIdx === i ? 'rgba(232,119,34,0.1)' : 'transparent',
-              transition: 'all 0.12s', borderBottom: i < filtered.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              color: hoveredIdx === i ? 'var(--accent-alt)' : 'var(--text-secondary)',
+              background: hoveredIdx === i ? 'var(--accent-soft)' : 'transparent',
+              transition: 'all 0.12s', borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
             }}
           >
             {matchIdx >= 0 ? (
               <span>
                 {s.slice(0, matchIdx)}
-                <span style={{ color: '#e87722', fontWeight: '700' }}>{s.slice(matchIdx, matchIdx + value.length)}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: '700' }}>{s.slice(matchIdx, matchIdx + value.length)}</span>
                 {s.slice(matchIdx + value.length)}
               </span>
             ) : s}
@@ -239,10 +241,10 @@ function FilterSpecInput({ fieldKey, value, placeholder, onChange, suggestions =
           style={{
             width: '100%',
             padding: suggestions.length > 0 ? '0.52rem 1.8rem 0.52rem 0.85rem' : '0.52rem 0.85rem',
-            background: 'rgba(255,255,255,0.05)',
-            border: focused ? '1px solid rgba(232,119,34,0.45)' : value ? '1px solid rgba(232,119,34,0.38)' : '1px solid rgba(255,255,255,0.07)',
+            background: 'var(--bg-input)',
+            border: focused ? '1px solid var(--accent-border)' : value ? '1px solid var(--border-accent)' : '1px solid var(--border)',
             borderRadius: '9px',
-            color: value ? 'white' : undefined, fontSize: '0.8rem',
+            color: value ? 'var(--text-primary)' : undefined, fontSize: '0.8rem',
             outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
             appearance: 'none', WebkitAppearance: 'none',
           }}
@@ -254,10 +256,10 @@ function FilterSpecInput({ fieldKey, value, placeholder, onChange, suggestions =
             style={{
               position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
               background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem',
-              color: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', transition: 'color 0.15s',
+              color: 'var(--text-ghost)', display: 'flex', alignItems: 'center', transition: 'color 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.color = 'rgba(232,119,34,0.6)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-ghost)'}
           >
             <svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor"
               style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -329,14 +331,14 @@ function FilterCategorySelect({ value, onChange, options, placeholder }) {
             onMouseEnter={() => setHIdx(i)} onMouseLeave={() => setHIdx(null)}
             style={{
               padding: '0.45rem 0.85rem', fontSize: '0.78rem', cursor: 'pointer',
-              color: isActive ? '#f0a040' : hIdx === i ? '#f0a040' : 'rgba(255,255,255,0.7)',
-              background: isActive ? 'rgba(232,119,34,0.12)' : hIdx === i ? 'rgba(232,119,34,0.08)' : 'transparent',
-              borderBottom: i < options.length ? '1px solid rgba(255,255,255,0.04)' : 'none',
+              color: isActive ? 'var(--accent-alt)' : hIdx === i ? 'var(--accent-alt)' : 'var(--text-secondary)',
+              background: isActive ? 'var(--accent-soft)' : hIdx === i ? 'rgba(var(--accent-rgb),0.08)' : 'transparent',
+              borderBottom: i < options.length ? '1px solid var(--border)' : 'none',
               fontWeight: isActive ? '600' : '400',
               display: 'flex', alignItems: 'center', gap: '0.5rem',
             }}
           >
-            {isActive && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1,6 4,9 11,3" stroke="#f0a040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            {isActive && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1,6 4,9 11,3" stroke="var(--accent-alt)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
             {!isActive && <span style={{ width: '9px' }} />}
             {lbl}
           </div>
@@ -353,10 +355,10 @@ function FilterCategorySelect({ value, onChange, options, placeholder }) {
         onMouseDown={() => { if (open) setOpen(false); else openDrop() }}
         style={{
           width: '100%', padding: '0.52rem 2rem 0.52rem 0.85rem',
-          background: 'rgba(255,255,255,0.05)',
-          border: open ? '1px solid rgba(232,119,34,0.45)' : value ? '1px solid rgba(232,119,34,0.3)' : '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--bg-input)',
+          border: open ? '1px solid var(--accent-border)' : value ? '1px solid var(--border-accent)' : '1px solid var(--border)',
           borderRadius: '9px',
-          color: value ? 'white' : 'rgba(255,255,255,0.3)', fontSize: '0.8rem',
+          color: value ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.8rem',
           cursor: 'pointer', outline: 'none', textAlign: 'left', boxSizing: 'border-box',
           transition: 'border-color 0.2s', display: 'flex', alignItems: 'center',
         }}
@@ -366,7 +368,7 @@ function FilterCategorySelect({ value, onChange, options, placeholder }) {
           position: 'absolute', right: '0.75rem', top: '50%',
           transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.2s',
         }}>
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.3)"><path d="M8 11L3 6h10z"/></svg>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="var(--text-muted)"><path d="M8 11L3 6h10z"/></svg>
         </span>
       </button>
       {dropdown}
@@ -409,15 +411,15 @@ function FilterChip({ label, onRemove }) {
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
         padding: '0.28rem 0.7rem',
-        background: h ? 'rgba(232,119,34,0.2)' : 'rgba(232,119,34,0.1)',
-        border: `1px solid ${h ? 'rgba(232,119,34,0.55)' : 'rgba(232,119,34,0.28)'}`,
+        background: h ? 'rgba(var(--accent-rgb),0.2)' : 'var(--accent-soft)',
+        border: `1px solid ${h ? 'rgba(var(--accent-rgb),0.55)' : 'var(--border-accent)'}`,
         borderRadius: '20px', cursor: 'pointer',
         transition: 'all 0.18s ease',
         animation: 'chipIn 0.22s cubic-bezier(0.175,0.885,0.32,1.275)',
       }}
     >
-      <span style={{ fontSize: '0.73rem', fontWeight: '600', color: h ? '#f5a623' : 'rgba(232,119,34,0.85)' }}>{label}</span>
-      <span style={{ fontSize: '0.8rem', color: h ? '#f5a623' : 'rgba(232,119,34,0.5)', lineHeight: 1, marginTop: '-1px' }}>×</span>
+      <span style={{ fontSize: '0.73rem', fontWeight: '600', color: h ? 'var(--accent-alt)' : 'var(--accent)' }}>{label}</span>
+      <span style={{ fontSize: '0.8rem', color: h ? 'var(--accent-alt)' : 'rgba(var(--accent-rgb),0.5)', lineHeight: 1, marginTop: '-1px' }}>×</span>
     </button>
   )
 }
@@ -433,54 +435,52 @@ function ItemCard({ item }) {
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       onClick={() => navigate(`/items/${item.id}`)}
       style={{
-        background: hovered
-          ? 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%)'
-          : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
+        background: hovered ? 'var(--glass-bg-hover)' : 'var(--glass-bg)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: hovered ? '1px solid rgba(232,119,34,0.4)' : '1px solid rgba(255,255,255,0.08)',
+        border: hovered ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid var(--glass-border)',
         borderRadius: '20px', padding: '1.75rem', cursor: 'pointer',
         transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
         transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)' : '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
         position: 'relative', overflow: 'hidden',
       }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.category}</span>
+          <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.category}</span>
           {item.subcategory && <>
-            <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.7rem' }}>›</span>
-            <span style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.5)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.subcategory}</span>
+            <span style={{ color: 'var(--text-ghost)', fontSize: '0.7rem' }}>›</span>
+            <span style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(var(--accent-rgb),0.5)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.subcategory}</span>
           </>}
         </div>
         <span style={{
           fontSize: '0.68rem', fontWeight: '700', flexShrink: 0, marginLeft: '0.5rem',
-          color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66',
-          background: status === 'sold' ? 'rgba(255,107,107,0.1)' : status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)',
+          color: status === 'sold' ? 'var(--color-sold)' : status === 'pending' ? 'var(--color-pending)' : 'var(--color-available)',
+          background: status === 'sold' ? 'var(--bg-sold)' : status === 'pending' ? 'var(--bg-pending)' : 'var(--bg-available)',
           padding: '3px 10px', borderRadius: '20px', textTransform: 'capitalize',
-          border: status === 'sold' ? '1px solid rgba(255,107,107,0.15)' : status === 'pending' ? '1px solid rgba(255,212,59,0.15)' : '1px solid rgba(81,207,102,0.15)',
+          border: status === 'sold' ? '1px solid var(--bd-sold)' : status === 'pending' ? '1px solid var(--bd-pending)' : '1px solid var(--bd-available)',
         }}>{status}</span>
       </div>
-      <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'rgba(255,255,255,0.95)', marginBottom: specs.length ? '0.6rem' : '0.4rem', lineHeight: '1.35', letterSpacing: '-0.3px' }}>{item.title}</h3>
+      <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: specs.length ? '0.6rem' : '0.4rem', lineHeight: '1.35', letterSpacing: '-0.3px' }}>{item.title}</h3>
       {specs.length > 0 && (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
           {specs.map(([, v]) => (
-            <span key={v} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)', fontWeight: '600' }}>{v}</span>
+            <span key={v} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '6px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>
           ))}
         </div>
       )}
-      {item.quantity > 1 && <span style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.22)', fontWeight: '600', display: 'block', marginBottom: '0.3rem' }}>{item.quantity}x in stock</span>}
-      <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.1), rgba(255,255,255,0.06))', margin: '1rem 0' }} />
+      {item.quantity > 1 && <span style={{ fontSize: '0.67rem', color: 'var(--text-ghost)', fontWeight: '600', display: 'block', marginBottom: '0.3rem' }}>{item.quantity}x in stock</span>}
+      <div style={{ height: '1px', background: 'var(--glass-divider)', margin: '1rem 0' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#e87722', letterSpacing: '-0.5px' }}>₹{item.price}</span>
+        <span className="price-text" style={{ fontSize: '1.5rem' }}>₹{item.price}</span>
         <button style={{
           padding: '0.45rem 1.1rem',
-          background: hovered ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(232,119,34,0.12)',
-          color: hovered ? 'white' : 'rgba(232,119,34,0.8)',
-          border: hovered ? '1px solid transparent' : '1px solid rgba(232,119,34,0.25)',
+          background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)',
+          color: hovered ? 'white' : 'var(--accent)',
+          border: hovered ? '1px solid transparent' : '1px solid var(--border-accent)',
           borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer',
           transition: 'all 0.3s ease', fontWeight: '600',
-          boxShadow: hovered ? '0 4px 15px rgba(232,119,34,0.35)' : 'none',
+          boxShadow: hovered ? '0 4px 15px var(--accent-glow)' : 'none',
         }}>View →</button>
       </div>
     </div>
@@ -494,6 +494,7 @@ function Home() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [location, setLocation] = useState(defaultLocation)
 
   // Filter panel
   const [showFilters, setShowFilters] = useState(false)
@@ -590,12 +591,23 @@ function Home() {
       try {
         setLoading(true); setError(null)
         const params = {}
-        if (search)              params.search      = search
-        if (filters.category)    params.category    = filters.category
-        if (filters.subcategory) params.subcategory = filters.subcategory
-        if (filters.sortPrice)   params.sortPrice   = filters.sortPrice
-        Object.entries(filters.specs || {}).forEach(([k, v]) => { if (v) params[k] = v })
-        const res = await API.get('/items', { params })
+if (search)              params.search      = search
+if (filters.category)    params.category    = filters.category
+if (filters.subcategory) params.subcategory = filters.subcategory
+if (filters.sortPrice)   params.sortPrice   = filters.sortPrice
+Object.entries(filters.specs || {}).forEach(([k, v]) => { if (v) params[k] = v })
+
+// Location filter
+if (location.mode === 'custom') {
+  if (location.institutions.length > 0)
+    params.institutions = location.institutions.join(',')
+  if (Object.keys(location.cities).length > 0)
+    params.cities = JSON.stringify(location.cities)
+  if (Object.keys(location.statesOnly).length > 0)
+    params.states = Object.keys(location.statesOnly).join(',')
+}
+
+const res = await API.get('/items', { params })
         setItems(res.data)
       } catch {
         setError('Failed to load items. Please try again.')
@@ -605,7 +617,7 @@ function Home() {
     }
     const t = setTimeout(run, 300)
     return () => clearTimeout(t)
-  }, [search, filters])
+  }, [search, filters, location])
 
   const filteredItems = items.filter(item => filters.statuses.includes(item.status?.toLowerCase()))
 
@@ -635,66 +647,90 @@ function Home() {
 
   const pi = {
     width: '100%', padding: '0.52rem 0.85rem',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '9px', color: 'white', fontSize: '0.8rem',
+    background: 'var(--bg-input)', border: '1px solid var(--border)',
+    borderRadius: '9px', color: 'var(--text-primary)', fontSize: '0.8rem',
     outline: 'none', boxSizing: 'border-box',
     appearance: 'none', WebkitAppearance: 'none', transition: 'border 0.2s ease',
   }
 
   return (
-    <div style={{ padding: '3rem 4rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="home-page" style={{ padding: '3rem 4rem', maxWidth: '1200px', margin: '0 auto' }}>
       <style>{`
         @keyframes chipIn  { from { opacity:0; transform:scale(0.75) translateY(5px); } to { opacity:1; transform:scale(1) translateY(0); } }
         @keyframes panelIn { from { opacity:0; transform:translateY(-8px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes btnGlow { 0%,100% { box-shadow:0 0 0 0 rgba(232,119,34,0); } 60% { box-shadow:0 0 0 5px rgba(232,119,34,0.13); } }
+        @keyframes btnGlow { 0%,100% { box-shadow:0 0 0 0 rgba(var(--accent-rgb),0); } 60% { box-shadow:0 0 0 5px rgba(var(--accent-rgb),0.13); } }
         @keyframes spin    { to { transform:rotate(360deg); } }
         @keyframes ${animId} { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -${Math.round(perim)}; } }
         @keyframes ${animId}-glow { 0% { stroke-dashoffset:0; opacity:0.5; } 50% { opacity:0.85; } 100% { stroke-dashoffset:-${Math.round(perim)}; opacity:0.5; } }
         @keyframes ${animId}-pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
-        input::placeholder, textarea::placeholder { color:rgba(255,255,255,0.22); }
-        select option { background:#1a1225; color:white; }
+        input::placeholder, textarea::placeholder { color: var(--text-ghost); }
+        select option { background: var(--bg-surface); color: var(--text-primary); }
         .filter-panel::-webkit-scrollbar { width: 4px; }
         .filter-panel::-webkit-scrollbar-track { background: transparent; }
-        .filter-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-        .filter-panel::-webkit-scrollbar-thumb:hover { background: rgba(232,119,34,0.4); }
+        .filter-panel::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
+        .filter-panel::-webkit-scrollbar-thumb:hover { background: rgba(var(--accent-rgb),0.4); }
+        .home-page { padding: 3rem 4rem }
+        .home-hero-title { font-size: 3.2rem }
+        .home-search-row { flex-wrap: nowrap }
+        .home-filter-label { display: inline }
+        @media (max-width: 1280px) { .home-page { padding: 2.5rem 3rem } }
+        @media (max-width: 1024px) { .home-page { padding: 2rem 2rem } .home-hero-title { font-size: 2.6rem } }
+        @media (max-width: 768px)  {
+          .home-page { padding: 1.5rem 1rem }
+          .home-hero-title { font-size: 2.2rem }
+          .home-search-row { flex-wrap: wrap; gap: 0.5rem !important }
+          .home-search-input { min-width: 0 !important }
+          .home-filter-label { display: none }
+          .home-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important }
+        }
+        @media (max-width: 480px)  {
+          .home-hero-title { font-size: 1.9rem }
+          .home-grid { grid-template-columns: 1fr !important }
+          .home-search-row { flex-direction: column }
+          .home-search-input { width: 100% !important }
+        }
       `}</style>
 
       {/* Hero */}
       <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '3.2rem', fontWeight: '900', lineHeight: '1.05', letterSpacing: '-2px', marginBottom: '0.75rem', color: 'white' }}>
+        <h1 className="home-hero-title" style={{ fontWeight: '900', lineHeight: '1.05', letterSpacing: '-2px', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
           Buy. Sell.<br />
-          <span style={{ background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Campus Style.</span>
+          <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Campus Style.</span>
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.95rem', fontWeight: '400' }}>Second-hand goods, first-class deals — only for students.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: '400' }}>Second-hand goods, first-class deals — only for students.</p>
       </div>
 
       {/* Search bar + filter row */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+        background: 'var(--glass-bg-row)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px',
+        border: '1px solid var(--glass-border)', borderRadius: '20px',
         padding: '1.25rem 1.5rem',
         marginBottom: chips.length > 0 ? '0.65rem' : '2.5rem',
         boxShadow: '0 8px 32px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
       }}>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div className="home-search-row" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          
+         {/* Location */}
+<LocationPicker location={location} setLocation={setLocation} />
 
           {/* Search */}
           <input type="text" placeholder="Search items..." value={search}
             onChange={e => setSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
+            className="home-search-input"
             style={{
               flex: 1, padding: '0.65rem 1.2rem',
-              background: searchFocused ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
-              border: searchFocused ? '1px solid rgba(232,119,34,0.35)' : '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '12px', color: 'white', fontSize: '0.9rem',
+              background: searchFocused ? 'var(--bg-input-focus)' : 'var(--bg-input)',
+              border: searchFocused ? '1px solid var(--accent-border)' : '1px solid var(--border)',
+              borderRadius: '12px', color: 'var(--text-primary)', fontSize: '0.9rem',
               outline: 'none', transition: 'all 0.3s ease', boxSizing: 'border-box',
             }}
           />
 
           {/* ── Animated ··· Status Button ── */}
           <div ref={statusRef} style={{ position: 'relative', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '10px', border: '1.5px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 0 }} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '10px', border: '1.5px solid var(--border)', pointerEvents: 'none', zIndex: 0 }} />
             <svg width={bw} height={bh} style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: 'blur(2.5px)', overflow: 'visible' }}>
               <rect x="1" y="1" width={bw-2} height={bh-2} rx={r} ry={r} fill="none" stroke={strokeColor} strokeWidth="4"
                 strokeDasharray={`${Math.round(dashLen*0.4)} ${Math.round(perim-dashLen*0.4)}`} strokeLinecap="round"
@@ -709,7 +745,7 @@ function Home() {
               style={{
                 position: 'relative', zIndex: 3,
                 width: `${bw}px`, height: `${bh}px`, borderRadius: '10px', cursor: 'pointer',
-                background: showStatusMenu ? 'rgba(255,255,255,0.07)' : 'transparent',
+                background: showStatusMenu ? 'var(--bg-card-hover)' : 'transparent',
                 border: 'none', color: strokeColor,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '1.1rem', letterSpacing: '1px', fontWeight: '900', lineHeight: 1,
@@ -733,20 +769,20 @@ function Home() {
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.65rem 1.2rem',
               background: showFilters
-                ? 'linear-gradient(135deg, rgba(232,119,34,0.22), rgba(232,119,34,0.1))'
-                : filterBtnH ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)',
+                ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.22), rgba(var(--accent-rgb),0.1))'
+                : filterBtnH ? 'var(--bg-card-hover)' : 'var(--bg-input)',
               border: activeCount > 0 || showFilters
-                ? '1px solid rgba(232,119,34,0.45)' : '1px solid rgba(255,255,255,0.1)',
+                ? '1px solid var(--accent-border)' : '1px solid var(--border)',
               borderRadius: '12px', cursor: 'pointer', color: 'white',
               fontSize: '0.84rem', fontWeight: '700',
               transition: 'all 0.22s ease', flexShrink: 0,
               animation: activeCount > 0 ? 'btnGlow 2.8s ease-in-out infinite' : 'none',
             }}>
-            <FilterIcon color={activeCount > 0 ? '#e87722' : filterBtnH ? 'white' : 'rgba(255,255,255,0.55)'} strokeWidth={activeCount > 0 ? 2.5 : 2.2} />
-            <span style={{ color: activeCount > 0 ? '#f0a040' : filterBtnH ? 'white' : 'rgba(255,255,255,0.65)' }}>Filters</span>
+            <FilterIcon color={activeCount > 0 ? 'var(--accent)' : filterBtnH ? 'var(--text-primary)' : 'var(--text-secondary)'} strokeWidth={activeCount > 0 ? 2.5 : 2.2} />
+            <span className="home-filter-label" style={{ color: activeCount > 0 ? 'var(--accent-alt)' : filterBtnH ? 'var(--text-primary)' : 'var(--text-secondary)' }}>Filters</span>
             {activeCount > 0 && (
               <span style={{
-                background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white',
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white',
                 fontSize: '0.62rem', fontWeight: '800', minWidth: '18px', height: '18px',
                 borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
               }}>{activeCount}</span>
@@ -768,9 +804,9 @@ function Home() {
             maxHeight: `calc(100vh - ${panelPos.top}px - 16px)`,
             overflowY: 'auto',
             overflowX: 'visible',
-            background: 'linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,19,0.99) 100%)',
+            background: 'var(--glass-bg-deep)',
             backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px',
+            border: '1px solid var(--border-hover)', borderRadius: '20px',
             padding: '1.35rem',
             boxShadow: '0 40px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04)',
             zIndex: 9999,
@@ -780,13 +816,13 @@ function Home() {
             {/* Panel header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.15rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FilterIcon color="rgba(232,119,34,0.75)" />
-                <span style={{ fontSize: '0.72rem', fontWeight: '800', letterSpacing: '1.8px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Filters</span>
+                <FilterIcon color="rgba(var(--accent-rgb),0.75)" />
+                <span style={{ fontSize: '0.72rem', fontWeight: '800', letterSpacing: '1.8px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Filters</span>
               </div>
               <button onClick={clearAllFilters}
-                style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', padding: '0.2rem 0.5rem', borderRadius: '6px', transition: 'color 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#ff6b6b'}
-                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.28)'}
+                style={{ fontSize: '0.7rem', color: 'var(--text-ghost)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', padding: '0.2rem 0.5rem', borderRadius: '6px', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-sold)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-ghost)'}
               >Clear all</button>
             </div>
 
@@ -794,7 +830,7 @@ function Home() {
 
               {/* Sort — live apply */}
               <div>
-                <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', fontWeight: '700', marginBottom: '0.55rem' }}>Sort by Price</div>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '0.55rem' }}>Sort by Price</div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {sortOptions.map(opt => (
                     <button key={opt.value}
@@ -802,20 +838,20 @@ function Home() {
                       style={{
                         flex: 1, padding: '0.48rem 0.4rem', fontSize: '0.74rem', fontWeight: '700',
                         borderRadius: '9px', cursor: 'pointer', transition: 'all 0.18s ease',
-                        background: filters.sortPrice === opt.value ? 'linear-gradient(135deg, rgba(232,119,34,0.22), rgba(232,119,34,0.1))' : 'rgba(255,255,255,0.04)',
-                        border: filters.sortPrice === opt.value ? '1px solid rgba(232,119,34,0.45)' : '1px solid rgba(255,255,255,0.07)',
-                        color: filters.sortPrice === opt.value ? '#f0a040' : 'rgba(255,255,255,0.4)',
+                        background: filters.sortPrice === opt.value ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.22), rgba(var(--accent-rgb),0.1))' : 'var(--bg-input)',
+                        border: filters.sortPrice === opt.value ? '1px solid var(--accent-border)' : '1px solid var(--border)',
+                        color: filters.sortPrice === opt.value ? 'var(--accent-alt)' : 'var(--text-muted)',
                       }}
                     >{opt.label}</button>
                   ))}
                 </div>
               </div>
 
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.055)' }} />
+              <div style={{ height: '1px', background: 'var(--border)' }} />
 
               {/* Category — live apply */}
               <div>
-                <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', fontWeight: '700', marginBottom: '0.55rem' }}>Category</div>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '0.55rem' }}>Category</div>
                 <FilterCategorySelect
                   value={filters.category}
                   onChange={val => setCategory(val)}
@@ -827,7 +863,7 @@ function Home() {
               {/* Subcategory chips — live apply */}
               {subcats.length > 0 && (
                 <div style={{ animation: 'chipIn 0.2s ease' }}>
-                  <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.5)', fontWeight: '700', marginBottom: '0.55rem' }}>{subLabel}</div>
+                  <div style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(var(--accent-rgb),0.5)', fontWeight: '700', marginBottom: '0.55rem' }}>{subLabel}</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {subcats.map(s => (
                       <button key={s}
@@ -835,9 +871,9 @@ function Home() {
                         style={{
                           padding: '0.3rem 0.7rem', fontSize: '0.75rem', fontWeight: '600',
                           borderRadius: '20px', cursor: 'pointer', transition: 'all 0.15s ease',
-                          background: filters.subcategory === s ? 'rgba(232,119,34,0.18)' : 'rgba(255,255,255,0.04)',
-                          border: filters.subcategory === s ? '1px solid rgba(232,119,34,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                          color: filters.subcategory === s ? '#f0a040' : 'rgba(255,255,255,0.4)',
+                          background: filters.subcategory === s ? 'rgba(var(--accent-rgb),0.18)' : 'var(--bg-input)',
+                          border: filters.subcategory === s ? '1px solid var(--accent-border)' : '1px solid var(--border)',
+                          color: filters.subcategory === s ? 'var(--accent-alt)' : 'var(--text-muted)',
                         }}
                       >{s}</button>
                     ))}
@@ -848,17 +884,17 @@ function Home() {
               {/* Specs — smart suggestions + free type */}
               {specFields.length > 0 && (
                 <div style={{ animation: 'chipIn 0.25s ease' }}>
-                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.055)', marginBottom: '1.1rem' }} />
+                  <div style={{ height: '1px', background: 'var(--border)', marginBottom: '1.1rem' }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.75rem' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.55)" strokeWidth="2.2" strokeLinecap="round">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(var(--accent-rgb),0.55)" strokeWidth="2.2" strokeLinecap="round">
                       <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
                     </svg>
-                    <span style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', fontWeight: '700' }}>Specifications</span>
+                    <span style={{ fontSize: '0.6rem', letterSpacing: '1.6px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700' }}>Specifications</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                     {specFields.map(f => (
                       <div key={f.key}>
-                        <div style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700', marginBottom: '0.3rem' }}>{f.label}</div>
+                        <div style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-faint)', fontWeight: '700', marginBottom: '0.3rem' }}>{f.label}</div>
                         <FilterSpecInput
                           fieldKey={f.key}
                           value={filters.specs[f.key] || ''}
@@ -881,29 +917,29 @@ function Home() {
       {showStatusMenu && (
         <div ref={statusMenuRef} style={{
           position: 'fixed', top: `${statusMenuPos.top}px`, right: `${statusMenuPos.right}px`,
-          background: 'linear-gradient(135deg, rgba(28,28,35,0.98) 0%, rgba(18,18,24,0.98) 100%)',
+          background: 'var(--glass-bg-deep)',
           backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.09)', borderRadius: '16px',
+          border: '1px solid var(--border)', borderRadius: '16px',
           padding: '0.6rem', minWidth: '170px',
           boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
           zIndex: 9999,
           animation: 'panelIn 0.18s cubic-bezier(0.175,0.885,0.32,1.275)',
         }}>
-          <div style={{ fontSize: '0.58rem', letterSpacing: '1.8px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.18)', fontWeight: '800', padding: '0.35rem 0.85rem 0.65rem' }}>Show Status</div>
+          <div style={{ fontSize: '0.58rem', letterSpacing: '1.8px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '800', padding: '0.35rem 0.85rem 0.65rem' }}>Show Status</div>
           {statusOptions.map(s => {
             const isOn = filters.statuses.includes(s)
             const meta = statusMeta[s]
             return (
               <div key={s} onClick={() => toggleStatus(s)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.15s ease', background: isOn ? 'rgba(255,255,255,0.04)' : 'transparent', marginBottom: '2px' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
-                onMouseLeave={e => e.currentTarget.style.background = isOn ? 'rgba(255,255,255,0.04)' : 'transparent'}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.15s ease', background: isOn ? 'var(--bg-card)' : 'transparent', marginBottom: '2px' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = isOn ? 'var(--bg-card)' : 'transparent'}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOn ? meta.color : 'rgba(255,255,255,0.15)', display: 'inline-block', transition: 'background 0.2s', boxShadow: isOn ? `0 0 6px ${meta.color}80` : 'none' }} />
-                  <span style={{ fontSize: '0.83rem', fontWeight: '600', color: isOn ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)', transition: 'color 0.15s' }}>{meta.label}</span>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOn ? meta.color : 'var(--text-ghost)', display: 'inline-block', transition: 'background 0.2s', boxShadow: isOn ? `0 0 6px ${meta.color}80` : 'none' }} />
+                  <span style={{ fontSize: '0.83rem', fontWeight: '600', color: isOn ? 'var(--text-primary)' : 'var(--text-muted)', transition: 'color 0.15s' }}>{meta.label}</span>
                 </div>
-                <div style={{ width: '18px', height: '18px', borderRadius: '6px', flexShrink: 0, border: isOn ? 'none' : '1.5px solid rgba(255,255,255,0.12)', background: isOn ? 'linear-gradient(135deg, #e87722, #f09030)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', boxShadow: isOn ? '0 2px 8px rgba(232,119,34,0.4)' : 'none' }}>
+                <div style={{ width: '18px', height: '18px', borderRadius: '6px', flexShrink: 0, border: isOn ? 'none' : '1.5px solid var(--border)', background: isOn ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', boxShadow: isOn ? '0 2px 8px var(--accent-glow)' : 'none' }}>
                   {isOn && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                 </div>
               </div>
@@ -918,9 +954,9 @@ function Home() {
           {chips.map(chip => <FilterChip key={chip.id} label={chip.label} onRemove={chip.remove} />)}
           {chips.length > 1 && (
             <button onClick={clearAllFilters}
-              style={{ fontSize: '0.7rem', padding: '0.28rem 0.7rem', background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', color: 'rgba(255,255,255,0.28)', cursor: 'pointer', fontWeight: '600', transition: 'all 0.18s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#ff6b6b'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.35)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.28)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+              style={{ fontSize: '0.7rem', padding: '0.28rem 0.7rem', background: 'none', border: '1px solid var(--border)', borderRadius: '20px', color: 'var(--text-ghost)', cursor: 'pointer', fontWeight: '600', transition: 'all 0.18s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-sold)'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.35)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-ghost)'; e.currentTarget.style.borderColor = 'var(--border)' }}
             >Clear all ×</button>
           )}
         </div>
@@ -929,31 +965,31 @@ function Home() {
       {/* Loading */}
       {loading && (
         <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid #e87722', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading items...</p>
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading items...</p>
         </div>
       )}
 
       {!loading && error && (
-        <div style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.15)', borderRadius: '20px', color: '#ff6b6b' }}>
+        <div style={{ textAlign: 'center', padding: '3rem 2rem', background: 'var(--bg-error)', border: '1px solid rgba(255,107,107,0.15)', borderRadius: '20px', color: 'var(--color-sold)' }}>
           <p style={{ fontSize: '0.95rem', fontWeight: '500' }}>{error}</p>
-          <button onClick={() => setFilters(f => ({ ...f }))} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.25)', borderRadius: '10px', color: '#ff6b6b', cursor: 'pointer', fontSize: '0.85rem' }}>Retry</button>
+          <button onClick={() => setFilters(f => ({ ...f }))} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', background: 'rgba(255,107,107,0.15)', border: '1px solid rgba(255,107,107,0.25)', borderRadius: '10px', color: 'var(--color-sold)', cursor: 'pointer', fontSize: '0.85rem' }}>Retry</button>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: '0.78rem', marginBottom: '1.25rem', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <p style={{ color: 'var(--text-ghost)', fontSize: '0.78rem', marginBottom: '1.25rem', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} found
           </p>
           {filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '5rem 2rem', color: 'rgba(255,255,255,0.25)', background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-faint)', background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.5 }}>∅</div>
               <p style={{ fontSize: '1rem', fontWeight: '500' }}>No items match your filters.</p>
-              <button onClick={clearAllFilters} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', background: 'rgba(232,119,34,0.12)', border: '1px solid rgba(232,119,34,0.25)', borderRadius: '10px', color: 'rgba(232,119,34,0.8)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>Clear Filters</button>
+              <button onClick={clearAllFilters} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', borderRadius: '10px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>Clear Filters</button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            <div className="home-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {filteredItems.map(item => <ItemCard key={item.id} item={item} />)}
             </div>
           )}

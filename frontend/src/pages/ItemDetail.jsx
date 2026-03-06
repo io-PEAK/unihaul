@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -11,78 +12,362 @@ const specLabels = {
   mode: 'Mode', experience: 'Experience', ingredients: 'Ingredients', allergens: 'Allergens',
 }
 
+function ZoomModal({ src, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey) }
+  }, [onClose])
+  return createPortal(
+    <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:99999, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(24px)', display:'flex', alignItems:'center', justifyContent:'center', animation:'zmFadeIn 0.2s ease', cursor:'zoom-out' }}>
+      <img src={src} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:'16px', boxShadow:'0 40px 120px rgba(0,0,0,0.9)', animation:'zmScaleIn 0.28s cubic-bezier(0.175,0.885,0.32,1.275)', cursor:'default' }} />
+      <button onClick={onClose} style={{ position:'fixed', top:'1.25rem', right:'1.25rem', width:'40px', height:'40px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.2)', color:'rgba(255,255,255,0.8)', fontSize:'1rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100000 }}>✕</button>
+      <style>{`@keyframes zmFadeIn{from{opacity:0}to{opacity:1}} @keyframes zmScaleIn{from{opacity:0;transform:scale(0.88)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  )
+}
+
+function SolarCarousel({ images }) {
+  const n = images.length
+  const [active, setActive] = useState(0)
+  const [zoomed, setZoomed] = useState(false)
+  const [pos, setPos]       = useState(0)
+  const [theme, setTheme]   = useState(() => document.documentElement.dataset.theme || 'ember')
+
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setTheme(document.documentElement.dataset.theme || 'ember')
+    })
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
+
+  const posRef    = useRef(0)
+  const targetRef = useRef(0)
+  const rafRef    = useRef(null)
+  const snapTimer = useRef(null)
+  const wrapRef   = useRef(null)
+  const nRef      = useRef(n)
+  const touchRef  = useRef(null)
+
+  useEffect(() => { nRef.current = n }, [n])
+
+  function tick() {
+    const diff = targetRef.current - posRef.current
+    if (Math.abs(diff) < 0.0008) {
+      posRef.current = targetRef.current
+      setPos(targetRef.current)
+      rafRef.current = null
+      return
+    }
+    posRef.current += diff * 0.11
+    setPos(posRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  function startSpring() {
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(tick)
+  }
+
+  function goTo(idx) {
+    const nn = nRef.current
+    const wrapped = ((idx % nn) + nn) % nn
+    const cur = ((Math.round(targetRef.current) % nn) + nn) % nn
+    let delta = wrapped - cur
+    if (delta >  nn / 2) delta -= nn
+    if (delta < -nn / 2) delta += nn
+    targetRef.current += delta
+    setActive(wrapped)
+    startSpring()
+  }
+
+  function snap() {
+    const nn = nRef.current
+    const nearest = Math.round(posRef.current)
+    const wrapped = ((nearest % nn) + nn) % nn
+    targetRef.current = nearest
+    setActive(wrapped)
+    startSpring()
+  }
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    function onWheel(e) {
+      e.preventDefault()
+      e.stopPropagation()
+      targetRef.current += e.deltaY / 180
+      startSpring()
+      clearTimeout(snapTimer.current)
+      snapTimer.current = setTimeout(snap, 150)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, []) // eslint-disable-line
+
+  function onTouchStart(e) { touchRef.current = e.touches[0].clientY }
+  function onTouchMove(e) {
+    if (touchRef.current === null) return
+    e.preventDefault()
+    targetRef.current += (touchRef.current - e.touches[0].clientY) / 160
+    touchRef.current = e.touches[0].clientY
+    startSpring()
+  }
+  function onTouchEnd() { goTo(Math.round(targetRef.current)); touchRef.current = null }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'ArrowUp')   goTo(Math.round(targetRef.current) - 1)
+      if (e.key === 'ArrowDown') goTo(Math.round(targetRef.current) + 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [n]) // eslint-disable-line
+
+  useEffect(() => () => {
+    cancelAnimationFrame(rafRef.current)
+    clearTimeout(snapTimer.current)
+  }, [])
+
+  if (!images || n === 0) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:'0.6rem' }}>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" style={{ opacity:0.45, color:'var(--text-primary)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span style={{ fontSize:'0.68rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--text-muted)', fontWeight:'600', opacity:0.8 }}>No photos</span>
+    </div>
+  )
+
+  if (n === 1) return (
+    <>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%' }}>
+        <div onClick={() => setZoomed(true)} style={{ width:'260px', height:'260px', borderRadius:'20px', overflow:'hidden', cursor:'zoom-in', boxShadow:'0 24px 64px rgba(0,0,0,0.5)' }}>
+          <img src={images[0]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+        </div>
+      </div>
+      {zoomed && <ZoomModal src={images[0]} onClose={() => setZoomed(false)} />}
+    </>
+  )
+
+  const C    = 280
+  const S    = 205
+  const SP   = 26
+  const SLOT = C + SP
+  const H    = S + SP + C + SP + S
+  const MID  = H / 2
+
+  const base  = Math.round(pos)
+  const slots = [-1, 0, 1].map(off => ({
+    off,
+    imgIdx:  ((base + off) % n + n) % n,
+    realOff: (base + off) - pos,
+  }))
+
+  const liveActive = ((Math.round(pos) % n) + n) % n
+  const isChalk = theme === 'chalk'
+
+  return (
+    <>
+      <div style={{ display:'flex', alignItems:'center', gap:'28px', justifyContent:'center' }}>
+
+        {/* ── Carousel ── */}
+        <div
+          ref={wrapRef}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            position: 'relative',
+            width:  `${C}px`,
+            height: `${H}px`,
+            cursor: 'ns-resize',
+            flexShrink: 0,
+            overflow: 'visible',
+            WebkitMaskImage: !isChalk
+              ? 'linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)'
+              : undefined,
+            maskImage: !isChalk
+              ? 'linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)'
+              : undefined,
+          }}
+        >
+          {slots.map(({ off, imgIdx, realOff }) => {
+            const a     = Math.abs(realOff)
+            const sz    = C - (C - S) * Math.min(a, 1)
+            const sc    = Math.max(0.86, 1 - a * 0.1)
+            const rx    = realOff * -20
+            const zi    = a < 0.35 ? 10 : 5
+            const isCtr = a < 0.4
+            return (
+              <div key={`s${off}`}
+                onClick={() => isCtr ? setZoomed(true) : goTo(base + off)}
+                style={{
+                  position: 'absolute', left: '50%',
+                  top: `${MID + realOff * SLOT}px`,
+                  width: `${sz}px`, height: `${sz}px`,
+                  transform: `translateX(-50%) translateY(-50%) rotateX(${rx}deg) scale(${sc})`,
+                  borderRadius: `${Math.max(14, 20 - a * 4)}px`,
+                  overflow: 'hidden',
+                  zIndex: zi,
+                  cursor: isCtr ? 'zoom-in' : 'pointer',
+                  boxShadow: isCtr
+                    ? '0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.1)'
+                    : '0 6px 18px rgba(0,0,0,0.3)',
+                }}
+              >
+                <img src={images[imgIdx]} alt="" draggable={false}
+                  style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', userSelect:'none', pointerEvents:'none' }}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Indicator strip ── */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px',
+        }}>
+          {/* pill track */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '10px 7px',
+            borderRadius: '999px',
+            background: isChalk ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)',
+            border: isChalk ? '1.5px solid rgba(0,0,0,0.18)' : '1px solid rgba(255,255,255,0.14)',
+            boxShadow: isChalk ? '0 2px 12px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)' : '0 2px 12px rgba(0,0,0,0.3)',
+          }}>
+            {images.map((_, i) => {
+              const isActive = i === liveActive
+              return (
+                <button
+                  key={i}
+                  onClick={() => goTo(i)}
+                  aria-label={`Image ${i + 1}`}
+                  style={{
+                    width:  isActive ? '6px'  : '5px',
+                    height: isActive ? '22px' : '7px',
+                    borderRadius: '999px',
+                    border: 'none',
+                    padding: 0,
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                    background: isActive
+                      ? 'linear-gradient(180deg, var(--accent) 0%, var(--accent-alt) 100%)'
+                      : isChalk ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.22)',
+                    boxShadow: isActive ? '0 0 8px var(--accent)' : 'none',
+                    transition: 'all 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                />
+              )
+            })}
+          </div>
+
+          {/* counter badge */}
+          <div style={{
+            fontSize: '0.6rem',
+            fontWeight: '800',
+            letterSpacing: '1px',
+            color: 'var(--accent)',
+            background: isChalk ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.08)',
+            border: isChalk ? '1.5px solid rgba(0,0,0,0.16)' : '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '999px',
+            padding: '4px 9px',
+            lineHeight: 1,
+            boxShadow: isChalk ? '0 1px 6px rgba(0,0,0,0.08)' : 'none',
+          }}>
+            {liveActive + 1}<span style={{ opacity: 0.9, fontWeight: '700', color: 'var(--accent)', margin: '0 2px' }}>/</span>{n}
+          </div>
+        </div>
+
+      </div>
+
+      {zoomed && <ZoomModal src={images[active]} onClose={() => setZoomed(false)} />}
+    </>
+  )
+}
+
 function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const backTo = location.state?.from || '/'
 
-  const [item, setItem]       = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
-
-  // cartQty = 0 means not in cart
-  const [cartQty, setCartQty]     = useState(0)
+  const [item, setItem]               = useState(null)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(null)
+  const [cartQty, setCartQty]         = useState(0)
+  const viewCartRef = useRef(null)
   const [cartLoading, setCartLoading] = useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const myId = user?.id
 
+  // Track viewport width for responsive layout switching
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth <= 768) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Lock scroll only on desktop (carousel scroll behaviour)
+  useEffect(() => {
+    if (isMobile) return
+    const el = document.documentElement
+    const prev = el.style.overflow
+    el.style.overflow = 'hidden'
+    return () => { el.style.overflow = prev }
+  }, [isMobile])
+
   useEffect(() => {
     const fetchItem = async () => {
-      try {
-        setLoading(true); setError(null)
-        const res = await API.get(`/items/${id}`)
-        setItem(res.data)
-      } catch { setError('Item not found.') }
+      try { setLoading(true); setError(null); const res = await API.get(`/items/${id}`); setItem(res.data) }
+      catch { setError('Item not found.') }
       finally { setLoading(false) }
     }
     fetchItem()
   }, [id])
 
-  // Check existing cart qty using item.id (not cart row id)
   useEffect(() => {
     if (!item || !user) return
     const check = async () => {
       try {
         const res = await API.get('/cart')
         const found = res.data.find(c => c.itemId === item.id || c.item?.id === item.id)
-        if (found) setCartQty(found.quantity || 1)
+        if (found) {
+          setCartQty(found.quantity || 1)
+          setTimeout(() => viewCartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
+        }
       } catch {}
     }
     check()
-  }, [item])
+  }, [item]) // eslint-disable-line
 
   async function handleAddToCart() {
     if (!user) { navigate('/login'); return }
     try {
       setCartLoading(true)
       const res = await API.post('/cart', { itemId: item.id, quantity: 1 })
-      // POST returns the cart row — res.data.quantity is the actual qty set
       setCartQty(res.data.quantity || 1)
-      window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: 1 } }))
+      window.dispatchEvent(new CustomEvent('cart-updated', { detail: { delta: 1 } }))
+      setTimeout(() => viewCartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
     } catch (err) {
       const msg = err.response?.data?.error || ''
       if (msg.includes('already in cart')) {
-        // fetch real qty
-        try {
-          const r = await API.get('/cart')
-          const found = r.data.find(c => c.itemId === item.id || c.item?.id === item.id)
-          if (found) setCartQty(found.quantity || 1)
-        } catch {}
-      } else {
-        alert(msg || 'Failed to add to cart.')
-      }
+        try { const r = await API.get('/cart'); const found = r.data.find(c => c.itemId === item.id || c.item?.id === item.id); if (found) setCartQty(found.quantity || 1) } catch {}
+      } else { alert(msg || 'Failed to add to cart.') }
     } finally { setCartLoading(false) }
   }
 
-  // PATCH /cart/:itemId — uses item.id, NOT cart row id
   async function handleQtyChange(newQty) {
     if (cartLoading) return
     const totalStock = item?.quantity ?? 1
-
     if (newQty < 1) {
-      // Remove from cart
       try {
         setCartLoading(true)
         await API.delete(`/cart/${item.id}`)
@@ -92,212 +377,386 @@ function ItemDetail() {
       finally { setCartLoading(false) }
       return
     }
-
     if (newQty > totalStock) return
-
-    try {
-      setCartLoading(true)
-      await API.patch(`/cart/${item.id}`, { quantity: newQty })
-      setCartQty(newQty)
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update.')
-    } finally { setCartLoading(false) }
+    try { setCartLoading(true); await API.patch(`/cart/${item.id}`, { quantity: newQty }); setCartQty(newQty) }
+    catch (err) { alert(err.response?.data?.error || 'Failed to update.') }
+    finally { setCartLoading(false) }
   }
 
   if (loading) return (
-    <div style={{ textAlign: 'center', padding: '6rem 2rem' }}>
-      <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid #e87722', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading item...</p>
+    <div style={{ textAlign:'center', padding:'6rem 2rem' }}>
+      <div style={{ width:'40px', height:'40px', border:'3px solid rgba(255,255,255,0.08)', borderTop:'3px solid var(--accent)', borderRadius:'50%', margin:'0 auto 1rem', animation:'idSpin 0.8s linear infinite' }} />
+      <style>{`@keyframes idSpin { to { transform: rotate(360deg); } }`}</style>
+      <p style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>Loading item...</p>
     </div>
   )
 
   if (error || !item) return (
-    <div style={{ textAlign: 'center', padding: '6rem 2rem', color: 'rgba(255,255,255,0.25)' }}>
-      <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', background: 'rgba(255,255,255,0.04)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', opacity: 0.5 }}>∅</div>
-      <h2 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>Item not found</h2>
-      <p style={{ fontSize: '0.85rem', marginBottom: '1.75rem' }}>This listing may have been removed.</p>
-      <button onClick={() => navigate(backTo)} style={{ padding: '0.6rem 1.75rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700' }}>← Back</button>
+    <div style={{ textAlign:'center', padding:'6rem 2rem' }}>
+      <div style={{ width:'72px', height:'72px', margin:'0 auto 1.5rem', background:'var(--glass-bg-row)', borderRadius:'20px', border:'1px solid var(--glass-border-row)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', opacity:0.5 }}>∅</div>
+      <h2 style={{ fontSize:'1.4rem', fontWeight:'700', color:'var(--text-secondary)', marginBottom:'0.5rem' }}>Item not found</h2>
+      <p style={{ fontSize:'0.85rem', color:'var(--text-muted)', marginBottom:'1.75rem' }}>This listing may have been removed.</p>
+      <button onClick={() => navigate(backTo)} className="btn-primary" style={{ width:'auto', padding:'0.6rem 1.75rem' }}>← Back</button>
     </div>
   )
 
   const status     = item.status?.toLowerCase()
   const isMyItem   = parseInt(myId) === parseInt(item.seller?.id)
   const totalStock = item.quantity ?? 1
-  const stockLeft  = totalStock - cartQty  // remaining stock buyer can still add
+  const stockLeft  = totalStock - cartQty
 
   const specs = item.specs && typeof item.specs === 'object'
     ? Object.entries(item.specs).filter(([, v]) => v && String(v).trim() !== '')
     : []
 
+  let imageList = []
+  if (item.images && Array.isArray(item.images) && item.images.length > 0) imageList = item.images.filter(Boolean)
+  else if (item.imageUrl) imageList = [item.imageUrl]
+
   const infoGrid = [
-    { label: 'Seller',    value: `${item.seller?.firstName} ${item.seller?.lastName}`.trim() || 'Unknown' },
-    { label: 'Condition', value: item.condition },
-    { label: 'Category',  value: item.category },
-    { label: 'Status',    value: status, isStatus: true },
-    { label: 'Stock',     value: status === 'sold' ? '0 remaining' : `${stockLeft}` },
-    ...(item.subcategory ? [{ label: item.category === 'Clothing' ? 'Size' : item.category === 'Books & Notes' ? 'Semester' : 'Subcategory', value: item.subcategory }] : []),
+    { label:'Seller',    value:`${item.seller?.firstName||''} ${item.seller?.lastName||''}`.trim()||'Unknown' },
+    { label:'Condition', value:item.condition },
+    { label:'Category',  value:item.category },
+    { label:'Status',    value:status, isStatus:true },
+    { label:'Stock',     value:status==='sold'?'0 remaining':`${stockLeft}` },
+    ...(item.subcategory?[{ label:item.category==='Clothing'?'Size':item.category==='Books & Notes'?'Semester':'Subcategory', value:item.subcategory }]:[]),
   ]
 
   return (
-    <div style={{ padding: '3rem 4rem', maxWidth: '900px', margin: '0 auto' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="id-page-wrap" style={{ fontFamily:'var(--font-body)' }}>
+      {/* Fixed back button — mobile only, left edge */}
+      <button
+        className="id-back-fixed"
+        onClick={() => navigate(backTo)}
+        onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow='none' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <style>{`
+        @keyframes idSpin { to { transform: rotate(360deg); } }
 
-      <button onClick={() => navigate(backTo)}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
-        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', padding: '0.45rem 1.1rem', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', marginBottom: '2rem', transition: 'all 0.3s ease' }}>← Back</button>
+        /* ════════════════════════════════════
+           Base (desktop) — unchanged layout
+        ════════════════════════════════════ */
+        .id-page-wrap {
+          padding: 2rem 3rem;
+          max-width: 1200px;
+          margin: 0 auto;
+          height: calc(100vh - 57px);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .id-grid {
+          display: grid;
+          grid-template-columns: 380px 1fr;
+          gap: 3rem;
+          flex: 1;
+          min-height: 0;
+        }
+        .id-carousel-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          min-height: 0;
+          position: relative;
+        }
+        .id-back-btn {
+          display: flex;
+          position: absolute;
+          top: 10%;
+          left: -2.5rem;
+        }
+        .id-detail-col {
+          background: var(--glass-bg);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-2xl);
+          padding: 2rem;
+          box-shadow: var(--shadow-card);
+          position: relative;
+          align-self: start;
+          max-height: 100%;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+        }
+        .id-title {
+          font-size: 2rem;
+        }
+        .id-price {
+          font-size: 2.6rem;
+        }
+        .id-info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.6rem;
+          margin-bottom: 1.25rem;
+        }
 
-      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.75rem', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+        /* ════════════════════════════════════
+           769px – 1024px  (tablet)
+        ════════════════════════════════════ */
+        @media (max-width: 1024px) {
+          .id-page-wrap {
+            padding: 2rem 2rem;
+          }
+          .id-grid {
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+          }
+          .id-back-btn {
+            left: -1.75rem;
+          }
+          .id-title {
+            font-size: 1.7rem;
+          }
+          .id-price {
+            font-size: 2.1rem;
+          }
+        }
 
-        {/* Top row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700' }}>{item.category}</span>
-              {item.subcategory && (<><span style={{ color: 'rgba(255,255,255,0.15)' }}>›</span><span style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.6)', fontWeight: '700' }}>{item.subcategory}</span></>)}
-            </div>
-            <h1 style={{ fontSize: '2.3rem', fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.1', color: 'rgba(255,255,255,0.95)', margin: 0 }}>{item.title}</h1>
+        /* ════════════════════════════════════
+           < 768px  (mobile)
+        ════════════════════════════════════ */
+        @media (max-width: 768px) {
+          .id-page-wrap {
+            padding: 1.25rem 1.25rem 2rem;
+            height: auto;
+            overflow: visible;
+          }
+          .id-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+          .id-carousel-col {
+            height: 360px;
+            justify-content: center;
+          }
+          /* Back button hidden — fixed button handles mobile */
+          .id-back-btn {
+            display: none;
+          }
+          /* Carousel col becomes a column so back btn + carousel stack */
+          .id-carousel-col {
+            align-items: flex-start;
+          }
+          .id-carousel-inner {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+          }
+          .id-detail-col {
+            max-height: none;
+            overflow-y: visible;
+          }
+          .id-title {
+            font-size: 1.5rem;
+          }
+          .id-price {
+            font-size: 2rem;
+          }
+          .id-info-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+
+        /* ════════════════════════════════════
+           < 480px  (small mobile)
+        ════════════════════════════════════ */
+        @media (max-width: 480px) {
+          .id-page-wrap {
+            padding: 1rem 1rem 2rem;
+          }
+          .id-carousel-col {
+            height: 300px;
+          }
+          .id-title {
+            font-size: 1.3rem;
+          }
+          .id-price {
+            font-size: 1.75rem;
+          }
+          .id-info-grid {
+            grid-template-columns: 1fr;
+          }
+          .id-detail-col {
+            padding: 1.25rem;
+          }
+        }
+        /* ── Mobile-only fixed back button (left edge, vertically centered) ── */
+        .id-back-fixed {
+          display: none;
+        }
+        @media (max-width: 900px) {
+          .id-back-btn {
+            display: none;
+          }
+          .id-back-fixed {
+            display: flex;
+            position: fixed;
+            left: 0.6rem;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 40;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(255,255,255,0.5);
+            transition: all 0.15s;
+          }
+        }
+      `}</style>
+
+      <div className="id-grid">
+
+        <div className="id-carousel-col">
+          {/* Back button — absolute on desktop, static/inline on mobile via CSS */}
+          <button
+            className="id-back-btn"
+            onClick={() => navigate(backTo)}
+            style={{ width:'34px', height:'34px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1.5px solid rgba(255,255,255,0.1)', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'rgba(255,255,255,0.5)', transition:'all 0.15s', flexShrink:0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow='none' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div className="id-carousel-inner">
+            <SolarCarousel images={imageList} />
           </div>
-          <span style={{ padding: '4px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '0.75rem', textTransform: 'capitalize', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.1)' : status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)', border: `1px solid ${status === 'sold' ? 'rgba(255,107,107,0.15)' : status === 'pending' ? 'rgba(255,212,59,0.15)' : 'rgba(81,207,102,0.15)'}`, marginTop: '0.25rem', whiteSpace: 'nowrap' }}>{status}</span>
         </div>
 
-        {/* Price */}
-        <div style={{ fontSize: '2.75rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '2rem' }}>
-          <span style={{ background: 'linear-gradient(135deg, #e87722, #f5a623)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{item.price}</span>
-        </div>
+        <div className="id-detail-col">
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'var(--glass-shimmer)' }} />
 
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '2rem' }} />
-
-        {/* Info grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          {infoGrid.map(({ label, value, isStatus }) => (
-            <div key={label} style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1rem 1.15rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
-              <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '0.4rem', fontWeight: '700' }}>{label}</div>
-              {isStatus ? (
-                <span style={{ display: 'inline-block', fontWeight: '700', fontSize: '0.82rem', textTransform: 'capitalize', padding: '2px 10px', borderRadius: '20px', color: status === 'sold' ? '#ff6b6b' : status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'sold' ? 'rgba(255,107,107,0.12)' : status === 'pending' ? 'rgba(255,212,59,0.12)' : 'rgba(81,207,102,0.12)', border: `1px solid ${status === 'sold' ? 'rgba(255,107,107,0.2)' : status === 'pending' ? 'rgba(255,212,59,0.2)' : 'rgba(81,207,102,0.2)'}` }}>{value}</span>
-              ) : (
-                <div style={{ fontWeight: '600', color: 'rgba(255,255,255,0.85)', fontSize: '0.95rem', textTransform: 'capitalize' }}>{value}</div>
-              )}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.6rem' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+              <span style={{ fontSize:'0.6rem', letterSpacing:'2px', textTransform:'uppercase', color:'var(--text-faint)', fontWeight:'700' }}>{item.category}</span>
+              {item.subcategory && (<><span style={{ color:'var(--text-ghost)' }}>›</span><span style={{ fontSize:'0.6rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--accent)', opacity:0.7, fontWeight:'700' }}>{item.subcategory}</span></>)}
             </div>
-          ))}
-        </div>
-
-        {/* Specs */}
-        {specs.length > 0 && (
-          <div style={{ marginBottom: '1.5rem', background: 'rgba(232,119,34,0.04)', border: '1px solid rgba(232,119,34,0.12)', borderRadius: '16px', padding: '1.25rem 1.35rem', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(232,119,34,0.2), transparent)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.7)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-              <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.7)', fontWeight: '800' }}>Specifications</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.65rem' }}>
-              {specs.map(([key, value]) => (
-                <div key={key} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.65rem 0.85rem' }}>
-                  <div style={{ fontSize: '0.58rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(232,119,34,0.5)', marginBottom: '0.3rem', fontWeight: '700' }}>{specLabels[key] || key}</div>
-                  <div style={{ fontWeight: '600', color: 'rgba(255,255,255,0.85)', fontSize: '0.88rem' }}>{value}</div>
-                </div>
-              ))}
-            </div>
+            <span className={`status-pill status-${status}`}>{status}</span>
           </div>
-        )}
 
-        {/* Description */}
-        {item.description && (
-          <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '14px', padding: '1.25rem 1.35rem', marginBottom: '2rem', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
-            <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '0.65rem', fontWeight: '700' }}>Description</div>
-            <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: '1.75', margin: 0, fontSize: '0.92rem' }}>{item.description}</p>
-          </div>
-        )}
+          <h1 className="id-title" style={{ fontWeight:'900', letterSpacing:'-1px', lineHeight:'1.15', color:'var(--text-primary)', margin:'0 0 0.75rem' }}>{item.title}</h1>
+          <div className="id-price" style={{ fontWeight:'900', letterSpacing:'-1.5px', marginBottom:'1.5rem' }}><span className="price-text">₹{item.price}</span></div>
 
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
+          <div className="divider" />
 
-        {/* ── Action area ── */}
-        {isMyItem ? (
-          <div style={{ textAlign: 'center', padding: '0.85rem', color: 'rgba(255,255,255,0.3)', fontWeight: '600', fontSize: '0.85rem', background: 'rgba(255,255,255,0.04)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            This is your listing — manage it in your Dashboard
-          </div>
-        ) : status === 'available' ? (
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-
-            {/* Message Seller */}
-            <button onClick={() => navigate('/messages', { state: { item } })}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
-              style={{ flex: 1, padding: '0.85rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s ease' }}>
-              Message Seller
-            </button>
-
-            {/* ── Cart button: morphs between 3 states ── */}
-            {cartQty === 0 ? (
-
-              /* State 1: Not in cart → orange Add to Cart */
-              <button onClick={handleAddToCart} disabled={cartLoading}
-                onMouseEnter={e => { if (!cartLoading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(232,119,34,0.4)' }}}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(232,119,34,0.2)' }}
-                style={{ flex: 1, padding: '0.85rem', background: cartLoading ? 'rgba(232,119,34,0.5)' : 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: cartLoading ? 'not-allowed' : 'pointer', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                {cartLoading
-                  ? <><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Adding...</>
-                  : 'Add to Cart →'}
-              </button>
-
-            ) : (
-
-              /* State 2: In cart → qty stepper + View Cart */
-              <div style={{ flex: 1, display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-
-                {/* Stepper */}
-                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', opacity: cartLoading ? 0.55 : 1, transition: 'opacity 0.2s' }}>
-
-                  {/* − button: red when qty=1 (signals removal) */}
-                  <button onClick={() => handleQtyChange(cartQty - 1)} disabled={cartLoading}
-                    onMouseEnter={e => e.currentTarget.style.background = cartQty === 1 ? 'rgba(255,107,107,0.15)' : 'rgba(255,255,255,0.08)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    title={cartQty === 1 ? 'Remove from cart' : 'Decrease'}
-                    style={{ width: '42px', height: '46px', background: 'transparent', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', color: cartQty === 1 ? '#ff6b6b' : 'rgba(255,255,255,0.55)', cursor: cartLoading ? 'not-allowed' : 'pointer', fontSize: '1.15rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
-                    {cartQty === 1 ? (
-                      // Trash icon at qty=1 — clear signal this will remove
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                      </svg>
-                    ) : '−'}
-                  </button>
-
-                  {/* Qty + label */}
-                  <div style={{ padding: '0 1.1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '72px', height: '46px', gap: '1px' }}>
-                    <span style={{ fontSize: '0.88rem', fontWeight: '800', color: 'white', letterSpacing: '-0.3px' }}>{cartQty} in cart</span>
-                    <span style={{ fontSize: '0.6rem', fontWeight: '500', color: stockLeft === 0 ? 'rgba(255,212,59,0.6)' : 'rgba(255,255,255,0.2)' }}>
-                      {stockLeft === 0 ? 'max reached' : `${stockLeft} left`}
-                    </span>
-                  </div>
-
-                  {/* + button: orange, disabled at max */}
-                  <button onClick={() => handleQtyChange(cartQty + 1)} disabled={cartLoading || stockLeft === 0}
-                    onMouseEnter={e => { if (stockLeft > 0) e.currentTarget.style.background = 'rgba(232,119,34,0.12)' }}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    title={stockLeft === 0 ? 'No more stock' : 'Add one more'}
-                    style={{ width: '42px', height: '46px', background: 'transparent', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.07)', color: stockLeft === 0 ? 'rgba(255,255,255,0.15)' : '#e87722', cursor: cartLoading || stockLeft === 0 ? 'not-allowed' : 'pointer', fontSize: '1.15rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>+</button>
-                </div>
-
-                {/* View Cart button */}
-                <button onClick={() => navigate('/cart')}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #f09030, #e87722)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #e87722, #f09030)'; e.currentTarget.style.transform = 'translateY(0)' }}
-                  style={{ flex: 1, padding: '0.85rem', background: 'linear-gradient(135deg, #e87722, #f09030)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.5px', transition: 'all 0.25s ease', boxShadow: '0 4px 15px rgba(232,119,34,0.25)', whiteSpace: 'nowrap' }}>
-                  View Cart →
-                </button>
-
+          <div className="id-info-grid">
+            {infoGrid.map(({ label, value, isStatus }) => (
+              <div key={label} className="glass-infobox" style={{ padding:'0.85rem 1rem' }}>
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'var(--glass-shimmer)' }} />
+                <div className="label-micro">{label}</div>
+                {isStatus
+                  ? <span className={`status-pill status-${status}`} style={{ marginTop:'0.1rem' }}>{value}</span>
+                  : <div style={{ fontWeight:'600', color:'var(--text-primary)', fontSize:'0.9rem', textTransform:'capitalize' }}>{value}</div>}
               </div>
-            )}
+            ))}
           </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '0.85rem', color: status === 'pending' ? 'rgba(255,212,59,0.7)' : 'rgba(255,107,107,0.6)', fontWeight: '600', fontSize: '0.85rem', background: status === 'pending' ? 'rgba(255,212,59,0.08)' : 'rgba(255,107,107,0.08)', borderRadius: '12px', border: `1px solid ${status === 'pending' ? 'rgba(255,212,59,0.15)' : 'rgba(255,107,107,0.1)'}` }}>
-            {status === 'pending' ? 'This item is pending sale' : 'This item has been sold'}
-          </div>
-        )}
+
+          {specs.length > 0 && (
+            <div style={{ marginBottom:'1.25rem', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:'var(--radius-lg)', padding:'1.1rem 1.2rem', position:'relative', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg, transparent, var(--accent-border), transparent)' }} />
+              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.875rem' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" style={{ opacity:0.7 }}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+                <span style={{ fontSize:'0.6rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--accent)', fontWeight:'800', opacity:0.8 }}>Specifications</span>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:'0.55rem' }}>
+                {specs.map(([key, value]) => (
+                  <div key={key} style={{ background:'var(--glass-bg-row)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-sm)', padding:'0.55rem 0.75rem' }}>
+                    <div className="label-micro" style={{ color:'var(--accent)', opacity:0.6, marginBottom:'0.2rem' }}>{specLabels[key]||key}</div>
+                    <div style={{ fontWeight:'600', color:'var(--text-primary)', fontSize:'0.84rem' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {item.description && (
+            <div className="glass-infobox" style={{ padding:'1.1rem 1.2rem', marginBottom:'1.5rem' }}>
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'var(--glass-shimmer)' }} />
+              <div className="label-micro" style={{ marginBottom:'0.55rem' }}>Description</div>
+              <p style={{ color:'var(--text-secondary)', lineHeight:'1.7', margin:0, fontSize:'0.9rem' }}>{item.description}</p>
+            </div>
+          )}
+
+          <div className="divider" />
+
+          {isMyItem ? (
+            <div style={{ textAlign:'center', padding:'0.85rem', color:'var(--text-muted)', fontWeight:'600', fontSize:'0.85rem', background:'var(--glass-bg-row)', borderRadius:'var(--radius-md)', border:'1px solid var(--glass-border-row)' }}>
+              This is your listing — manage it in your Dashboard
+            </div>
+          ) : status === 'available' ? (
+            cartQty === 0 ? (
+              /* ── Not in cart: side-by-side ── */
+              <div style={{ display:'flex', gap:'0.75rem' }}>
+                <button
+                  onClick={() => navigate('/messages', { state:{ item } })}
+                  onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='var(--text-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='var(--glass-bg-row)'; e.currentTarget.style.color='var(--text-secondary)' }}
+                  style={{ flex:1, padding:'0.85rem', background:'var(--glass-bg-row)', color:'var(--text-secondary)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-md)', fontSize:'0.85rem', fontWeight:'700', cursor:'pointer', transition:'all 0.3s ease', fontFamily:'var(--font-body)' }}
+                >Message Seller</button>
+                <button onClick={handleAddToCart} disabled={cartLoading}
+                  onMouseEnter={e => { if(!cartLoading){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='var(--shadow-accent-lg)'}}}
+                  onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='var(--shadow-accent)' }}
+                  style={{ flex:1, padding:'0.85rem', background:cartLoading?'var(--bg-card-hover)':'linear-gradient(135deg, var(--accent), var(--accent-alt))', color:cartLoading?'var(--text-muted)':'white', border:'none', borderRadius:'var(--radius-md)', fontSize:'0.85rem', fontWeight:'700', cursor:cartLoading?'not-allowed':'pointer', letterSpacing:'1px', textTransform:'uppercase', transition:'all 0.3s ease', boxShadow:'var(--shadow-accent)', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', fontFamily:'var(--font-body)' }}
+                >
+                  {cartLoading ? <><div style={{ width:'14px', height:'14px', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'white', borderRadius:'50%', animation:'idSpin 0.7s linear infinite' }} />Adding...</> : 'Add to Cart'}
+                </button>
+              </div>
+            ) : (
+              /* ── In cart: Message Seller above, cart controls below ── */
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                <button
+                  onClick={() => navigate('/messages', { state:{ item } })}
+                  onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='var(--text-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='var(--glass-bg-row)'; e.currentTarget.style.color='var(--text-secondary)' }}
+                  style={{ width:'100%', padding:'0.75rem', background:'var(--glass-bg-row)', color:'var(--text-secondary)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-md)', fontSize:'0.85rem', fontWeight:'700', cursor:'pointer', transition:'all 0.3s ease', fontFamily:'var(--font-body)' }}
+                >Message Seller</button>
+                <div style={{ display:'flex', gap:'0.65rem', alignItems:'center' }}>
+                  {/* qty controls */}
+                  <div style={{ display:'flex', alignItems:'center', background:'var(--glass-bg-row)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-md)', overflow:'hidden', opacity:cartLoading?0.55:1, transition:'opacity 0.2s', flexShrink:0 }}>
+                    <button onClick={() => handleQtyChange(cartQty-1)} disabled={cartLoading}
+                      onMouseEnter={e => e.currentTarget.style.background=cartQty===1?'var(--bg-danger)':'rgba(255,255,255,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                      style={{ width:'42px', height:'42px', background:'transparent', border:'none', borderRight:'1px solid var(--glass-border-row)', color:cartQty===1?'var(--color-danger)':'var(--text-secondary)', cursor:cartLoading?'not-allowed':'pointer', fontSize:'1.1rem', fontWeight:'700', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s', flexShrink:0 }}>
+                      {cartQty===1?<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>:'−'}
+                    </button>
+                    <div style={{ padding:'0 1rem', display:'flex', alignItems:'center', gap:'0.4rem', height:'42px', whiteSpace:'nowrap' }}>
+                      <span style={{ fontSize:'0.9rem', fontWeight:'800', color:'var(--text-primary)' }}>{cartQty} in cart</span>
+                      {stockLeft===0 && <span style={{ fontSize:'0.68rem', fontWeight:'600', color:'var(--color-pending)', background:'var(--bg-pending)', padding:'0.1rem 0.45rem', borderRadius:'6px', border:'1px solid var(--bd-pending)' }}>max</span>}
+                    </div>
+                    <button onClick={() => handleQtyChange(cartQty+1)} disabled={cartLoading||stockLeft===0}
+                      onMouseEnter={e => { if(stockLeft>0)e.currentTarget.style.background='var(--accent-soft)' }}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                      style={{ width:'42px', height:'42px', background:'transparent', border:'none', borderLeft:'1px solid var(--glass-border-row)', color:stockLeft===0?'var(--text-ghost)':'var(--accent)', cursor:cartLoading||stockLeft===0?'not-allowed':'pointer', fontSize:'1.1rem', fontWeight:'700', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s', flexShrink:0 }}>+</button>
+                  </div>
+                  {/* view cart */}
+                  <button ref={viewCartRef} onClick={() => navigate('/cart')}
+                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow='var(--shadow-accent-lg)' }}
+                    onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='var(--shadow-accent)' }}
+                    style={{ flex:1, padding:'0.85rem', background:'linear-gradient(135deg, var(--accent), var(--accent-alt))', color:'white', border:'none', borderRadius:'var(--radius-md)', fontSize:'0.85rem', fontWeight:'700', cursor:'pointer', transition:'all 0.25s ease', boxShadow:'var(--shadow-accent)', whiteSpace:'nowrap', fontFamily:'var(--font-body)' }}>View Cart</button>
+                </div>
+              </div>
+            )
+          ) : (
+            <div style={{ textAlign:'center', padding:'0.85rem', color:status==='pending'?'var(--color-pending)':'var(--color-sold)', fontWeight:'600', fontSize:'0.85rem', background:status==='pending'?'var(--bg-pending)':'var(--bg-sold)', borderRadius:'var(--radius-md)', border:`1px solid ${status==='pending'?'var(--bd-pending)':'var(--bd-sold)'}` }}>
+              {status==='pending'?'This item is pending sale':'This item has been sold'}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from './ThemeContext'
-import ThemeToggle from './ThemeToggle'
+import ThemeToggle from './components/ThemeToggle'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -14,8 +14,10 @@ import Settings from './pages/Settings'
 import Navbar from './components/Navbar'
 import MessageButton from './components/MessageButton'
 import ProtectedRoute from './components/ProtectedRoute'
+import PageWrapper from './components/PageWrapper'
 import ToastNotification from './components/ToastNotification'
 import { useState, useEffect, useRef } from 'react'
+import { connectSocket, disconnectSocket } from './socket'
 
 function ScrollToTopButton() {
   const [visible, setVisible] = useState(false)
@@ -92,6 +94,14 @@ function AppInner() {
     }
   }, [location.pathname])
 
+  // ── Socket: connect when logged in, disconnect on logout ──
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    const token = localStorage.getItem('token')
+    if (user?.id && token) connectSocket(user.id)
+    else disconnectSocket()
+  }, [location.pathname])
+
   function handleOpenBell() {
     if (openBellRef.current) openBellRef.current()
   }
@@ -99,19 +109,21 @@ function AppInner() {
   return (
     <>
       <Navbar registerOpenBell={(fn) => { openBellRef.current = fn }} />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/items/:id" element={<ItemDetail />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/post" element={<ProtectedRoute><PostItem /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      </Routes>
+      <PageWrapper>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/items/:id" element={<ItemDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/post" element={<ProtectedRoute><PostItem /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        </Routes>
+      </PageWrapper>
       <MessageButton />
       <ScrollToTopButton />
       <ThemeToggle />

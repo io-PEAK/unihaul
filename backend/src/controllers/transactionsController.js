@@ -56,6 +56,7 @@ export const getMyTransactions = async (req, res) => {
       include: {
         buyer:  { select: { id: true, firstName: true, lastName: true, email: true } },
         seller: { select: { id: true, firstName: true, lastName: true, email: true } },
+        item:   { select: { images: true, condition: true, description: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -73,6 +74,9 @@ export const getMyTransactions = async (req, res) => {
       seller_id:    t.sellerId,
       buyer_name: `${t.buyer.firstName} ${t.buyer.lastName}`.trim(),
       seller_name: `${t.seller.firstName} ${t.seller.lastName}`.trim(),
+      images:       t.item?.images      ?? [],
+      condition:    t.item?.condition   ?? null,
+      description:  t.item?.description ?? null,
     }))
 
     res.json(result)
