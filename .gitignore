@@ -20,3 +20,8 @@ prisma/migrations/
 
 # OS
 .DS_Store
+
+# Ignore frontend & backend folders (keep database-only branch clean)
+backend/
+frontend/
+
