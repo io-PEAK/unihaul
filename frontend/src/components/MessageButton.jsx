@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
+import { getSocket } from '../socket'
 
 function MessageButton() {
   const [hovered, setHovered] = useState(false)
@@ -8,19 +9,45 @@ function MessageButton() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Fetch count on route change
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token || location.pathname === '/messages') {
+      setUnread(0)
+      return
+    }
+    API.get('/messages/unread-count')
+      .then(res => setUnread(res.data.count || 0))
+      .catch(() => setUnread(0))
+  }, [location.pathname])
+
+  // Socket: bump red dot instantly when NOT in /messages
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token || location.pathname === '/messages') return
+    const me = JSON.parse(localStorage.getItem('user') || 'null')
+    let handler = null
+    let attachedSocket = null
 
-    const fetchUnread = async () => {
-      try {
-        const res = await API.get('/messages/unread-count')
-        setUnread(res.data.count || 0)
-      } catch {
-        setUnread(0)
+    const tryAttach = () => {
+      const socket = getSocket()
+      if (!socket?.connected) return false
+      handler = (msg) => {
+        if (String(msg.receiverId) === String(me?.id)) setUnread(prev => prev + 1)
+      }
+      socket.on('new-message', handler)
+      attachedSocket = socket
+      return true
+    }
+
+    if (!tryAttach()) {
+      const interval = setInterval(() => { if (tryAttach()) clearInterval(interval) }, 400)
+      return () => {
+        clearInterval(interval)
+        if (attachedSocket && handler) attachedSocket.off('new-message', handler)
       }
     }
-    fetchUnread()
+    return () => { if (attachedSocket && handler) attachedSocket.off('new-message', handler) }
   }, [location.pathname])
 
   const token = localStorage.getItem('token')
@@ -35,10 +62,10 @@ function MessageButton() {
       aria-label="Messages"
       style={{
         position: 'fixed',
-        bottom: '2rem',
-        right: '2rem',
-        width: '52px',
-        height: '52px',
+        bottom: 'clamp(1rem, 3vw, 2rem)',
+        right: 'clamp(1rem, 3vw, 2rem)',
+        width: 'clamp(42px, 5vw, 52px)',
+        height: 'clamp(42px, 5vw, 52px)',
         borderRadius: '16px',
         border: 'none',
         cursor: 'pointer',
@@ -47,11 +74,11 @@ function MessageButton() {
         justifyContent: 'center',
         zIndex: 90,
         background: hovered
-          ? 'linear-gradient(135deg, #f09030, #e87722)'
-          : 'linear-gradient(135deg, #e87722, #f09030)',
+          ? 'linear-gradient(135deg, var(--accent-alt), var(--accent))'
+          : 'linear-gradient(135deg, var(--accent), var(--accent-alt))',
         boxShadow: hovered
-          ? '0 12px 30px rgba(232,119,34,0.5)'
-          : '0 6px 20px rgba(232,119,34,0.3)',
+          ? '0 12px 30px rgba(var(--accent-rgb),0.5)'
+          : '0 6px 20px rgba(var(--accent-rgb),0.3)',
         transform: hovered ? 'translateY(-3px) scale(1.05)' : 'translateY(0) scale(1)',
         transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
       }}
@@ -60,7 +87,6 @@ function MessageButton() {
         stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
-
       {unread > 0 && (
         <div style={{
           position: 'absolute',

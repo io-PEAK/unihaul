@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from './ThemeContext'
-import ThemeToggle from './ThemeToggle'
+import ThemeToggle from './components/ThemeToggle'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -10,18 +10,19 @@ import Dashboard from './pages/Dashboard'
 import Messages from './pages/Messages'
 import Transactions from './pages/Transactions'
 import Cart from './pages/Cart'
+import Settings from './pages/Settings'
 import Navbar from './components/Navbar'
 import MessageButton from './components/MessageButton'
 import ProtectedRoute from './components/ProtectedRoute'
+import PageWrapper from './components/PageWrapper'
 import ToastNotification from './components/ToastNotification'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { connectSocket, disconnectSocket } from './socket'
 
 function ScrollToTopButton() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
   const location = useLocation()
-
-  // Only show on home page
   const isHomePage = location.pathname === '/' || location.pathname === '/home'
 
   useEffect(() => {
@@ -55,18 +56,18 @@ function ScrollToTopButton() {
           position: 'fixed', bottom: '2rem', left: '50%',
           transform: hovered ? 'translateX(-50%) translateY(-2px)' : 'translateX(-50%)',
           width: '48px', height: '48px', borderRadius: '14px',
-          border: hovered ? '1px solid rgba(232,119,34,0.4)' : '1px solid rgba(255,255,255,0.1)',
+          border: hovered ? '1px solid var(--accent-border)' : '1px solid var(--border)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 89,
-          background: hovered ? 'rgba(232,119,34,0.12)' : 'rgba(255,255,255,0.06)',
+          background: hovered ? 'var(--accent-soft)' : 'var(--bg-card)',
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: hovered ? '0 8px 24px rgba(232,119,34,0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
+          boxShadow: hovered ? 'var(--shadow-accent)' : 'var(--shadow-card)',
           animation: 'scrollBtnPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
           transition: 'background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         }}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke={hovered ? '#e87722' : 'rgba(255,255,255,0.5)'}
+          stroke={hovered ? 'var(--accent)' : 'var(--text-muted)'}
           strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           style={{ transition: 'stroke 0.3s ease' }}
         >
@@ -80,47 +81,53 @@ function ScrollToTopButton() {
 function AppInner() {
   const location = useLocation()
   const [notifications, setNotifications] = useState([])
-  const [hasUnseen, setHasUnseen] = useState(false)
+  const openBellRef = useRef(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('pendingNotifications')
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
-        if (parsed.length > 0) {
-          setNotifications(parsed)
-          setHasUnseen(true)
-        }
+        if (parsed.length > 0) setNotifications(parsed)
       } catch (_) {}
       localStorage.removeItem('pendingNotifications')
     }
   }, [location.pathname])
 
+  // ── Socket: connect when logged in, disconnect on logout ──
   useEffect(() => {
-    if (location.pathname === '/dashboard' && hasUnseen) {
-      setHasUnseen(false)
-    }
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    const token = localStorage.getItem('token')
+    if (user?.id && token) connectSocket(user.id)
+    else disconnectSocket()
   }, [location.pathname])
+
+  function handleOpenBell() {
+    if (openBellRef.current) openBellRef.current()
+  }
 
   return (
     <>
-      <Navbar hasUnseenNotifications={hasUnseen} />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/items/:id" element={<ItemDetail />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/post" element={<ProtectedRoute><PostItem /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-      </Routes>
+      <Navbar registerOpenBell={(fn) => { openBellRef.current = fn }} />
+      <PageWrapper>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/items/:id" element={<ItemDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/post" element={<ProtectedRoute><PostItem /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        </Routes>
+      </PageWrapper>
       <MessageButton />
       <ScrollToTopButton />
       <ThemeToggle />
-      <ToastNotification notifications={notifications} />
+      <ToastNotification notifications={notifications} onOpenBell={handleOpenBell} />
     </>
   )
 }
