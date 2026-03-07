@@ -1,12 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme, THEMES } from '../ThemeContext'
+import { useDraggable } from './useDraggable'
 
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
   const [hovered, setHovered] = useState(false)
+  const [draggable, setDraggable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+
+  useEffect(() => {
+    const sync = () => {
+      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
+    }
+    window.addEventListener('floatingDraggableChanged', sync)
+    return () => window.removeEventListener('floatingDraggableChanged', sync)
+  }, [])
 
   const current = THEMES.find(t => t.id === theme) || THEMES[0]
   const next    = THEMES[(THEMES.findIndex(t => t.id === theme) + 1) % THEMES.length]
+
+  const { nodeRef, pos, dragHandlers } = useDraggable(
+    'drag_themetoggle',
+    { bottom: '2rem', left: '2rem', top: 'auto', right: 'auto' },
+    draggable
+  )
+  const { onMouseDown, onTouchStart } = dragHandlers
 
   return (
     <>
@@ -14,29 +33,35 @@ function ThemeToggle() {
         @media (max-width: 900px) { .theme-toggle-btn { display: none !important; } }
       `}</style>
       <button
+        ref={nodeRef}
         className="theme-toggle-btn"
         onClick={toggle}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         aria-label={`Switch to ${next.label} theme`}
-        title={`Current: ${current.label} → Next: ${next.label}`}
+        title={draggable ? `Drag to move · ${current.label}` : `${current.label} → ${next.label}`}
         style={{
           position: 'fixed',
-          bottom: '2rem', left: '2rem',
+          ...pos,
           width: '48px', height: '48px',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border)',
           background: hovered ? 'var(--bg-card-hover)' : 'var(--bg-card)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          cursor: 'pointer',
+          cursor: draggable ? 'grab' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.3s ease',
-          transform: hovered ? 'scale(1.1) rotate(20deg)' : 'scale(1) rotate(0deg)',
-          boxShadow: hovered ? '0 0 0 1px rgba(var(--accent-rgb),0.4), 0 0 20px 6px rgba(var(--accent-rgb),0.25), 0 8px 24px rgba(0,0,0,0.4)' : 'var(--shadow-card)',
+          transition: 'box-shadow 0.3s ease, background 0.3s ease, border 0.3s ease',
+          transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          boxShadow: hovered
+            ? '0 0 0 1px rgba(var(--accent-rgb),0.4), 0 0 20px 6px rgba(var(--accent-rgb),0.25), 0 8px 24px rgba(0,0,0,0.4)'
+            : 'var(--shadow-card)',
           zIndex: 1000,
           padding: 0, outline: 'none',
           color: 'var(--text-primary)',
+          userSelect: 'none',
         }}
       >
         {theme === 'ember' && (

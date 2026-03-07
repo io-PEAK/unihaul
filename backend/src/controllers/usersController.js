@@ -13,6 +13,7 @@ const userSelect = {
   city: true, state: true,
   saleNotifications: true,
   messageNotifications: true,
+  priceDropAlerts: true,
   theme: true,
   profileComplete: true, authProvider: true,
   createdAt: true,
@@ -38,7 +39,7 @@ export const updateProfile = async (req, res) => {
   const {
     firstName, lastName, phone, avatar, bio,
     institution, institutionType, city, state,
-    saleNotifications, messageNotifications, theme,
+    saleNotifications, messageNotifications, priceDropAlerts, theme,
   } = req.body
 
   const validThemes = ['ember', 'midnight', 'chalk']
@@ -64,6 +65,7 @@ export const updateProfile = async (req, res) => {
         ...(state            !== undefined && { state: toTitleCase(state) || null }),
         ...(saleNotifications    !== undefined && { saleNotifications:    Boolean(saleNotifications) }),
         ...(messageNotifications !== undefined && { messageNotifications: Boolean(messageNotifications) }),
+        ...(priceDropAlerts      !== undefined && { priceDropAlerts:      Boolean(priceDropAlerts) }),
         ...(theme            !== undefined && { theme }),
         ...(institution?.trim() && { profileComplete: true }),
       },

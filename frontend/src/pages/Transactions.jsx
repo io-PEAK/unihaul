@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -324,6 +324,85 @@ function ConfirmModal({ count, onConfirm, onCancel }) {
 // ── Main ──────────────────────────────────────────────────────
 function Transactions() {
   const navigate = useNavigate()
+  // ── Draggable back button ──────────────────────────────────
+  const [draggable, setDraggable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+  useEffect(() => {
+    const sync = () => {
+      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
+    }
+    window.addEventListener('floatingDraggableChanged', sync)
+    return () => window.removeEventListener('floatingDraggableChanged', sync)
+  }, [])
+  const backRef = useRef(null)
+  useEffect(() => {
+    if (!backRef.current) return
+    if (!draggable) {
+      backRef.current.style.transform = ''
+      backRef.current.style.transition = ''
+      backRef.current.style.zIndex = ''
+      backRef.current.style.cursor = ''
+      localStorage.removeItem('drag_backbtn_txn')
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem('drag_backbtn_txn'))
+        if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+      } catch {}
+    }
+  }, [draggable])
+  useEffect(() => {
+    if (!draggable || !backRef.current) return
+    try {
+      const saved = JSON.parse(localStorage.getItem('drag_backbtn_txn'))
+      if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+    } catch {}
+  }, [])
+  const startBackDrag = useCallback((clientX, clientY) => {
+    if (!draggable || !backRef.current) return
+    const el = backRef.current
+    const match = el.style.transform.match(/translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/)
+    const baseDx = match ? parseFloat(match[1]) : 0
+    const baseDy = match ? parseFloat(match[2]) : 0
+    let dx = baseDx, dy = baseDy
+    let hasDragged = false
+    let rafId = null
+    el.style.transition = 'none'
+    el.style.zIndex = '9999'
+    el.style.cursor = 'grabbing'
+    const onMove = (cx, cy) => {
+      dx = baseDx + (cx - clientX)
+      dy = baseDy + (cy - clientY)
+      if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4) hasDragged = true
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        el.style.transform = `translate(${dx}px, ${dy}px)`
+      })
+    }
+    const onUp = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      el.style.cursor = 'grab'
+      el.style.transition = ''
+      el.style.zIndex = ''
+      if (hasDragged) {
+        localStorage.setItem('drag_backbtn_txn', JSON.stringify({ dx, dy }))
+        const kill = (ce) => { ce.stopPropagation(); ce.preventDefault(); window.removeEventListener('click', kill, true) }
+        window.addEventListener('click', kill, true)
+      }
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onUp)
+    }
+    const onMouseMove = (e) => onMove(e.clientX, e.clientY)
+    const onTouchMove = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY) }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+  }, [draggable])
+  const onBackMouseDown = useCallback((e) => { e.preventDefault(); startBackDrag(e.clientX, e.clientY) }, [startBackDrag])
+  const onBackTouchStart = useCallback((e) => { startBackDrag(e.touches[0].clientX, e.touches[0].clientY) }, [startBackDrag])
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -433,8 +512,8 @@ function Transactions() {
       {/* Header */}
       <div className="txn-header" style={{ marginBottom: '2.5rem', position: 'relative' }}>
         <button
-          onClick={() => navigate(-1)}
-          className="txn-back-btn" style={{ position: 'absolute', left: '-50px', top: '6px', width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
+          ref={backRef} onClick={() => navigate(-1)} onMouseDown={onBackMouseDown} onTouchStart={onBackTouchStart}
+          className="txn-back-btn" style={{ position: 'absolute', left: '-50px', top: '6px', width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow = 'none' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>

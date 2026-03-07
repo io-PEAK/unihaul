@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useDraggable } from './useDraggable'
 import { useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
 import { getSocket } from '../socket'
@@ -50,20 +51,40 @@ function MessageButton() {
     return () => { if (attachedSocket && handler) attachedSocket.off('new-message', handler) }
   }, [location.pathname])
 
+  const [draggable, setDraggable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+  useEffect(() => {
+    const sync = () => {
+      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
+    }
+    window.addEventListener('floatingDraggableChanged', sync)
+    return () => window.removeEventListener('floatingDraggableChanged', sync)
+  }, [])
+
+  const { nodeRef, pos, dragHandlers } = useDraggable(
+    'drag_messagebtn',
+    { bottom: 'clamp(1rem,3vw,2rem)', right: 'clamp(1rem,3vw,2rem)', top: 'auto', left: 'auto' },
+    draggable
+  )
+  const { onMouseDown, onTouchStart } = dragHandlers
+
   const token = localStorage.getItem('token')
   if (!token) return null
   if (location.pathname === '/messages') return null
 
   return (
     <button
+      ref={nodeRef}
       onClick={() => navigate('/messages')}
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       aria-label="Messages"
       style={{
         position: 'fixed',
-        bottom: 'clamp(1rem, 3vw, 2rem)',
-        right: 'clamp(1rem, 3vw, 2rem)',
+        ...pos,
         width: 'clamp(42px, 5vw, 52px)',
         height: 'clamp(42px, 5vw, 52px)',
         borderRadius: '16px',

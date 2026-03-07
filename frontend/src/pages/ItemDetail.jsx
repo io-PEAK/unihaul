@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
@@ -297,12 +297,92 @@ function ItemDetail() {
   const location = useLocation()
   const backTo = location.state?.from || '/'
 
+  // ── Draggable back button ──────────────────────────────────
+  const [draggable, setDraggable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+  useEffect(() => {
+    const sync = () => {
+      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
+    }
+    window.addEventListener('floatingDraggableChanged', sync)
+    return () => window.removeEventListener('floatingDraggableChanged', sync)
+  }, [])
+  const backRef = useRef(null)
+  useEffect(() => {
+    if (!backRef.current) return
+    if (!draggable) {
+      backRef.current.style.transform = ''
+      backRef.current.style.transition = ''
+      backRef.current.style.zIndex = ''
+      backRef.current.style.cursor = ''
+      localStorage.removeItem('drag_backbtn_itemdetail')
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem('drag_backbtn_itemdetail'))
+        if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+      } catch {}
+    }
+  }, [draggable])
+  useEffect(() => {
+    if (!draggable || !backRef.current) return
+    try {
+      const saved = JSON.parse(localStorage.getItem('drag_backbtn_itemdetail'))
+      if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+    } catch {}
+  }, [])
+  const startBackDrag = useCallback((clientX, clientY) => {
+    if (!draggable || !backRef.current) return
+    const el = backRef.current
+    const match = el.style.transform.match(/translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/)
+    const baseDx = match ? parseFloat(match[1]) : 0
+    const baseDy = match ? parseFloat(match[2]) : 0
+    let dx = baseDx, dy = baseDy
+    let hasDragged = false
+    let rafId = null
+    el.style.transition = 'none'
+    el.style.zIndex = '9999'
+    el.style.cursor = 'grabbing'
+    const onMove = (cx, cy) => {
+      dx = baseDx + (cx - clientX)
+      dy = baseDy + (cy - clientY)
+      if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4) hasDragged = true
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => { el.style.transform = `translate(${dx}px, ${dy}px)` })
+    }
+    const onUp = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      el.style.cursor = 'grab'
+      el.style.transition = ''
+      el.style.zIndex = ''
+      if (hasDragged) {
+        localStorage.setItem('drag_backbtn_itemdetail', JSON.stringify({ dx, dy }))
+        const kill = (ce) => { ce.stopPropagation(); ce.preventDefault(); window.removeEventListener('click', kill, true) }
+        window.addEventListener('click', kill, true)
+      }
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onUp)
+    }
+    const onMouseMove = (e) => onMove(e.clientX, e.clientY)
+    const onTouchMove = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY) }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+  }, [draggable])
+  const onBackMouseDown = useCallback((e) => { e.preventDefault(); startBackDrag(e.clientX, e.clientY) }, [startBackDrag])
+  const onBackTouchStart = useCallback((e) => { startBackDrag(e.touches[0].clientX, e.touches[0].clientY) }, [startBackDrag])
+
   const [item, setItem]               = useState(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
   const [cartQty, setCartQty]         = useState(0)
   const viewCartRef = useRef(null)
   const [cartLoading, setCartLoading] = useState(false)
+  const [watching,    setWatching]    = useState(false)
+  const [watchLoading,setWatchLoading]= useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const myId = user?.id
@@ -332,6 +412,11 @@ function ItemDetail() {
     }
     fetchItem()
   }, [id])
+
+  useEffect(() => {
+    if (!item || !user || item.sellerId === parseInt(myId)) return
+    API.get(`/items/${item.id}/watch`).then(r => setWatching(r.data.watching)).catch(() => {})
+  }, [item?.id])
 
   useEffect(() => {
     if (!item || !user) return
@@ -402,6 +487,21 @@ function ItemDetail() {
 
   const status     = item.status?.toLowerCase()
   const isMyItem   = parseInt(myId) === parseInt(item.seller?.id)
+
+  async function handleWatch() {
+    if (!user) return navigate('/login')
+    setWatchLoading(true)
+    try {
+      if (watching) {
+        await API.delete(`/items/${item.id}/watch`)
+        setWatching(false)
+      } else {
+        await API.post(`/items/${item.id}/watch`)
+        setWatching(true)
+      }
+    } catch {}
+    setWatchLoading(false)
+  }
   const totalStock = item.quantity ?? 1
   const stockLeft  = totalStock - cartQty
 
@@ -426,8 +526,12 @@ function ItemDetail() {
     <div className="id-page-wrap" style={{ fontFamily:'var(--font-body)' }}>
       {/* Fixed back button — mobile only, left edge */}
       <button
+        ref={backRef}
         className="id-back-fixed"
         onClick={() => navigate(backTo)}
+        onMouseDown={onBackMouseDown}
+        onTouchStart={onBackTouchStart}
+        style={{ cursor: draggable ? 'grab' : 'pointer' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
         onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow='none' }}
       >
@@ -628,7 +732,9 @@ function ItemDetail() {
           <button
             className="id-back-btn"
             onClick={() => navigate(backTo)}
-            style={{ width:'34px', height:'34px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1.5px solid rgba(255,255,255,0.1)', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'rgba(255,255,255,0.5)', transition:'all 0.15s', flexShrink:0 }}
+            onMouseDown={onBackMouseDown}
+            onTouchStart={onBackTouchStart}
+            style={{ width:'34px', height:'34px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1.5px solid rgba(255,255,255,0.1)', alignItems:'center', justifyContent:'center', cursor: draggable ? 'grab' : 'pointer', color:'rgba(255,255,255,0.5)', transition:'all 0.15s', flexShrink:0 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow='none' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -646,7 +752,12 @@ function ItemDetail() {
               <span style={{ fontSize:'0.6rem', letterSpacing:'2px', textTransform:'uppercase', color:'var(--text-faint)', fontWeight:'700' }}>{item.category}</span>
               {item.subcategory && (<><span style={{ color:'var(--text-ghost)' }}>›</span><span style={{ fontSize:'0.6rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--accent)', opacity:0.7, fontWeight:'700' }}>{item.subcategory}</span></>)}
             </div>
-            <span className={`status-pill status-${status}`}>{status}</span>
+            {watching && !isMyItem && (
+              <span style={{ display:'inline-flex', alignItems:'center', gap:'0.3rem', fontSize:'0.62rem', fontWeight:'800', letterSpacing:'0.8px', textTransform:'uppercase', color:'#ef4444', background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.25)', padding:'3px 8px', borderRadius:'6px' }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                Watching
+              </span>
+            )}
           </div>
 
           <h1 className="id-title" style={{ fontWeight:'900', letterSpacing:'-1px', lineHeight:'1.15', color:'var(--text-primary)', margin:'0 0 0.75rem' }}>{item.title}</h1>
@@ -694,9 +805,47 @@ function ItemDetail() {
 
           <div className="divider" />
 
+          {/* ── Watch button — only for buyers ── */}
+          {!isMyItem && user && (
+            <button
+              onClick={handleWatch}
+              disabled={watchLoading}
+              onMouseEnter={e => { if(!watchLoading){ e.currentTarget.style.borderColor = watching ? 'rgba(255,107,107,0.6)' : 'var(--accent)'; e.currentTarget.style.color = watching ? '#ff6b6b' : 'var(--accent)' }}}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = watching ? 'rgba(255,107,107,0.35)' : 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = watching ? '#ff6b6b' : 'var(--text-secondary)' }}
+              style={{ width:'100%', padding:'0.65rem', background: watching ? 'rgba(255,107,107,0.08)' : 'transparent', border: `1px solid ${watching ? 'rgba(255,107,107,0.35)' : 'rgba(255,255,255,0.12)'}`, borderRadius:'var(--radius-md)', color: watching ? '#ff6b6b' : 'var(--text-secondary)', fontSize:'0.82rem', fontWeight:'700', cursor: watchLoading ? 'not-allowed' : 'pointer', transition:'all 0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.45rem', fontFamily:'var(--font-body)', marginBottom:'0.6rem', opacity: watchLoading ? 0.6 : 1 }}
+            >
+              {watchLoading ? (
+                <div style={{ width:'13px', height:'13px', border:'2px solid currentColor', borderTopColor:'transparent', borderRadius:'50%', animation:'idSpin 0.7s linear infinite' }} />
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={watching ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              )}
+              {watching ? 'Watching — tap to unwatch' : 'Watch for price drops'}
+            </button>
+          )}
+
           {isMyItem ? (
-            <div style={{ textAlign:'center', padding:'0.85rem', color:'var(--text-muted)', fontWeight:'600', fontSize:'0.85rem', background:'var(--glass-bg-row)', borderRadius:'var(--radius-md)', border:'1px solid var(--glass-border-row)' }}>
-              This is your listing — manage it in your Dashboard
+            <div style={{ background:'var(--glass-bg-row)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-md)', padding:'1rem 1.1rem', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.75rem' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'0.6rem' }}>
+                <div style={{ width:'30px', height:'30px', borderRadius:'8px', background:'rgba(var(--accent-rgb),0.12)', border:'1px solid rgba(var(--accent-rgb),0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize:'0.8rem', fontWeight:'700', color:'var(--text-primary)', lineHeight:1.2 }}>Your Listing</div>
+                  <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginTop:'0.15rem' }}>Manage, edit, or update status</div>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate(`/dashboard?item=${item.id}`)}
+                onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='var(--shadow-accent)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}
+                style={{ padding:'0.55rem 1.1rem', background:'linear-gradient(135deg, var(--accent), var(--accent-alt))', color:'white', border:'none', borderRadius:'var(--radius-sm)', fontSize:'0.78rem', fontWeight:'700', cursor:'pointer', letterSpacing:'0.5px', whiteSpace:'nowrap', transition:'all 0.2s ease', fontFamily:'var(--font-body)', flexShrink:0 }}
+              >
+                Go to Dashboard →
+              </button>
             </div>
           ) : status === 'available' ? (
             cartQty === 0 ? (

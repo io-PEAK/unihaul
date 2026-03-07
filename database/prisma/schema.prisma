@@ -8,8 +8,8 @@ datasource db {
 
 model User {
   id           Int       @id @default(autoincrement())
-  firstName    String   @default("")
-  lastName     String   @default("")
+  firstName    String    @default("")
+  lastName     String    @default("")
   email        String    @unique
   passwordHash String
 
@@ -30,6 +30,7 @@ model User {
 
   saleNotifications    Boolean @default(true)
   messageNotifications Boolean @default(true)
+  priceDropAlerts      Boolean @default(true)
   profileComplete      Boolean @default(true)
   createdAt    DateTime  @default(now())
 
@@ -40,7 +41,8 @@ model User {
   sellerTxns       Transaction[]  @relation("SellerTransactions")
   cartItems        CartItem[]
   notifications    Notification[]
-  otpCodes  OtpCode[]
+  otpCodes         OtpCode[]
+  watchedItems     WatchedItem[]
 }
 
 model Item {
@@ -71,6 +73,20 @@ model Item {
   transactions  Transaction[]
   cartItems     CartItem[]
   notifications Notification[]
+  watchedBy     WatchedItem[]
+}
+
+model WatchedItem {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  itemId       Int
+  priceAtWatch Float
+  createdAt    DateTime @default(now())
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item         Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
 }
 
 model Message {
@@ -124,11 +140,14 @@ model CartItem {
 model Notification {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
+  type      String   @default("sale")
   userId    Int
   itemId    Int?
   itemTitle String   @default("")
-  buyerName String
-  price     Float
+  buyerName String   @default("")
+  price     Float    @default(0)
+  oldPrice  Float?
+  message   String   @default("")
   seen      Boolean  @default(false)
 
   user      User  @relation(fields: [userId], references: [id])

@@ -424,14 +424,29 @@ function FilterChip({ label, onRemove }) {
   )
 }
 
-function ItemCard({ item }) {
+function ItemCard({ item, isWatching = false }) {
   const navigate = useNavigate()
   const [hovered, setHovered] = useState(false)
   const status = item.status?.toLowerCase()
   const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs).slice(0, 2) : []
+  const cardRef = useRef(null)
+  const [cw, setCw] = useState(0)
+  const [ch, setCh] = useState(0)
+  useEffect(() => {
+    if (!isWatching || !cardRef.current) return
+    const update = () => {
+      setCw(cardRef.current.offsetWidth)
+      setCh(cardRef.current.offsetHeight)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(cardRef.current)
+    return () => ro.disconnect()
+  }, [isWatching])
 
   return (
     <div
+      ref={cardRef}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       onClick={() => navigate(`/items/${item.id}`)}
       style={{
@@ -442,9 +457,34 @@ function ItemCard({ item }) {
         transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
         transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)' : '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative',
       }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
+      {isWatching && cw > 0 && (() => {
+        const cr = 19
+        const cp = 2*(cw+ch) - (8 - 2*Math.PI)*cr
+        const cdash = Math.round(cp * 1.0)
+        const aid = `wg${cw}x${ch}`
+        return (<>
+          <style>{`
+            @keyframes ${aid} { 0% { stroke-dashoffset:0 } 100% { stroke-dashoffset:-${Math.round(cp)} } }
+            @keyframes ${aid}-glow { 0% { stroke-dashoffset:0;opacity:0.5 } 50% { opacity:0.85 } 100% { stroke-dashoffset:-${Math.round(cp)};opacity:0.5 } }
+          `}</style>
+          <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', filter:'blur(2.5px)', overflow:'visible' }}>
+            <rect x="1" y="1" width={cw-2} height={ch-2} rx={cr} ry={cr}
+              fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round"
+              strokeDasharray={`${Math.round(cdash*0.4)} ${Math.round(cp-cdash*0.4)}`}
+              style={{ animation:`${aid}-glow 2s linear infinite` }} />
+          </svg>
+          <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:2, pointerEvents:'none', overflow:'visible' }}>
+            <rect x="1" y="1" width={cw-2} height={ch-2} rx={cr} ry={cr}
+              fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"
+              strokeDasharray={`${Math.round(cdash)} ${Math.round(cp-cdash)}`}
+              style={{ animation:`${aid} 2s linear infinite` }} />
+          </svg>
+        </>)
+      })()}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
           <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.category}</span>
@@ -491,8 +531,46 @@ function ItemCard({ item }) {
 function Home() {
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const searchBarRef = useRef(null)
+
+  // Navbar search takeover — fire event when search row scrolls out of view
+  useEffect(() => {
+    const el = searchBarRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        window.dispatchEvent(new CustomEvent('navbar-search-takeover', {
+          detail: { active: !entry.isIntersecting, value: search }
+        }))
+      },
+      { threshold: 0, rootMargin: '-60px 0px 0px 0px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  // Sync search value into navbar while takeover is active
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('navbar-search-sync', { detail: { value: search } }))
+  }, [search])
+
+  // Listen for navbar typing back into our search state
+  useEffect(() => {
+    function handler(e) { setSearch(e.detail.value) }
+    window.addEventListener('navbar-search-change', handler)
+    return () => window.removeEventListener('navbar-search-change', handler)
+  }, [])
+
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [watchedIds, setWatchedIds] = useState(new Set())
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) return
+    API.get('/items/watched').then(r => {
+      setWatchedIds(new Set(r.data.map(w => w.itemId)))
+    }).catch(() => {})
+  }, [])
   const [error, setError] = useState(null)
   const [location, setLocation] = useState(defaultLocation)
 
@@ -559,6 +637,35 @@ function Home() {
   useEffect(() => {
     sessionStorage.setItem('homeFilters', JSON.stringify(filters))
   }, [filters])
+
+  // Sync full filter state to navbar so it can show badges + drive buttons
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('navbar-filter-state', {
+      detail: { filters, location }
+    }))
+  }, [filters, location])
+
+  // Listen for navbar → open status / filter panel (navbar passes button rect)
+  useEffect(() => {
+    function onNavStatus(e) {
+      const rect = e.detail?.rect
+      if (rect) setStatusMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      setShowStatusMenu(v => !v)
+      setShowFilters(false)
+    }
+    function onNavFilters(e) {
+      const rect = e.detail?.rect
+      if (rect) setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      setShowFilters(v => !v)
+      setShowStatusMenu(false)
+    }
+    window.addEventListener('navbar-open-status',  onNavStatus)
+    window.addEventListener('navbar-open-filters', onNavFilters)
+    return () => {
+      window.removeEventListener('navbar-open-status',  onNavStatus)
+      window.removeEventListener('navbar-open-filters', onNavFilters)
+    }
+  }, [])
 
   function setCategory(cat) {
     setFilters(f => ({ ...f, category: cat, subcategory: '', specs: {} }))
@@ -701,7 +808,7 @@ const res = await API.get('/items', { params })
       </div>
 
       {/* Search bar + filter row */}
-      <div style={{
+      <div ref={searchBarRef} style={{
         background: 'var(--glass-bg-row)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         border: '1px solid var(--glass-border)', borderRadius: '20px',
@@ -990,7 +1097,7 @@ const res = await API.get('/items', { params })
             </div>
           ) : (
             <div className="home-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {filteredItems.map(item => <ItemCard key={item.id} item={item} />)}
+              {filteredItems.map(item => <ItemCard key={item.id} item={item} isWatching={watchedIds.has(item.id)} />)}
             </div>
           )}
         </>

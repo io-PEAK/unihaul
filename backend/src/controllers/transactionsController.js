@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { io } from '../../server.js'
 
 // POST /transactions — buyer purchases a single item directly (not via cart)
 export const createTransaction = async (req, res) => {
@@ -39,6 +40,24 @@ export const createTransaction = async (req, res) => {
         },
       }),
     ])
+
+    // Real-time socket notification to seller
+    const notification = await prisma.notification.findFirst({
+      where: { userId: item.sellerId, itemId: parseInt(itemId), seen: false },
+      orderBy: { createdAt: 'desc' }
+    })
+    const sellerSockets = io._onlineUsers?.get(String(item.sellerId))
+    if (sellerSockets && notification) {
+      sellerSockets.forEach(sid => {
+        io.to(sid).emit('new-sale', {
+          notification,
+          itemId: parseInt(itemId),
+          itemTitle: item.title,
+          price: item.price,
+          buyerName: `${buyer.firstName} ${buyer.lastName}`.trim(),
+        })
+      })
+    }
 
     res.status(201).json(transaction)
   } catch (err) {

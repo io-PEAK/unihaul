@@ -31,7 +31,7 @@ function IconBtn({ onClick, title, isActive, children }) {
         borderRadius: 'var(--radius-sm)',
         background: active ? 'var(--accent-soft)' : 'transparent',
         border: active ? '1px solid var(--accent-border)' : '1px solid transparent',
-        boxShadow: active ? 'var(--shadow-glow-sm)' : 'none',
+        
         cursor: 'pointer', display: 'flex', alignItems: 'center',
         justifyContent: 'center', transition: 'all 0.25s ease', flexShrink: 0,
       }}
@@ -47,6 +47,12 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
   const [hovered, setHovered] = useState(false)
   const [delHovered, setDelHovered] = useState(false)
   const isUnseen = !notif.seen
+  const isPriceDrop = notif.type === 'price_drop'
+
+  const PD_COLOR = '#ef4444'
+  const PD_SOFT  = 'rgba(239,68,68,0.12)'
+  const PD_BORDER= 'rgba(239,68,68,0.25)'
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -54,7 +60,11 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
       onClick={onClick}
       style={{
         padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)',
-        background: hovered ? 'var(--accent-soft)' : isUnseen ? 'var(--bg-card)' : 'transparent',
+        background: hovered
+          ? isPriceDrop ? 'rgba(239,68,68,0.06)' : 'var(--accent-soft)'
+          : isUnseen
+            ? isPriceDrop ? 'rgba(239,68,68,0.04)' : 'var(--bg-card)'
+            : 'transparent',
         transition: 'background 0.2s ease',
         display: 'flex', alignItems: 'center', gap: '0.75rem',
         position: 'relative', cursor: 'pointer',
@@ -64,39 +74,85 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
         <div style={{
           position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
           width: '3px', height: '60%', borderRadius: '0 2px 2px 0',
-          background: 'linear-gradient(180deg, var(--accent), var(--accent-alt))',
+          background: isPriceDrop
+            ? `linear-gradient(180deg, ${PD_COLOR}, #f87171)`
+            : 'linear-gradient(180deg, var(--accent), var(--accent-alt))',
         }} />
       )}
       <div style={{
-        width: '34px', height: '34px', borderRadius: 'var(--radius-sm)', flexShrink: 0,
-        background: isUnseen ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)',
+        width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', flexShrink: 0,
+        background: isUnseen
+          ? isPriceDrop
+            ? `linear-gradient(135deg, ${PD_COLOR}, #f87171)`
+            : 'linear-gradient(135deg, var(--accent), var(--accent-alt))'
+          : isPriceDrop
+            ? PD_SOFT
+            : 'var(--accent-soft)',
+        border: isUnseen ? 'none' : isPriceDrop ? `1px solid ${PD_BORDER}` : '1px solid var(--border-accent)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: isUnseen ? 'var(--shadow-accent)' : 'none',
+        boxShadow: isUnseen
+          ? isPriceDrop ? '0 2px 10px rgba(239,68,68,0.35)' : 'var(--shadow-accent)'
+          : 'none',
       }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke={isUnseen ? 'white' : 'var(--text-muted)'}
-          strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
+        {isPriceDrop ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke={isUnseen ? 'white' : PD_COLOR}
+            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+            <polyline points="17 18 23 18 23 12"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke={isUnseen ? 'white' : 'var(--accent)'}
+            strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: '0.82rem', fontWeight: isUnseen ? '700' : '500',
-          color: isUnseen ? 'var(--text-primary)' : 'var(--text-secondary)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '0.18rem',
-        }}>
-          {notif.itemTitle || 'Item sold'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+          {isPriceDrop && (
+            <span style={{
+              fontSize: '0.58rem', fontWeight: '800', letterSpacing: '0.8px',
+              textTransform: 'uppercase', color: PD_COLOR,
+              background: PD_SOFT, border: `1px solid ${PD_BORDER}`,
+              padding: '1px 5px', borderRadius: '4px', flexShrink: 0,
+            }}>Price Drop</span>
+          )}
+          <div style={{
+            fontSize: '0.82rem', fontWeight: isUnseen ? '700' : '500',
+            color: isUnseen ? 'var(--text-primary)' : 'var(--text-secondary)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {notif.itemTitle || (isPriceDrop ? 'Item price dropped' : 'Item sold')}
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <span style={{
-            fontSize: '0.75rem', fontWeight: '800',
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>₹{notif.price}</span>
-          <span style={{ color: 'var(--border-hover)', fontSize: '0.6rem' }}>·</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-            Bought by {notif.buyerName || 'Buyer'}
-          </span>
+          {isPriceDrop ? (<>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textDecoration: 'line-through', fontWeight: '600' }}>
+              ₹{notif.oldPrice?.toLocaleString()}
+            </span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={PD_COLOR} strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: PD_COLOR }}>
+              ₹{notif.price?.toLocaleString()}
+            </span>
+            {notif.oldPrice && (<>
+              <span style={{ color: 'var(--border-hover)', fontSize: '0.6rem' }}>·</span>
+              <span style={{ fontSize: '0.7rem', color: PD_COLOR, fontWeight: '600', opacity: 0.8 }}>
+                -{Math.round(((notif.oldPrice - notif.price) / notif.oldPrice) * 100)}% off
+              </span>
+            </>)}
+          </>) : (<>
+            <span style={{
+              fontSize: '0.75rem', fontWeight: '800',
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>₹{notif.price}</span>
+            <span style={{ color: 'var(--border-hover)', fontSize: '0.6rem' }}>·</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+              Bought by {notif.buyerName || 'Buyer'}
+            </span>
+          </>)}
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
@@ -231,7 +287,30 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
       })
     }
     socket.on('new-message', handler)
-    return () => socket.off('new-message', handler)
+
+    const priceDropHandler = (data) => {
+      setUnreadSales(prev => prev + 1)
+      setSaleNotifs(prev => {
+        const notif = {
+          id: data.notification?.id || Date.now(),
+          type: 'price_drop',
+          itemId: data.itemId,
+          itemTitle: data.itemTitle,
+          oldPrice: data.oldPrice,
+          price: data.newPrice,
+          seen: false,
+          createdAt: new Date().toISOString(),
+        }
+        if (prev.some(n => n.id === notif.id)) return prev
+        return [notif, ...prev]
+      })
+    }
+    socket.on('price-drop', priceDropHandler)
+
+    return () => {
+      socket.off('new-message', handler)
+      socket.off('price-drop', priceDropHandler)
+    }
   }, [isLoggedIn])
 
   useEffect(() => {
@@ -254,7 +333,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   async function handleMarkAllSeen() { try { await API.post('/notifications/mark-seen'); setUnreadSales(0); setSaleNotifs(prev => prev.map(n => ({ ...n, seen: true }))) } catch {} }
   async function handleDeleteOne(id) { try { await API.delete(`/notifications/${id}`); setSaleNotifs(prev => prev.filter(n => n.id !== id)); setUnreadSales(saleNotifs.filter(n => n.id !== id && !n.seen).length) } catch {} }
   async function handleClearAll() { try { await API.delete('/notifications/clear'); setSaleNotifs([]); setUnreadSales(0) } catch {} }
-  function handleSaleClick(notif) { setOpen(false); navigate(`/dashboard?tab=sold&item=${notif.itemId}`); if (unreadSales > 0) { API.post('/notifications/mark-seen').catch(() => {}); setUnreadSales(0) } }
+  function handleSaleClick(notif) { setOpen(false); const tab = notif.type === 'price_drop' ? 'watching' : 'sold'; navigate(`/dashboard?tab=${tab}&item=${notif.itemId}`); if (unreadSales > 0) { API.post('/notifications/mark-seen').catch(() => {}); setUnreadSales(0) } }
   function handleMsgClick(msg) { setOpen(false); setUnreadMsgs(0); API.post('/messages/mark-all-read').catch(() => {}); navigate('/messages', { state: { item: { id: msg.itemId, title: msg.itemTitle, seller: { id: msg.senderId, name: msg.senderName } } } }) }
   function handleTabClick(tabKey) { setActiveTab(tabKey); if (tabKey === 'messages' && unreadMsgs > 0) { setUnreadMsgs(0); API.post('/messages/mark-read').catch(() => {}) } }
 
@@ -275,7 +354,6 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
           position: 'relative', width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
           background: open || hovered ? 'var(--accent-soft)' : 'transparent',
           border: open || hovered ? '1px solid var(--accent-border)' : '1px solid transparent',
-          boxShadow: open || hovered ? 'var(--shadow-glow-sm)' : 'none',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.25s ease',
         }}
@@ -325,7 +403,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
               </div>
             </div>
             <div style={{ display: 'flex' }}>
-              {[{ key: 'sales', label: 'Sales', count: unreadSales }, { key: 'messages', label: 'Messages', count: unreadMsgs }].map(tab => (
+              {[{ key: 'sales', label: 'Sales & Alerts', count: unreadSales }, { key: 'messages', label: 'Messages', count: unreadMsgs }].map(tab => (
                 <button key={tab.key} onClick={() => handleTabClick(tab.key)} style={{ flex: 1, padding: '0.5rem 0.5rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: activeTab === tab.key ? '700' : '500', color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', letterSpacing: '0.5px', fontFamily: 'var(--font-body)' }}>
                   {tab.label}
                   {tab.count > 0 && <span style={{ fontSize: '0.55rem', fontWeight: '800', padding: '1px 5px', borderRadius: '10px', minWidth: '16px', textAlign: 'center', background: activeTab === tab.key ? 'var(--accent-soft)' : 'var(--bg-card-hover)', color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', border: activeTab === tab.key ? '1px solid var(--accent-border)' : '1px solid var(--border)' }}>{tab.count > 9 ? '9+' : tab.count}</span>}

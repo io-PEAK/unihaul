@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -25,11 +25,137 @@ const SPEC_FIELDS = {
 }
 
 const FILTERS = [
-  { key: 'all',     label: 'All' },
-  { key: 'active',  label: 'Active' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'sold',    label: 'Sold' },
+  { key: 'all',      label: 'All' },
+  { key: 'active',   label: 'Active' },
+  { key: 'pending',  label: 'Pending' },
+  { key: 'sold',     label: 'Sold' },
+  { key: 'watching', label: 'Watching' },
 ]
+
+// ── Spec Validators (mirrored from PostItem) ──────────────────
+const pureNum       = v => /^\d+$/.test(v.trim())
+const startsSpecial = v => /^[^a-zA-Z0-9]/.test(v.trim())
+const badStart      = v => startsSpecial(v) ? "Can't start with a special character" : null
+const SPEC_VALIDATORS = {
+  'Electronics': {
+    brand:     v => badStart(v) || (pureNum(v) ? 'Enter a brand name'   : v.length < 2 ? 'Too short' : null),
+    ram:       v => badStart(v) || (!/^\d+\s*(gb|tb|mb)/i.test(v.trim()) ? 'e.g. 8GB, 16GB' : null),
+    storage:   v => badStart(v) || (!/^\d+\s*(gb|tb|mb)/i.test(v.trim()) ? 'e.g. 256GB, 1TB' : null),
+    processor: v => badStart(v) || (pureNum(v) ? 'Enter processor name'  : v.length < 2 ? 'Too short' : null),
+    display:   v => badStart(v) || (pureNum(v) ? 'e.g. 15.6", 4K OLED'  : null),
+  },
+  'Clothing': {
+    gender: v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'Enter gender — e.g. Male, Female' : null),
+    color:  v => badStart(v) || (pureNum(v) ? 'Enter a color name'  : v.length < 4 ? 'Too short' : null),
+    type:   v => badStart(v) || (pureNum(v) ? 'Enter clothing type' : v.length < 4 ? 'Too short' : null),
+  },
+  'Books & Notes': {
+    subject: v => badStart(v) || (pureNum(v) ? 'Enter subject name' : !(/^[a-zA-Z]/.test(v.trim())) ? 'Must start with a letter' : v.length < 5 ? 'Too short' : null),
+    author:  v => badStart(v) || (pureNum(v) ? 'Enter author name'  : !(/^[a-zA-Z]/.test(v.trim())) ? 'Must start with a letter' : v.length < 5 ? 'Too short' : null),
+  },
+  'Furniture': {
+    material:   v => badStart(v) || (pureNum(v) ? 'Enter material name'         : v.length < 2 ? 'Too short' : null),
+    color:      v => badStart(v) || (pureNum(v) ? 'Enter a color name'           : v.length < 2 ? 'Too short' : null),
+    dimensions: v => badStart(v) || (pureNum(v) ? 'Add a unit — e.g. 120x60 cm' : null),
+  },
+  'Sports & Fitness': {
+    sport: v => badStart(v) || (pureNum(v) ? 'Enter sport name'   : v.length < 2 ? 'Too short' : null),
+    brand: v => badStart(v) || (pureNum(v) ? 'Enter a brand name' : v.length < 2 ? 'Too short' : null),
+  },
+  'Stationery': {
+    type:  v => badStart(v) || (pureNum(v) ? 'Enter item type'    : v.length < 2 ? 'Too short' : null),
+    brand: v => badStart(v) || (pureNum(v) ? 'Enter a brand name' : v.length < 2 ? 'Too short' : null),
+  },
+  'Appliances': {
+    brand:    v => badStart(v) || (pureNum(v) ? 'Enter a brand name' : v.length < 2 ? 'Too short' : null),
+    capacity: v => badStart(v) || (!/^\d+\s*(l|ltr|litre|kg|kgs|g|ml|w|kw)/i.test(v.trim()) ? 'e.g. 5kg, 200L' : null),
+    color:    v => badStart(v) || (pureNum(v) ? 'Enter a color name' : v.length < 2 ? 'Too short' : null),
+  },
+  'Games & Hobbies': {
+    platform: v => badStart(v) || (pureNum(v) ? 'e.g. PS5, PC, Switch' : null),
+    type:     v => badStart(v) || (pureNum(v) ? 'Enter genre name'     : v.length < 2 ? 'Too short' : null),
+    brand:    v => badStart(v) || (pureNum(v) ? 'Enter a brand name'   : v.length < 2 ? 'Too short' : null),
+  },
+  'Food & Drinks': {
+    type:        v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'Enter a food type'       : v.length < 2 ? 'Too short' : null),
+    ingredients: v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'Enter ingredients'       : v.length < 2 ? 'Too short' : null),
+    allergens:   v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'e.g. Nuts, Dairy, None'  : v.length < 2 ? 'Too short' : null),
+    diet:        v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'e.g. Vegetarian, Vegan'  : v.length < 2 ? 'Too short' : null),
+    contains:    v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'e.g. Nuts, Dairy'        : v.length < 2 ? 'Too short' : null),
+  },
+  'Services': {
+    mode:       v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'e.g. Online, Offline' : null),
+    experience: v => badStart(v) || (!(/[a-zA-Z]/.test(v)) ? 'e.g. 2 years, Expert' : v.length < 2 ? 'Too short' : null),
+  },
+}
+
+const specFieldsMap = {
+  'Electronics':      [{ key: 'brand', label: 'Brand', placeholder: 'e.g. Dell, Apple, Samsung' }, { key: 'ram', label: 'RAM', placeholder: 'e.g. 8GB, 16GB' }, { key: 'storage', label: 'Storage', placeholder: 'e.g. 256GB, 1TB' }, { key: 'processor', label: 'Processor', placeholder: 'e.g. Intel i5, M2' }, { key: 'display', label: 'Display', placeholder: 'e.g. 15.6", 4K OLED' }],
+  'Clothing':         [{ key: 'gender', label: 'Gender', placeholder: 'e.g. Male, Female, Unisex' }, { key: 'color', label: 'Color', placeholder: 'e.g. Black, Navy Blue' }, { key: 'type', label: 'Type', placeholder: 'e.g. T-shirt, Jeans' }],
+  'Books & Notes':    [{ key: 'subject', label: 'Subject', placeholder: 'e.g. Physics, Maths' }, { key: 'author', label: 'Author', placeholder: 'e.g. H.C. Verma' }, { key: 'edition', label: 'Edition', placeholder: 'e.g. 3rd Edition 2023' }],
+  'Furniture':        [{ key: 'material', label: 'Material', placeholder: 'e.g. Solid Wood, Metal' }, { key: 'color', label: 'Color', placeholder: 'e.g. Brown, White' }, { key: 'dimensions', label: 'Dimensions', placeholder: 'e.g. 120 x 60 cm' }],
+  'Sports & Fitness': [{ key: 'sport', label: 'Sport', placeholder: 'e.g. Cricket, Football' }, { key: 'brand', label: 'Brand', placeholder: 'e.g. Nike, Adidas, SG' }, { key: 'size', label: 'Size', placeholder: 'e.g. Size 7, XL' }],
+  'Stationery':       [{ key: 'type', label: 'Type', placeholder: 'e.g. Notebook, Pen set' }, { key: 'brand', label: 'Brand', placeholder: 'e.g. Classmate, Natraj' }],
+  'Appliances':       [{ key: 'brand', label: 'Brand', placeholder: 'e.g. Samsung, LG' }, { key: 'capacity', label: 'Capacity', placeholder: 'e.g. 5kg, 200L' }, { key: 'color', label: 'Color', placeholder: 'e.g. White, Silver' }],
+  'Games & Hobbies':  [{ key: 'platform', label: 'Platform', placeholder: 'e.g. PS5, PC, Mobile' }, { key: 'type', label: 'Type', placeholder: 'e.g. Strategy, Action' }, { key: 'brand', label: 'Brand', placeholder: 'e.g. Sony, Nintendo' }],
+  'Services':         [{ key: 'mode', label: 'Mode', placeholder: 'e.g. Online, Offline' }, { key: 'experience', label: 'Experience', placeholder: 'e.g. 2 years' }],
+  'Food & Drinks':    [{ key: 'type', label: 'Type', placeholder: 'e.g. Snack, Full Meal' }, { key: 'ingredients', label: 'Ingredients', placeholder: 'e.g. Rice, Wheat' }, { key: 'allergens', label: 'Allergens', placeholder: 'e.g. Nuts, Dairy, None' }],
+  'Other':            [],
+}
+
+const specSuggestionsMap = {
+  'Electronics': {
+    brand: ['Apple', 'Dell', 'HP', 'Lenovo', 'Samsung', 'Sony', 'Asus', 'Acer', 'Microsoft', 'LG', 'OnePlus', 'Xiaomi'],
+    ram: ['2GB', '4GB', '6GB', '8GB', '12GB', '16GB', '32GB', '64GB'],
+    storage: ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'],
+    processor: ['Intel i3', 'Intel i5', 'Intel i7', 'Intel i9', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3', 'Snapdragon'],
+    display: ['11"', '13"', '14"', '15.6"', '16"', 'Full HD', '4K', 'OLED', 'Retina Display'],
+  },
+  'Clothing': {
+    gender: ['Male', 'Female', 'Unisex', 'Kids'],
+    color: ['Black', 'White', 'Navy Blue', 'Grey', 'Red', 'Green', 'Brown', 'Beige', 'Multicolor'],
+    type: ['T-shirt', 'Shirt', 'Jeans', 'Trousers', 'Jacket', 'Hoodie', 'Kurta', 'Saree', 'Shorts', 'Dress', 'Sweater'],
+  },
+  'Books & Notes': {
+    subject: ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English', 'Computer Science', 'Economics', 'History', 'Geography'],
+    author: ['H.C. Verma', 'R.D. Sharma', 'S.L. Arora', 'NCERT', 'Arihant', 'DC Pandey', 'P.K. Nag'],
+    edition: ['1st Edition', '2nd Edition', '3rd Edition', '4th Edition', '2022 Edition', '2023 Edition', '2024 Edition', 'Latest Edition'],
+  },
+  'Furniture': {
+    material: ['Wood', 'Solid Wood', 'Plywood', 'Metal', 'Steel', 'Plastic', 'Glass', 'Cane', 'MDF'],
+    color: ['Brown', 'White', 'Black', 'Natural Wood', 'Walnut', 'Oak', 'Mahogany'],
+    dimensions: ['Single Bed (90x190cm)', 'Double Bed (120x190cm)', '2-Seater', '3-Seater', '4-Seater', 'L-Shaped'],
+  },
+  'Sports & Fitness': {
+    sport: ['Cricket', 'Football', 'Basketball', 'Badminton', 'Tennis', 'Table Tennis', 'Gym', 'Yoga', 'Cycling', 'Swimming'],
+    brand: ['Nike', 'Adidas', 'Puma', 'Reebok', 'SG', 'MRF', 'Yonex', 'Decathlon', 'Under Armour'],
+    size: ['XS', 'S', 'M', 'L', 'XL', 'Size 3', 'Size 4', 'Size 5', 'Size 6', 'Size 7'],
+  },
+  'Stationery': {
+    type: ['Notebook', 'Pen Set', 'Pencil Set', 'Marker Set', 'Geometry Box', 'Art Kit', 'Calculator', 'Highlighters', 'Sticky Notes'],
+    brand: ['Classmate', 'Natraj', 'Camlin', 'Reynolds', 'Cello', 'Faber-Castell', 'Staedtler', 'Casio'],
+  },
+  'Appliances': {
+    brand: ['Samsung', 'LG', 'Whirlpool', 'Haier', 'Godrej', 'Voltas', 'IFB', 'Bosch', 'Bajaj', 'Philips'],
+    capacity: ['5L', '10L', '15L', '5kg', '6.5kg', '7kg', '8kg', '150L', '200L', '250L', '300L'],
+    color: ['White', 'Silver', 'Black', 'Graphite', 'Grey'],
+  },
+  'Games & Hobbies': {
+    platform: ['PS4', 'PS5', 'Xbox One', 'Xbox Series X', 'PC', 'Nintendo Switch', 'Mobile', 'Board Game'],
+    type: ['Action', 'Strategy', 'RPG', 'Sports', 'Racing', 'Puzzle', 'Adventure', 'Simulation', 'FPS'],
+    brand: ['Sony', 'Microsoft', 'Nintendo', 'EA', 'Ubisoft', 'Activision', 'Hasbro'],
+  },
+  'Services': {
+    mode: ['Online', 'Offline', 'Both Online & Offline'],
+    experience: ['Beginner', '6 Months', '1 Year', '2 Years', '3+ Years', 'Expert'],
+  },
+  'Food & Drinks': {
+    type: ['Snack', 'Full Meal', 'Dessert', 'Beverage', 'Breakfast', 'Homemade', 'Packaged'],
+    ingredients: ['Rice', 'Wheat', 'Lentils', 'Vegetables', 'Chicken', 'Milk', 'Sugar'],
+    allergens: ['No Allergens', 'Nuts', 'Dairy', 'Gluten', 'Soy', 'Eggs', 'Shellfish'],
+  },
+}
+
 
 function safeDate(val) {
   if (!val) return null
@@ -129,6 +255,7 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
         <style>{`
           @keyframes cdFadeIn  { from{opacity:0} to{opacity:1} }
           @keyframes cdSlideUp { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+          @keyframes dashMove { from { stroke-dashoffset: 0 } to { stroke-dashoffset: -600 } }
         `}</style>
       </div>
     </div>
@@ -233,13 +360,13 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
               </div>
               {showNew && !flash && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(81,207,102,0.15), rgba(64,192,87,0.1))', border: '1px solid rgba(81,207,102,0.35)', color: '#51cf66', fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', animation: 'pulse-green 2.5s ease-in-out infinite' }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   New Sale
                 </div>
               )}
               {flash && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px' }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                   Viewing
                 </div>
               )}
@@ -254,14 +381,14 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
           <div className="sold-row-actions">
             <button onClick={() => setExpanded(e => !e)}
               style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: expanded ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', color: expanded ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               History
             </button>
             <button
               onClick={() => navigate('/post', { state: { prefill: { title: displayTitle, price: displayPrice, category: displayCategory, condition: item?.condition, description: item?.description } } })}
               onMouseEnter={() => setRelistHovered(true)} onMouseLeave={() => setRelistHovered(false)}
               style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: relistHovered ? 'var(--accent-soft)' : 'rgba(255,255,255,0.04)', color: relistHovered ? 'var(--accent)' : 'rgba(255,255,255,0.4)', border: relistHovered ? '1px solid var(--accent-border)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               Relist
             </button>
             <button onClick={handleDeleteClick}
@@ -306,14 +433,161 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
   )
 }
 
+// ── Dropdown components for edit form (same as PostItem) ─────
+function EditDropItem({ label, onSelect, isFirst, isLast, active }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onMouseDown={e => { e.preventDefault(); onSelect() }}
+      style={{
+        padding: '0.52rem 0.9rem', cursor: 'pointer', fontSize: '0.84rem',
+        color: active ? 'var(--dropdown-item-active)' : hovered ? 'var(--dropdown-item-active)' : 'var(--dropdown-item-text)',
+        background: active ? 'var(--dropdown-item-active-bg)' : hovered ? 'var(--dropdown-item-hover-bg)' : 'transparent',
+        borderTop: !isFirst ? '1px solid var(--dropdown-divider)' : 'none',
+        borderRadius: isLast ? '0 0 11px 11px' : '0',
+        transition: 'all 0.1s ease',
+        fontWeight: active || hovered ? '600' : '400',
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+      }}
+    >
+      {active && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="1,6 4,9 11,3" stroke="var(--dropdown-item-active)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      {!active && <span style={{ width: '9px' }} />}
+      {label}
+    </div>
+  )
+}
+
+const editDropMenuStyle = {
+  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999,
+  background: 'var(--dropdown-bg)',
+  border: '1px solid var(--dropdown-border)', borderTop: 'none',
+  borderRadius: '0 0 12px 12px', maxHeight: '200px', overflowY: 'auto',
+  boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
+}
+
+function EditCustomSelect({ value, onChange, options, placeholder, focusKey, focusedField, setFocusedField }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+  const isFocused = focusedField === focusKey
+
+  useEffect(() => {
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false); if (isFocused) setFocusedField(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isFocused, setFocusedField])
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button type="button"
+        onMouseDown={() => { setFocusedField(open ? null : focusKey); setOpen(o => !o) }}
+        style={{
+          width: '100%', padding: '0.7rem 2.5rem 0.7rem 1rem', boxSizing: 'border-box',
+          background: isFocused ? 'var(--select-bg-focus)' : 'var(--select-bg)',
+          border: isFocused ? '1px solid var(--accent-border)' : '1px solid var(--select-border)',
+          borderRadius: open ? '12px 12px 0 0' : '12px',
+          color: value ? 'var(--text-primary)' : 'var(--select-placeholder)',
+          fontSize: '0.9rem', cursor: 'pointer', outline: 'none',
+          textAlign: 'left', transition: 'all 0.2s ease',
+          display: 'flex', alignItems: 'center', fontFamily: 'inherit',
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {value || placeholder}
+        </span>
+        <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: `translateY(-50%) rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.2s', pointerEvents: 'none' }}>
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="var(--select-arrow)"><path d="M8 11L3 6h10z"/></svg>
+        </span>
+      </button>
+      {open && (
+        <div style={editDropMenuStyle}>
+          {options.map((opt, i) => (
+            <EditDropItem key={opt} label={opt} active={opt === value} isFirst={i === 0} isLast={i === options.length - 1}
+              onSelect={() => { onChange(opt); setOpen(false); setFocusedField(null) }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EditSpecInput({ fieldKey, category, value, onChange, placeholder }) {
+  const wrapRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const suggestions = specSuggestionsMap[category]?.[fieldKey] || []
+  const filtered = value
+    ? suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase())
+    : suggestions
+  const validator = SPEC_VALIDATORS[category]?.[fieldKey]
+  const inlineError = value && validator ? validator(value) : null
+  const showDrop = open && focused && filtered.length > 0 && !inlineError
+
+  useEffect(() => {
+    function handler(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) { setOpen(false); setFocused(false) } }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input type="text" value={value} placeholder={placeholder}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => { setFocused(true); setOpen(true) }}
+        onBlur={() => { setFocused(false) }}
+        style={{
+          width: '100%', padding: '0.6rem 0.85rem', boxSizing: 'border-box',
+          background: inlineError ? 'rgba(255,107,107,0.06)' : focused ? 'var(--bg-input-focus)' : 'var(--bg-input)',
+          border: inlineError ? '1px solid rgba(255,107,107,0.5)' : focused ? `1px solid var(--accent-border)` : value ? '1px solid var(--accent-border)' : '1px solid var(--glass-border)',
+          borderRadius: showDrop || inlineError ? '10px 10px 0 0' : '10px',
+          color: 'var(--text-primary)',
+          fontSize: '0.83rem', outline: 'none',
+          transition: 'background 0.2s, border 0.2s', fontFamily: 'inherit',
+        }}
+      />
+      {showDrop && (
+        <div style={{ ...editDropMenuStyle, borderRadius: '0 0 10px 10px', maxHeight: '160px' }}>
+          {filtered.map((s, i) => (
+            <EditDropItem key={s} label={s} isFirst={i === 0} isLast={i === filtered.length - 1}
+              onSelect={() => { onChange(s); setOpen(false); setFocused(false) }} />
+          ))}
+        </div>
+      )}
+      {inlineError && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style={{ fontSize: '0.62rem', color: '#ff6b6b', fontWeight: '600' }}>{inlineError}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── ListingRow ────────────────────────────────────────────────
-function ListingRow({ item, onDelete, onUpdate }) {
+function ListingRow({ item, onDelete, onUpdate, isHighlighted }) {
   const [hovered, setHovered]             = useState(false)
   const [editHovered, setEditHovered]     = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
   const [editing, setEditing]             = useState(false)
   const [saving, setSaving]               = useState(false)
   const [showConfirm, setShowConfirm]     = useState(false)
+  const [focusedField, setFocusedField]   = useState(null)
+  const [flash, setFlash]                 = useState(false)
+  const rowRef                            = useRef(null)
+
+  // Scroll into view + animate border when navigated from ItemDetail with ?item=ID
+  useEffect(() => {
+    if (isHighlighted) {
+      setFlash(true)
+      const t1 = setTimeout(() => rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+      const t2 = setTimeout(() => setFlash(false), 2000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }
+  }, [isHighlighted])
 
   const [editForm, setEditForm] = useState({
     title: item.title, price: item.price, category: item.category,
@@ -326,15 +600,86 @@ function ListingRow({ item, onDelete, onUpdate }) {
     fields.forEach(f => { initial[f.key] = existing[f.key] || '' })
     return initial
   })
+  const [specErrors, setSpecErrors] = useState({})
+
+  // Image state — seed from item.images (array) or item.imageUrl (single)
+  const [editImages, setEditImages] = useState(() => {
+    const imgs = Array.isArray(item.images) && item.images.length > 0
+      ? item.images
+      : item.imageUrl ? [item.imageUrl] : []
+    return imgs.map((url, i) => ({ _uid: `existing-${i}`, url, preview: url, uploading: false }))
+  })
+  const [imgError, setImgError] = useState(null)
+  const editFileRef = useRef(null)
+  const editDragIdx = useRef(null)
+  const [editDragOver, setEditDragOver]       = useState(false)
+  const [editDragOverIdx, setEditDragOverIdx] = useState(null)
+  const [editPreviewIdx, setEditPreviewIdx]   = useState(null)
+
+  async function handleAddImages(files) {
+    setImgError(null)
+    const valid = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 5 - editImages.length)
+    if (!valid.length) return
+    const newSlots = valid.map(f => ({
+      _uid: Math.random().toString(36).slice(2),
+      name: f.name, preview: URL.createObjectURL(f),
+      url: null, publicId: null, uploading: true,
+    }))
+    setEditImages(prev => [...prev, ...newSlots])
+    const results = await Promise.allSettled(
+      newSlots.map(async (slot, i) => {
+        const fd = new FormData(); fd.append('image', valid[i])
+        const res = await API.post('/upload/item-image', fd)
+        setEditImages(prev => prev.map(img =>
+          img._uid === slot._uid ? { ...img, url: res.data.url, publicId: res.data.publicId, uploading: false } : img
+        ))
+      })
+    )
+    const failed = results.filter(r => r.status === 'rejected')
+    if (failed.length > 0) {
+      setEditImages(prev => prev.filter(img => !img.uploading))
+      setImgError(`${failed.length} image(s) failed to upload.`)
+    }
+  }
+
+  function handleRemoveImage(idx) {
+    const img = editImages[idx]
+    if (img?.publicId) API.delete('/upload/item-image', { data: { publicId: img.publicId } }).catch(() => {})
+    setEditImages(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleReorderImages(from, to) {
+    setEditImages(prev => {
+      const arr = [...prev]; const [moved] = arr.splice(from, 1); arr.splice(to, 0, moved); return arr
+    })
+  }
 
   const status = item.status?.toLowerCase()
+
+  // Title inline errors
+  const titleVal = editForm.title
+  const titleStartsSpecial = titleVal.length > 0 && /^[^a-zA-Z0-9]/.test(titleVal)
+  const titleStartsNum     = titleVal.length > 0 && !titleStartsSpecial && /^\d/.test(titleVal)
+  const titleTooShort      = titleVal.length > 0 && !titleStartsSpecial && !titleStartsNum && titleVal.trim().length < 10
 
   function handleCategoryChange(newCategory) {
     const newFields = SPEC_FIELDS[newCategory] || []
     const newSpecs  = {}
-    newFields.forEach(f => { newSpecs[f.key] = editSpecs[f.key] || '' })
+    newFields.forEach(f => { newSpecs[f.key] = '' })
     setEditForm(prev => ({ ...prev, category: newCategory }))
     setEditSpecs(newSpecs)
+    setSpecErrors({})
+  }
+
+  function handleSpecChange(key, value) {
+    setEditSpecs(prev => ({ ...prev, [key]: value }))
+    const validator = SPEC_VALIDATORS[editForm.category]?.[key]
+    if (validator && value.trim() !== '') {
+      const err = validator(value)
+      setSpecErrors(prev => ({ ...prev, [key]: err || null }))
+    } else {
+      setSpecErrors(prev => ({ ...prev, [key]: null }))
+    }
   }
 
   function handleDeleteClick() { setShowConfirm(true) }
@@ -350,12 +695,30 @@ function ListingRow({ item, onDelete, onUpdate }) {
   }
 
   async function handleSave() {
+    // Title validation
+    if (!editForm.title.trim()) { alert('Title is required.'); return }
+    if (/^[^a-zA-Z0-9]/.test(editForm.title.trim())) { alert("Title can't start with a special character."); return }
+    if (/^\d/.test(editForm.title.trim())) { alert("Title can't start with a number."); return }
+    if (editForm.title.trim().length < 10) { alert('Title is too short (min 10 chars).'); return }
+    // Price validation
     const parsedPrice = parseFloat(editForm.price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0) { alert('Price must be greater than ₹0.'); return }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) { alert('Price must be greater than \u20b90.'); return }
+    // Spec validation
+    const validators = SPEC_VALIDATORS[editForm.category] || {}
+    const newErrors = {}
+    let hasSpecError = false
+    Object.entries(editSpecs).forEach(([key, value]) => {
+      if (value && String(value).trim() !== '') {
+        const err = validators[key]?.(value)
+        if (err) { newErrors[key] = err; hasSpecError = true }
+      }
+    })
+    if (hasSpecError) { setSpecErrors(newErrors); return }
     const cleanSpecs = Object.fromEntries(Object.entries(editSpecs).filter(([, v]) => v && String(v).trim() !== ''))
     try {
       setSaving(true)
-      const res = await API.put(`/items/${item.id}`, { ...editForm, price: parsedPrice, specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null })
+      const uploadedUrls = editImages.filter(img => img.url).map(img => img.url)
+      const res = await API.put(`/items/${item.id}`, { ...editForm, price: parsedPrice, specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null, images: uploadedUrls, imageUrl: uploadedUrls[0] || null })
       onUpdate(res.data)
       setEditing(false)
     } catch (err) {
@@ -377,31 +740,47 @@ function ListingRow({ item, onDelete, onUpdate }) {
         />
       )}
       <div
+        ref={rowRef}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
           background: hovered ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
           backdropFilter: 'blur(20px)',
-          border: editing ? '1px solid var(--accent-border)' : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
+          border: flash ? '1px solid rgba(var(--accent-rgb),0.5)' : editing ? '1px solid var(--accent-border)' : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
           borderRadius: '16px', padding: '1.25rem 1.75rem',
           transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden',
-          boxShadow: hovered ? '0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
+          boxShadow: flash ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08), 0 8px 30px rgba(0,0,0,0.35)' : hovered ? '0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', borderRadius: '16px 16px 0 0' }} />
+        {flash && (
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10, overflow: 'visible', borderRadius: '16px' }}>
+            <rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="15" ry="15"
+              fill="none" stroke="url(#lg1)" strokeWidth="1.5"
+              strokeDasharray="50 10000" strokeLinecap="round"
+              style={{ animation: 'dashMove 1.2s linear infinite' }} />
+            <defs>
+              <linearGradient id="lg1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100%" y2="0">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0" />
+                <stop offset="50%" stopColor="var(--accent)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--accent-alt)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+        )}
 
         {!editing && (
           <div className="listing-row-view">
             <div style={{ minWidth: 0, flex: 1 }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{item.title}</h3>
               <div className="listing-row-meta">
-                <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{item.price}</span>
+                <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>&#x20B9;{item.price}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
                 <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
                 <span style={{ fontSize: '0.7rem', fontWeight: '700', color: status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: status === 'pending' ? '1px solid rgba(255,212,59,0.15)' : '1px solid rgba(81,207,102,0.15)', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{status}</span>
-                <span className="listing-date-dot" style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-                <span className="listing-date" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>Listed {formatDate(item.createdAt)} · {formatTime(item.createdAt)}</span>
+                <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem' }}>Listed {formatDate(item.createdAt)} &middot; {formatTime(item.createdAt)}</span>
               </div>
             </div>
             <div className="listing-row-btns">
@@ -414,71 +793,208 @@ function ListingRow({ item, onDelete, onUpdate }) {
         )}
 
         {editing && (
-          <div>
-            <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.7, fontWeight: '700', marginBottom: '1rem' }}>Editing: {item.title}</div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.7, fontWeight: '700', marginBottom: '1rem' }}>Editing: <span style={{ color: 'rgba(255,255,255,0.9)', opacity: 1 }}>{item.title}</span></div>
+
+            {/* ── Photos ── */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                Photos
+                {editImages.length === 0 && <span style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '500', textTransform: 'none', letterSpacing: 0, fontSize: '0.6rem' }}>optional — add to update</span>}
+                {editImages.length >= 1 && <span style={{ color: 'var(--accent)', fontWeight: '600', opacity: 0.7, textTransform: 'none', letterSpacing: 0, fontSize: '0.6rem' }}>({editImages.length}/5) · drag to reorder</span>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', maxWidth: '420px' }}>
+                {editImages.map((img, i) => (
+                  <div key={img._uid || img.url}
+                    draggable
+                    onDragStart={() => { editDragIdx.current = i }}
+                    onDragEnter={() => setEditDragOverIdx(i)}
+                    onDragEnd={() => {
+                      if (editDragIdx.current !== null && editDragOverIdx !== null && editDragIdx.current !== editDragOverIdx) handleReorderImages(editDragIdx.current, editDragOverIdx)
+                      editDragIdx.current = null; setEditDragOverIdx(null)
+                    }}
+                    onDragOver={e => e.preventDefault()}
+                    onClick={() => { if (!img.uploading) setEditPreviewIdx(i) }}
+                    style={{ position: 'relative', aspectRatio: '1', borderRadius: '10px', overflow: 'hidden', border: editDragOverIdx === i ? '2px solid rgba(232,119,34,0.8)' : i === 0 ? '2px solid rgba(232,119,34,0.4)' : '2px solid rgba(255,255,255,0.06)', cursor: img.uploading ? 'wait' : 'pointer', transition: 'border 0.15s, transform 0.15s', transform: editDragOverIdx === i ? 'scale(1.04)' : 'scale(1)', opacity: img.uploading ? 0.6 : 1 }}
+                  >
+                    <img src={img.preview || img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                    {i === 0 && <div style={{ position: 'absolute', bottom: '5px', left: '5px', background: 'rgba(232,119,34,0.9)', borderRadius: '5px', fontSize: '0.52rem', fontWeight: '800', letterSpacing: '0.5px', textTransform: 'uppercase', color: 'white', padding: '2px 6px' }}>Cover</div>}
+                    {img.uploading && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}>
+                        <div style={{ width: '18px', height: '18px', border: '2.5px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'dashSpin 0.7s linear infinite' }} />
+                      </div>
+                    )}
+                    {!img.uploading && (
+                      <button onMouseDown={e => { e.stopPropagation(); handleRemoveImage(i) }} onClick={e => e.stopPropagation()}
+                        style={{ position: 'absolute', top: '5px', right: '5px', width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.85)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.75)'}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {editImages.length < 5 && (
+                  <div
+                    onClick={() => { setImgError(null); editFileRef.current?.click() }}
+                    onDragOver={e => { e.preventDefault(); setEditDragOver(true) }}
+                    onDragLeave={() => setEditDragOver(false)}
+                    onDrop={e => { e.preventDefault(); setEditDragOver(false); handleAddImages(e.dataTransfer.files) }}
+                    style={{ aspectRatio: '1', borderRadius: '10px', cursor: 'pointer', border: editDragOver ? '2px dashed var(--border-dashed-hover)' : '2px dashed var(--border-dashed)', background: editDragOver ? 'var(--accent-soft)' : 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', transition: 'all 0.2s ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-dashed-hover)'; e.currentTarget.style.background = 'var(--accent-soft)' }}
+                    onMouseLeave={e => { if (!editDragOver) { e.currentTarget.style.borderColor = 'var(--border-dashed)'; e.currentTarget.style.background = 'transparent' } }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', fontWeight: '600', textAlign: 'center' }}>{editImages.length === 0 ? 'Add photo' : 'Add more'}</span>
+                  </div>
+                )}
+                {Array.from({ length: Math.max(0, 5 - editImages.length - 1) }).map((_, i) => (
+                  <div key={`ep-${i}`} style={{ aspectRatio: '1', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)', background: 'rgba(255,255,255,0.01)' }} />
+                ))}
+              </div>
+              <input ref={editFileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { handleAddImages(e.target.files); e.target.value = '' }} />
+              {imgError && <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#ff6b6b' }}>{imgError}</div>}
+            </div>
+
+            {/* ── Image preview lightbox ── */}
+            {editPreviewIdx !== null && editImages[editPreviewIdx] && (
+              <div onClick={() => setEditPreviewIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
+                <img src={editImages[editPreviewIdx].url || editImages[editPreviewIdx].preview} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth: '85vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: '14px', boxShadow: '0 40px 100px rgba(0,0,0,0.7)', cursor: 'default' }} />
+                <button onClick={() => setEditPreviewIdx(null)} style={{ position: 'fixed', top: '1.25rem', right: '1.25rem', width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              </div>
+            )}
+
+            {/* ── Title ── */}
+            <div style={{ marginBottom: '0.75rem', gridColumn: '1 / -1' }}>
+              <label style={labelStyle}>Title</label>
+              <input
+                value={editForm.title}
+                onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+                onFocus={() => setFocusedField('title')} onBlur={() => setFocusedField(null)}
+                placeholder="e.g. Physics Textbook by H.C. Verma"
+                style={{ ...inputStyle, borderColor: focusedField === 'title' ? 'var(--accent-border)' : titleStartsSpecial || titleStartsNum || titleTooShort ? 'rgba(255,107,107,0.5)' : 'rgba(255,255,255,0.08)', borderRadius: titleStartsSpecial || titleStartsNum || titleTooShort ? '10px 10px 0 0' : '10px' }}
+              />
+              {titleStartsSpecial && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span style={{ fontSize: '0.62rem', color: '#ff6b6b', fontWeight: '600' }}>Can&apos;t start with a special character</span>
+                </div>
+              )}
+              {titleStartsNum && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span style={{ fontSize: '0.62rem', color: '#ff6b6b', fontWeight: '600' }}>Can&apos;t start with a number</span>
+                </div>
+              )}
+              {titleTooShort && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span style={{ fontSize: '0.62rem', color: '#ff6b6b', fontWeight: '600' }}>Too short (min 10 chars)</span>
+                </div>
+              )}
+            </div>
+
             <div className="edit-grid" style={{ marginBottom: '0.75rem' }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Title</label>
-                <input value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} style={inputStyle} />
-              </div>
+              {/* ── Price ── */}
               <div>
-                <label style={labelStyle}>Price (₹)</label>
-                <input type="number" min="1" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} style={inputStyle} />
+                <label style={labelStyle}>Price (&#x20B9;)</label>
+                <input
+                  type="number" min="1" step="any" value={editForm.price}
+                  onChange={e => setEditForm({ ...editForm, price: e.target.value })}
+                  onFocus={() => setFocusedField('price')} onBlur={() => setFocusedField(null)}
+                  onKeyDown={e => ['e','E','+','-'].includes(e.key) && e.preventDefault()}
+                  placeholder="e.g. 299"
+                  style={{ ...inputStyle, borderColor: focusedField === 'price' ? 'var(--accent-border)' : 'rgba(255,255,255,0.08)' }}
+                />
               </div>
+
+              {/* ── Category ── */}
               <div>
                 <label style={labelStyle}>Category</label>
-                <div style={{ position: 'relative' }}>
-                  <select value={editForm.category} onChange={e => handleCategoryChange(e.target.value)} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.4)"><path d="M8 11L3 6h10z"/></svg>
-                  </div>
-                </div>
+                <EditCustomSelect
+                  value={editForm.category}
+                  onChange={handleCategoryChange}
+                  options={categories}
+                  placeholder="Select category"
+                  focusKey="category"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                />
               </div>
+
+              {/* ── Condition ── */}
               <div>
                 <label style={labelStyle}>Condition</label>
-                <div style={{ position: 'relative' }}>
-                  <select value={editForm.condition} onChange={e => setEditForm({ ...editForm, condition: e.target.value })} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
-                    {conditions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.4)"><path d="M8 11L3 6h10z"/></svg>
-                  </div>
-                </div>
+                <EditCustomSelect
+                  value={editForm.condition}
+                  onChange={val => setEditForm({ ...editForm, condition: val })}
+                  options={conditions}
+                  placeholder="Select condition"
+                  focusKey="condition"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                />
               </div>
+
+              {/* ── Status ── */}
               <div>
                 <label style={labelStyle}>Status</label>
-                <div style={{ position: 'relative' }}>
-                  <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} style={{ ...inputStyle, appearance: 'none', WebkitAppearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}>
-                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="rgba(255,255,255,0.4)"><path d="M8 11L3 6h10z"/></svg>
-                  </div>
-                </div>
+                <EditCustomSelect
+                  value={editForm.status}
+                  onChange={val => setEditForm({ ...editForm, status: val })}
+                  options={statuses}
+                  placeholder="Select status"
+                  focusKey="status"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                />
               </div>
+
+              {/* ── Description ── */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Description</label>
-                <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+                <textarea
+                  value={editForm.description}
+                  onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                  onFocus={() => setFocusedField('description')} onBlur={() => setFocusedField(null)}
+                  rows={3}
+                  placeholder="Condition, age, any defects, reason for selling..."
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', borderColor: focusedField === 'description' ? 'var(--accent-border)' : 'rgba(255,255,255,0.08)' }}
+                />
               </div>
             </div>
+
+            {/* ── Specifications ── */}
             {currentSpecFields.length > 0 && (
-              <div style={{ marginBottom: '0.75rem', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '12px', padding: '1rem 1.15rem' }}>
-                <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.6, fontWeight: '800', marginBottom: '0.75rem' }}>Specifications (optional)</div>
+              <div style={{ marginBottom: '0.75rem', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '12px', padding: '1rem 1.15rem', position: 'relative', zIndex: 10, overflow: 'visible' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+                  <span style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.8, fontWeight: '800' }}>{editForm.category} Specifications</span>
+                  <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)', fontWeight: '500', marginLeft: 'auto' }}>type or pick a suggestion</span>
+                </div>
                 <div className="edit-grid">
                   {currentSpecFields.map(field => (
-                    <div key={field.key}>
-                      <label style={labelStyle}>{field.label}</label>
-                      <input value={editSpecs[field.key] || ''} onChange={e => setEditSpecs(prev => ({ ...prev, [field.key]: e.target.value }))} style={{ ...inputStyle, color: editSpecs[field.key] ? 'white' : 'rgba(255,255,255,0.25)' }} />
+                    <div key={field.key} style={{ overflow: 'visible' }}>
+                      <label style={{ ...labelStyle, marginBottom: '0.3rem' }}>{field.label}</label>
+                      <EditSpecInput
+                        fieldKey={field.key}
+                        category={editForm.category}
+                        value={editSpecs[field.key] || ''}
+                        onChange={val => handleSpecChange(field.key, val)}
+                        placeholder={specFieldsMap[editForm.category]?.find(f => f.key === field.key)?.placeholder || ''}
+                      />
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditing(false)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', fontWeight: '600' }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} style={{ padding: '0.4rem 1.25rem', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: saving ? 'rgba(255,255,255,0.3)' : 'white', border: 'none', fontSize: '0.8rem', fontWeight: '700', boxShadow: saving ? 'none' : 'var(--shadow-accent)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+              <button onClick={() => { setEditing(false); setSpecErrors({}) }}
+                style={{ padding: '0.4rem 1rem', borderRadius: '10px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', fontWeight: '600' }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving}
+                style={{ padding: '0.4rem 1.25rem', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: saving ? 'rgba(255,255,255,0.3)' : 'white', border: 'none', fontSize: '0.8rem', fontWeight: '700', boxShadow: saving ? 'none' : 'var(--shadow-accent)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
             </div>
           </div>
         )}
@@ -495,8 +1011,104 @@ function Dashboard() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
+  // ── Draggable back button ──────────────────────────────────
+  const [draggable, setDraggable] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+  useEffect(() => {
+    const sync = () => {
+      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
+    }
+    window.addEventListener('floatingDraggableChanged', sync)
+    return () => window.removeEventListener('floatingDraggableChanged', sync)
+  }, [])
+  const backRef = useRef(null)
+  // Restore saved drag position on mount
+  useEffect(() => {
+    if (!draggable || !backRef.current) return
+    try {
+      const saved = JSON.parse(localStorage.getItem('drag_backbtn_dashboard'))
+      if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+    } catch {}
+  }, [])  // eslint-disable-line
+  // Reset inline styles when draggable toggles
+  useEffect(() => {
+    const el = backRef.current
+    if (!el) return
+    if (!draggable) {
+      el.style.transform = ''
+      el.style.transition = ''
+      el.style.zIndex = ''
+      el.style.cursor = ''
+      localStorage.removeItem('drag_backbtn_dashboard')
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem('drag_backbtn_dashboard'))
+        if (saved) el.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+      } catch {}
+    }
+  }, [draggable])
+  const startBackDrag = useCallback((clientX, clientY) => {
+    if (!draggable || !backRef.current) return
+    const el = backRef.current
+    // Read current transform as base so accumulated drags don't stack
+    const match = el.style.transform.match(/translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/)
+    const baseDx = match ? parseFloat(match[1]) : 0
+    const baseDy = match ? parseFloat(match[2]) : 0
+    let dx = baseDx, dy = baseDy
+    let hasDragged = false
+    let rafId = null
+
+    el.style.transition = 'none'
+    el.style.zIndex = '9999'
+    el.style.cursor = 'grabbing'
+
+    const onMove = (cx, cy) => {
+      dx = baseDx + (cx - clientX)
+      dy = baseDy + (cy - clientY)
+      if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4) hasDragged = true
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        el.style.transform = `translate(${dx}px, ${dy}px)`
+      })
+    }
+    const onUp = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      el.style.cursor = 'grab'
+      el.style.transition = ''
+      el.style.zIndex = ''
+      // Save transform so position restores on refresh
+      if (hasDragged) {
+        localStorage.setItem('drag_backbtn_dashboard', JSON.stringify({ dx, dy }))
+        const kill = (ce) => { ce.stopPropagation(); ce.preventDefault(); window.removeEventListener('click', kill, true) }
+        window.addEventListener('click', kill, true)
+      }
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onUp)
+    }
+    const onMouseMove = (e) => onMove(e.clientX, e.clientY)
+    const onTouchMove = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY) }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+  }, [draggable])
+
+  const onBackMouseDown = useCallback((e) => {
+    e.preventDefault()
+    startBackDrag(e.clientX, e.clientY)
+  }, [startBackDrag])
+
+  const onBackTouchStart = useCallback((e) => {
+    startBackDrag(e.touches[0].clientX, e.touches[0].clientY)
+  }, [startBackDrag])
+
   const [items, setItems]               = useState([])
   const [transactions, setTransactions] = useState([])
+  const [watchedItems, setWatchedItems] = useState([])
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState(null)
   const [postBtnHovered, setPostBtnHovered] = useState(false)
@@ -508,6 +1120,18 @@ function Dashboard() {
 
   useEffect(() => { if (tabParam) setActiveFilter(tabParam) }, [tabParam])
 
+  // When arriving from ItemDetail (?item=ID), switch to the correct tab
+  useEffect(() => {
+    if (!highlightItemId || items.length === 0) return
+    const target = items.find(i => i.id === highlightItemId)
+    if (!target) return
+    const s = target.status?.toLowerCase()
+    if (s === 'available') setActiveFilter('active')
+    else if (s === 'pending') setActiveFilter('pending')
+    else setActiveFilter('all')
+    setTimeout(() => setSearchParams(p => { p.delete('item'); return p }), 2200)
+  }, [highlightItemId, items])
+
   const user     = JSON.parse(localStorage.getItem('user') || '{}')
   const username = user.firstName || 'there'
 
@@ -515,12 +1139,14 @@ function Dashboard() {
     const fetchData = async () => {
       try {
         setLoading(true); setError(null)
-        const [itemsRes, txnRes] = await Promise.all([
+        const [itemsRes, txnRes, watchedRes] = await Promise.all([
           API.get('/items/mine'),
           API.get('/transactions'),
+          API.get('/items/watched'),
         ])
         setItems(itemsRes.data)
         setTransactions(txnRes.data)
+        setWatchedItems(watchedRes.data || [])
         try {
           const notifRes    = await API.get('/notifications')
           const unseenNotifs = notifRes.data
@@ -750,11 +1376,8 @@ function Dashboard() {
             align-self: flex-end;
           }
 
-          /* Hide date in meta on mobile (saves space) */
-          .listing-date-dot,
-          .listing-date {
-            display: none;
-          }
+          /* Date wraps to next line on mobile — no longer hidden */
+          .listing-row-meta { row-gap: 0.3rem; }
 
           /* SoldGroupRow: stack too */
           .sold-row-inner {
@@ -765,9 +1388,9 @@ function Dashboard() {
           .sold-row-meta {
             flex-wrap: wrap;
           }
-          .sold-row-date {
-            display: none;
-          }
+          /* sold-row-date wraps to next line instead of hiding */
+          .sold-row-meta { row-gap: 0.3rem; }
+          .sold-row-date { font-size: 0.68rem; }
           .sold-row-actions {
             align-self: flex-end;
             flex-wrap: wrap;
@@ -796,12 +1419,15 @@ function Dashboard() {
 
           {/* ── Back button ── */}
           <button
+            ref={backRef}
             className="dash-back-btn"
             onClick={() => navigate(-1)}
-            style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
+            onMouseDown={onBackMouseDown}
+            onTouchStart={onBackTouchStart}
+            style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow = 'none' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
 
           <h1 className="dash-heading" style={{ fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
@@ -854,7 +1480,8 @@ function Dashboard() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
             <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes dashSpin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading your dashboard...</p>
           </div>
         )}
@@ -869,14 +1496,14 @@ function Dashboard() {
           const list = activeFilter === 'active' ? activeItems : pendingItems
           if (list.length === 0) return <EmptyState label={activeFilter + ' listings'} />
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
+            {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} />)}
           </div>
         })()}
 
         {!loading && !error && activeFilter === 'all' && (() => {
           if (allNonSoldItems.length === 0 && soldGroups.length === 0) return <EmptyState label="listings" />
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} />)}
+            {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} />)}
             {visibleSoldGroups.map(group => (
               <SoldGroupRow key={group.stableKey} group={group} stableKey={group.stableKey}
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
@@ -898,6 +1525,49 @@ function Dashboard() {
               />
             ))}
           </div>
+        })()}
+
+        {!loading && !error && activeFilter === 'watching' && (() => {
+          if (watchedItems.length === 0) return <EmptyState label="watched items" />
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {watchedItems.map(w => {
+                const dropped = w.item.price < w.priceAtWatch
+                const pct = Math.round(((w.priceAtWatch - w.item.price) / w.priceAtWatch) * 100)
+                return (
+                  <div key={w.id}
+                    onClick={() => navigate(`/items/${w.item.id}`)}
+                    onMouseEnter={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)'}
+                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '1rem' }}
+                  >
+                    {w.item.images?.[0] && (
+                      <img src={w.item.images[0]} alt={w.item.title}
+                        style={{ width: '52px', height: '52px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.item.title}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontWeight: '600' }}>Watching since</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'rgba(255,255,255,0.5)', textDecoration: dropped ? 'line-through' : 'none' }}>₹{w.priceAtWatch.toLocaleString()}</span>
+                        {dropped && (<>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#ef4444' }}>₹{w.item.price.toLocaleString()}</span>
+                          <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#ef4444', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', padding: '1px 6px', borderRadius: '5px' }}>-{pct}%</span>
+                        </>)}
+                        {!dropped && (
+                          <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>· No drop yet</span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
+                      <span className={`status-pill status-${w.item.status?.toLowerCase()}`}>{w.item.status}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
         })()}
 
       </div>

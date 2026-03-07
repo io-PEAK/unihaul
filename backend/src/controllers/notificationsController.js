@@ -14,6 +14,8 @@ export const getNotifications = async (req, res) => {
       itemTitle: n.itemTitle,
       buyerName: n.buyerName,
       price: n.price,
+      oldPrice: n.oldPrice || null,
+      type: n.type || 'sale',
       seen: n.seen,
       createdAt: n.createdAt,
     })))
@@ -38,6 +40,8 @@ export const getAllNotifications = async (req, res) => {
       itemTitle: n.itemTitle,
       buyerName: n.buyerName,
       price: n.price,
+      oldPrice: n.oldPrice || null,
+      type: n.type || 'sale',
       seen: n.seen,
       createdAt: n.createdAt,
     })))

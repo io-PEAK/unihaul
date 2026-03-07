@@ -91,6 +91,37 @@ function ThemeCard({ t, isActive, onClick }) {
   )
 }
 
+/* ─── FloatingButtonsCard ──────────────────────────────────────────── */
+function FloatingButtonsCard() {
+  const [enabled, setEnabled] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
+  })
+
+  function handleChange(v) {
+    setEnabled(v)
+    localStorage.setItem('floatingDraggable', JSON.stringify(v))
+    window.dispatchEvent(new Event('floatingDraggableChanged'))
+    if (!v) {
+      ['drag_themetoggle', 'drag_messagebtn', 'drag_backbtn'].forEach(k => localStorage.removeItem(k))
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Floating Buttons"
+      subtitle="Drag the back button, messages, and theme toggle anywhere on screen"
+      icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>}
+    >
+      <Toggle
+        value={enabled}
+        onChange={handleChange}
+        label="Draggable floating buttons"
+        desc="Move back, messages, and theme buttons freely. Positions are saved per device."
+      />
+    </SectionCard>
+  )
+}
+
 /* ─── DeleteAccountDialog ───────────────────────────────────────────── */
 function DeleteAccountDialog({ open, onConfirm, onCancel, loading }) {
   const [typed, setTyped] = useState('')
@@ -345,7 +376,7 @@ export default function Settings() {
 
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'))
   const [loadingUser, setLoadingUser] = useState(true)
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', bio: '', institutionType: '', institution: '', city: '', state: '', notificationsEnabled: true, messageNotificationsEnabled: true })
+  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', bio: '', institutionType: '', institution: '', city: '', state: '', notificationsEnabled: true, messageNotificationsEnabled: true, priceDropAlerts: true })
   const [changingType, setChangingType] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -380,12 +411,12 @@ export default function Settings() {
       try {
         const res = await API.get('/users/me'); const u = res.data
         setUser(u); localStorage.setItem('user', JSON.stringify(u))
-        const loaded = { firstName: u.firstName || '', lastName: u.lastName || '', phone: u.phone || '', bio: u.bio || '', institutionType: u.institutionType || '', institution: u.institution || '', city: u.city || '', state: u.state || '', notificationsEnabled: u.notificationsEnabled ?? true, messageNotificationsEnabled: u.messageNotificationsEnabled ?? true }
+        const loaded = { firstName: u.firstName || '', lastName: u.lastName || '', phone: u.phone || '', bio: u.bio || '', institutionType: u.institutionType || '', institution: u.institution || '', city: u.city || '', state: u.state || '', notificationsEnabled: u.notificationsEnabled ?? true, messageNotificationsEnabled: u.messageNotificationsEnabled ?? true, priceDropAlerts: u.priceDropAlerts ?? true }
         setForm(loaded); savedFormRef.current = loaded
         if (u.theme && !localStorage.getItem('theme')) setThemeById(u.theme)
       } catch {
         if (user) {
-          const loaded = { firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '', bio: user.bio || '', institutionType: user.institutionType || '', institution: user.institution || '', city: user.city || '', state: user.state || '', notificationsEnabled: user.notificationsEnabled ?? true, messageNotificationsEnabled: user.messageNotificationsEnabled ?? true }
+          const loaded = { firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '', bio: user.bio || '', institutionType: user.institutionType || '', institution: user.institution || '', city: user.city || '', state: user.state || '', notificationsEnabled: user.notificationsEnabled ?? true, messageNotificationsEnabled: user.messageNotificationsEnabled ?? true, priceDropAlerts: user.priceDropAlerts ?? true }
           setForm(loaded); savedFormRef.current = loaded
         }
       } finally { setLoadingUser(false) }
@@ -684,6 +715,7 @@ export default function Settings() {
                       {themes.map(t => <ThemeCard key={t.id} t={t} isActive={theme === t.id} onClick={() => handleThemeChange(t.id)} />)}
                     </div>
                   </SectionCard>
+                  <FloatingButtonsCard />
                 </div>
               )}
 
@@ -693,7 +725,7 @@ export default function Settings() {
                   <SectionCard title="Notifications" subtitle="Changes save automatically when you flip a toggle" icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>}>
                     <Toggle value={form.notificationsEnabled} onChange={v => handleToggle('notificationsEnabled', v)} label="Sale notifications" desc="Get notified when someone buys your item" />
                     <Toggle value={form.messageNotificationsEnabled} onChange={v => handleToggle('messageNotificationsEnabled', v)} label="Message notifications" desc="Get notified when you receive a new message" />
-                    <Toggle value={false} onChange={() => {}} label="Price drop alerts" desc="Coming soon — not available yet" disabled />
+                    <Toggle value={form.priceDropAlerts} onChange={v => handleToggle('priceDropAlerts', v)} label="Price drop alerts" desc="Get notified when a watched item drops in price" />
                     {saved && <div style={{ marginTop: '0.75rem' }}><Saved /></div>}
                   </SectionCard>
                 </div>
