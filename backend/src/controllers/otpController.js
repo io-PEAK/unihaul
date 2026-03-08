@@ -1,16 +1,7 @@
 import 'dotenv/config'
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const { PrismaClient } = require('/Users/peakmac/github/student-shop/database/node_modules/@prisma/client/default.js')
-import { PrismaPg } from '@prisma/adapter-pg'
-import pkg from 'pg'
-const { Pool } = pkg
+import prisma from '../lib/prisma.js'
 import bcrypt from 'bcrypt'
 import { sendOtpEmail } from '../lib/email.js'
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
 
 // ── Generate 6-digit OTP ──────────────────────────────────────
 function generateOtp() {
@@ -31,19 +22,17 @@ export async function sendOtp(req, res) {
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    // Block OAuth users from changing password
     if (type === 'password_reset' && user.authProvider !== 'local') {
       return res.status(400).json({ error: 'OAuth accounts cannot change password here. Use Google to manage your password.' })
     }
 
-    // Invalidate any existing unused OTPs of same type
     await prisma.otpCode.updateMany({
       where: { userId, type, used: false },
       data: { used: true },
     })
 
     const code = generateOtp()
-    const expiresAt = new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000)
 
     await prisma.otpCode.create({
       data: { userId, code, type, expiresAt },
@@ -70,11 +59,9 @@ export async function changeEmail(req, res) {
 
     const normalizedEmail = newEmail.trim().toLowerCase()
 
-    // Check email not already taken
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (existing) return res.status(400).json({ error: 'This email is already in use' })
 
-    // Verify OTP
     const otpRecord = await prisma.otpCode.findFirst({
       where: {
         userId,
@@ -88,7 +75,6 @@ export async function changeEmail(req, res) {
     if (!otpRecord) return res.status(400).json({ error: 'OTP expired or not found. Request a new one.' })
     if (otpRecord.code !== otp) return res.status(400).json({ error: 'Incorrect OTP' })
 
-    // Mark OTP used + update email
     await prisma.otpCode.update({ where: { id: otpRecord.id }, data: { used: true } })
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -142,7 +128,6 @@ export async function changePassword(req, res) {
 }
 
 // ── POST /users/reset-password ────────────────────────────────
-// For when user forgets current password — verify OTP then set new password
 export async function resetPasswordWithOtp(req, res) {
   try {
     const { otp, newPassword } = req.body
