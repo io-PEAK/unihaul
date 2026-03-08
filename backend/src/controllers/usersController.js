@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js'
-import institutions from '../data/institutions.js'
+import institutions from '../data/institutionsController.js'
 const { searchInstitutions } = institutions
 
 const toTitleCase = s => s
@@ -139,5 +139,27 @@ export const deleteAccount = async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to delete account.' })
+  }
+}
+// POST /users/create-password — Google users create a password
+export const createPassword = async (req, res) => {
+  try {
+    const userId = req.user.userId
+    const { newPassword } = req.body
+    if (!newPassword || newPassword.length < 8)
+      return res.status(400).json({ error: 'Min 8 characters.' })
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return res.status(404).json({ error: 'User not found.' })
+    const bcrypt = await import('bcrypt')
+    const hash = await bcrypt.default.hash(newPassword, 12)
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { password: hash, authProvider: 'both' },
+      select: userSelect,
+    })
+    res.json(updated)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to create password.' })
   }
 }

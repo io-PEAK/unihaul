@@ -6,6 +6,7 @@ export const createTransaction = async (req, res) => {
   const buyerId = req.user.userId
   const { itemId } = req.body
   try {
+    console.log('[SALE] createTransaction called, buyerId:', buyerId, 'itemId:', itemId)
     const buyer = await prisma.user.findUnique({ where: { id: parseInt(buyerId) }, select: { firstName: true, lastName: true } })
     const item = await prisma.item.findUnique({ where: { id: parseInt(itemId) } })
     if (!item) return res.status(404).json({ error: 'Item not found.' })
@@ -29,26 +30,29 @@ export const createTransaction = async (req, res) => {
         where: { id: parseInt(itemId) },
         data: { status: 'sold' },
       }),
-      prisma.notification.create({
-        data: {
-          userId: item.sellerId,
-          itemId: parseInt(itemId),
-          itemTitle: item.title,
-          buyerName: `${buyer.firstName} ${buyer.lastName}`.trim(),
-          price: item.price,
-          seen: false,
-        },
-      }),
     ])
 
-    // Real-time socket notification to seller
-    const notification = await prisma.notification.findFirst({
-      where: { userId: item.sellerId, itemId: parseInt(itemId), seen: false },
-      orderBy: { createdAt: 'desc' }
+    // Create notification separately (same pattern as price-drop) so we get the object back reliably
+    const notification = await prisma.notification.create({
+      data: {
+        userId: item.sellerId,
+        itemId: parseInt(itemId),
+        itemTitle: item.title,
+        buyerName: `${buyer.firstName} ${buyer.lastName}`.trim(),
+        price: item.price,
+        seen: false,
+      },
     })
-    const sellerSockets = io._onlineUsers?.get(String(item.sellerId))
-    if (sellerSockets && notification) {
-      sellerSockets.forEach(sid => {
+
+    console.log('[SALE] notification created:', notification?.id, '| now emitting socket')
+    // Real-time socket with debug logs
+    const onlineUsers = io?._onlineUsers
+    console.log('[SALE] onlineUsers keys:', onlineUsers ? Array.from(onlineUsers.keys()) : 'NULL')
+    console.log('[SALE] sellerId:', String(item.sellerId))
+    if (onlineUsers) {
+      const sockets = onlineUsers.get(String(item.sellerId))
+      console.log('[SALE] seller sockets:', sockets ? [...sockets] : 'NOT FOUND')
+      sockets?.forEach(sid => {
         io.to(sid).emit('new-sale', {
           notification,
           itemId: parseInt(itemId),
@@ -56,12 +60,13 @@ export const createTransaction = async (req, res) => {
           price: item.price,
           buyerName: `${buyer.firstName} ${buyer.lastName}`.trim(),
         })
+        console.log('[SALE] emitted to:', sid)
       })
     }
 
     res.status(201).json(transaction)
   } catch (err) {
-    console.error(err)
+    console.error('[SALE] ERROR:', err)
     res.status(500).json({ error: 'Failed to create transaction.' })
   }
 }

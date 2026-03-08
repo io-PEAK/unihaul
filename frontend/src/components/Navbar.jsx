@@ -242,7 +242,9 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   const [loadingSales, setLoadingSales] = useState(false)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [unreadSales, setUnreadSales] = useState(0)
-  const [unreadMsgs, setUnreadMsgs] = useState(0)
+  const [unreadMsgs, setUnreadMsgs]   = useState(0)
+  const [pendingSales, setPendingSales] = useState(0)
+  const [pendingMsgs,  setPendingMsgs]  = useState(0)
   const dropdownRef = useRef(null)
   const buttonRef = useRef(null)
 
@@ -275,6 +277,8 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     const socket = connectSocket(me.id)
     const handler = (msg) => {
       if (String(msg.receiverId) !== String(me.id)) return
+      const u = JSON.parse(localStorage.getItem('user') || 'null')
+      if (u?.messageNotificationsEnabled === false) return
       if (window.location.pathname === '/messages') { setUnreadMsgs(0); return }
       const activeKey = window.__activeConvoKey
       const msgKeyA = `${msg.itemId}-${msg.senderId}`
@@ -289,6 +293,8 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     socket.on('new-message', handler)
 
     const priceDropHandler = (data) => {
+      const u = JSON.parse(localStorage.getItem('user') || 'null')
+      if (u?.notificationsEnabled === false || u?.priceDropAlerts === false) return
       setUnreadSales(prev => prev + 1)
       setSaleNotifs(prev => {
         const notif = {
@@ -305,10 +311,22 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
         return [notif, ...prev]
       })
     }
+    const newSaleHandler = (data) => {
+      const u = JSON.parse(localStorage.getItem('user') || 'null')
+      if (u?.notificationsEnabled === false) return
+      setUnreadSales(prev => prev + 1)
+      setSaleNotifs(prev => {
+        const notif = { id: data.notification?.id || Date.now(), type: 'sale', itemId: data.itemId, itemTitle: data.itemTitle, price: data.price, buyerName: data.buyerName, seen: false, createdAt: new Date().toISOString() }
+        if (prev.some(n => n.id === notif.id)) return prev
+        return [notif, ...prev]
+      })
+    }
+    socket.on('new-sale', newSaleHandler)
     socket.on('price-drop', priceDropHandler)
 
     return () => {
       socket.off('new-message', handler)
+      socket.off('new-sale', newSaleHandler)
       socket.off('price-drop', priceDropHandler)
     }
   }, [isLoggedIn])
@@ -322,20 +340,52 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   }, [])
 
   async function fetchUnreadCounts() {
+    const u = JSON.parse(localStorage.getItem('user') || 'null')
     try {
       const [saleRes, msgRes] = await Promise.all([API.get('/notifications'), API.get('/messages/unread-count')])
-      setUnreadSales(saleRes.data.length); setUnreadMsgs(msgRes.data.count || 0)
-    } catch { try { const saleRes = await API.get('/notifications'); setUnreadSales(saleRes.data.length) } catch {} }
+      if (u?.notificationsEnabled !== false) setUnreadSales(saleRes.data.length)
+      else setUnreadSales(0)
+      if (u?.messageNotificationsEnabled !== false) setUnreadMsgs(msgRes.data.count || 0)
+      else setUnreadMsgs(0)
+    } catch { try { const saleRes = await API.get('/notifications'); if (u?.notificationsEnabled !== false) setUnreadSales(saleRes.data.length) } catch {} }
   }
   async function fetchSaleNotifs() { setLoadingSales(true); try { const res = await API.get('/notifications/all'); setSaleNotifs(res.data || []) } catch { setSaleNotifs([]) } setLoadingSales(false) }
   async function fetchMsgNotifs() { setLoadingMsgs(true); try { const res = await API.get('/messages/unread'); const msgs = res.data || []; setMsgNotifs(msgs); setUnreadMsgs(msgs.length) } catch { setMsgNotifs([]); setUnreadMsgs(0) } setLoadingMsgs(false) }
-  async function handleOpen() { const w = !open; setOpen(w); if (w) { fetchSaleNotifs(); fetchMsgNotifs(); if (unreadMsgs > 0 && unreadSales === 0) setActiveTab('messages'); if (activeTab === 'messages') setUnreadMsgs(0) } }
-  async function handleMarkAllSeen() { try { await API.post('/notifications/mark-seen'); setUnreadSales(0); setSaleNotifs(prev => prev.map(n => ({ ...n, seen: true }))) } catch {} }
+  async function handleOpen() {
+    const w = !open; setOpen(w)
+    if (w) {
+      // Move bell count to per-tab pending, clear bell
+      setPendingSales(unreadSales); setPendingMsgs(unreadMsgs)
+      setUnreadSales(0); setUnreadMsgs(0)
+      if (unreadSales > 0) setActiveTab('sales')
+      else if (unreadMsgs > 0) setActiveTab('messages')
+      const u = JSON.parse(localStorage.getItem('user') || 'null')
+      try {
+        const [saleRes, allRes, msgRes] = await Promise.all([
+          API.get('/notifications'),
+          API.get('/notifications/all'),
+          API.get('/messages/unread'),
+        ])
+        const sales = u?.notificationsEnabled !== false ? saleRes.data.length : 0
+        const msgs  = u?.messageNotificationsEnabled !== false ? msgRes.data.length : 0
+        setPendingSales(sales); setPendingMsgs(msgs)
+        setSaleNotifs(allRes.data || [])
+        setMsgNotifs(msgRes.data || [])
+        if (sales > 0) setActiveTab('sales')
+        else if (msgs > 0) setActiveTab('messages')
+      } catch {}
+    } else {
+      // Bell closed without acting — restore unread counts
+      setUnreadSales(pendingSales); setUnreadMsgs(pendingMsgs)
+      setPendingSales(0); setPendingMsgs(0)
+    }
+  }
+  async function handleMarkAllSeen() { try { await API.post('/notifications/mark-seen'); setUnreadSales(0); setPendingSales(0); setSaleNotifs(prev => prev.map(n => ({ ...n, seen: true }))) } catch {} }
   async function handleDeleteOne(id) { try { await API.delete(`/notifications/${id}`); setSaleNotifs(prev => prev.filter(n => n.id !== id)); setUnreadSales(saleNotifs.filter(n => n.id !== id && !n.seen).length) } catch {} }
   async function handleClearAll() { try { await API.delete('/notifications/clear'); setSaleNotifs([]); setUnreadSales(0) } catch {} }
-  function handleSaleClick(notif) { setOpen(false); const tab = notif.type === 'price_drop' ? 'watching' : 'sold'; navigate(`/dashboard?tab=${tab}&item=${notif.itemId}`); if (unreadSales > 0) { API.post('/notifications/mark-seen').catch(() => {}); setUnreadSales(0) } }
+  function handleSaleClick(notif) { setOpen(false); setPendingSales(0); setUnreadSales(0); const tab = notif.type === 'price_drop' ? 'watching' : 'sold'; navigate(`/dashboard?tab=${tab}&item=${notif.itemId}`); API.post('/notifications/mark-seen').catch(() => {}) }
   function handleMsgClick(msg) { setOpen(false); setUnreadMsgs(0); API.post('/messages/mark-all-read').catch(() => {}); navigate('/messages', { state: { item: { id: msg.itemId, title: msg.itemTitle, seller: { id: msg.senderId, name: msg.senderName } } } }) }
-  function handleTabClick(tabKey) { setActiveTab(tabKey); if (tabKey === 'messages' && unreadMsgs > 0) { setUnreadMsgs(0); API.post('/messages/mark-read').catch(() => {}) } }
+  function handleTabClick(tabKey) { setActiveTab(tabKey); if (tabKey === 'messages') { setPendingMsgs(0); setUnreadMsgs(0); API.post('/messages/mark-read').catch(() => {}) } if (tabKey === 'sales') { setPendingSales(0); setUnreadSales(0); API.post('/notifications/mark-seen').catch(() => {}) } }
 
   if (!isLoggedIn) return null
 
@@ -403,7 +453,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
               </div>
             </div>
             <div style={{ display: 'flex' }}>
-              {[{ key: 'sales', label: 'Sales & Alerts', count: unreadSales }, { key: 'messages', label: 'Messages', count: unreadMsgs }].map(tab => (
+              {[{ key: 'sales', label: 'Sales & Alerts', count: pendingSales }, { key: 'messages', label: 'Messages', count: pendingMsgs }].map(tab => (
                 <button key={tab.key} onClick={() => handleTabClick(tab.key)} style={{ flex: 1, padding: '0.5rem 0.5rem 0.6rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: activeTab === tab.key ? '700' : '500', color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', letterSpacing: '0.5px', fontFamily: 'var(--font-body)' }}>
                   {tab.label}
                   {tab.count > 0 && <span style={{ fontSize: '0.55rem', fontWeight: '800', padding: '1px 5px', borderRadius: '10px', minWidth: '16px', textAlign: 'center', background: activeTab === tab.key ? 'var(--accent-soft)' : 'var(--bg-card-hover)', color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', border: activeTab === tab.key ? '1px solid var(--accent-border)' : '1px solid var(--border)' }}>{tab.count > 9 ? '9+' : tab.count}</span>}

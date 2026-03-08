@@ -531,36 +531,6 @@ function ItemCard({ item, isWatching = false }) {
 function Home() {
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  const searchBarRef = useRef(null)
-
-  // Navbar search takeover — fire event when search row scrolls out of view
-  useEffect(() => {
-    const el = searchBarRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        window.dispatchEvent(new CustomEvent('navbar-search-takeover', {
-          detail: { active: !entry.isIntersecting, value: search }
-        }))
-      },
-      { threshold: 0, rootMargin: '-60px 0px 0px 0px' }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
-  // Sync search value into navbar while takeover is active
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('navbar-search-sync', { detail: { value: search } }))
-  }, [search])
-
-  // Listen for navbar typing back into our search state
-  useEffect(() => {
-    function handler(e) { setSearch(e.detail.value) }
-    window.addEventListener('navbar-search-change', handler)
-    return () => window.removeEventListener('navbar-search-change', handler)
-  }, [])
-
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [watchedIds, setWatchedIds] = useState(new Set())
@@ -808,7 +778,7 @@ const res = await API.get('/items', { params })
       </div>
 
       {/* Search bar + filter row */}
-      <div ref={searchBarRef} style={{
+      <div style={{
         background: 'var(--glass-bg-row)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         border: '1px solid var(--glass-border)', borderRadius: '20px',

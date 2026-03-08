@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js'
+import { io } from '../../server.js'
 
 // GET /cart — get my cart
 export const getCart = async (req, res) => {
@@ -161,6 +162,23 @@ export const checkout = async (req, res) => {
 
     ops.push(prisma.cartItem.deleteMany({ where: { userId } }))
     await prisma.$transaction(ops)
+
+    // Socket emit to each seller
+    const onlineUsers = io?._onlineUsers
+    if (onlineUsers) {
+      for (const c of available) {
+        const boughtQty = parseInt(c.quantity) || 1
+        onlineUsers.get(String(c.item.sellerId))?.forEach(sid => {
+          io.to(sid).emit('new-sale', {
+            notification: { id: Date.now(), seen: false },
+            itemId: c.itemId,
+            itemTitle: c.item.title,
+            price: c.item.price * boughtQty,
+            buyerName,
+          })
+        })
+      }
+    }
 
     res.json({
       message: `Successfully purchased ${available.length} item(s).`,

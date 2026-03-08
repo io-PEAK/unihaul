@@ -1,5 +1,5 @@
 import express from 'express'
-import institutions from '../data/institutions.js'
+import institutions from '../data/institutionsController.js'
 import prisma from '../lib/prisma.js'
 
 const { searchInstitutions, getStates } = institutions

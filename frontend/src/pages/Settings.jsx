@@ -61,6 +61,39 @@ function InstitutionSearch({ value, type, onSelect }) {
   )
 }
 
+/* ─── CreatePasswordPanel (Google users) ───────────────────────────── */
+function CreatePasswordPanel({ onSuccess }) {
+  const [form, setForm] = useState({ newPass: '', confirm: '' })
+  const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState('')
+  const [showN, setShowN] = useState(false); const [showC, setShowC] = useState(false)
+  const Eye = ({ show }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{show ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}</svg>
+  const PwIn = ({ val, setter, show, toggle, ph }) => <div style={{ position: 'relative' }}><input type={show ? 'text' : 'password'} value={val} onChange={e => setter(e.target.value)} placeholder={ph} className="st-inp" style={{ ...IS, paddingRight: '2.5rem' }} /><button type="button" onClick={toggle} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}><Eye show={show} /></button></div>
+  async function handleCreate() {
+    if (!form.newPass || !form.confirm) { setError('All fields required'); return }
+    if (form.newPass.length < 8) { setError('Min 8 characters'); return }
+    if (form.newPass !== form.confirm) { setError('Passwords do not match'); return }
+    try {
+      setLoading(true); setError('')
+      await API.post('/users/create-password', { newPassword: form.newPass })
+      const stored = JSON.parse(localStorage.getItem('user') || '{}')
+      const updated = { ...stored, authProvider: 'both' }
+      localStorage.setItem('user', JSON.stringify(updated))
+      onSuccess && onSuccess(updated)
+    } catch (err) { setError(err.response?.data?.error || 'Failed') } finally { setLoading(false) }
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>Create a password so you can also log in with your email directly.</div>
+      <div className="st-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+        <div><label style={LS}>New Password</label><PwIn val={form.newPass} setter={v => setForm(f => ({ ...f, newPass: v }))} show={showN} toggle={() => setShowN(s => !s)} ph="Min 8 chars" /></div>
+        <div><label style={LS}>Confirm</label><PwIn val={form.confirm} setter={v => setForm(f => ({ ...f, confirm: v }))} show={showC} toggle={() => setShowC(s => !s)} ph="Repeat password" /></div>
+      </div>
+      {error && <div style={{ fontSize: '0.78rem', color: '#ef4444', fontWeight: '600' }}>{error}</div>}
+      <button onClick={handleCreate} disabled={loading} style={{ ...AB, opacity: loading ? 0.6 : 1 }}>{loading ? 'Saving…' : 'Create Password'}</button>
+    </div>
+  )
+}
+
 /* ─── Toggle ────────────────────────────────────────────────────────── */
 function Toggle({ value, onChange, label, desc, disabled = false }) {
   return (
@@ -226,7 +259,6 @@ function ChangePasswordPanel() {
   }
   const Eye = ({ show }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{show ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}</svg>
   const PwIn = ({ val, setter, show, toggle, ph }) => <div style={{ position: 'relative' }}><input type={show ? 'text' : 'password'} value={val} onChange={e => setter(e.target.value)} placeholder={ph} className="st-inp" style={{ ...IS, paddingRight: '2.5rem' }} /><button type="button" onClick={toggle} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}><Eye show={show} /></button></div>
-  if (success) return <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: 'var(--radius-sm)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e', fontSize: '0.85rem', fontWeight: '600' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>{success}</div>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       {mode === 'normal' && <>
@@ -376,7 +408,7 @@ export default function Settings() {
 
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'))
   const [loadingUser, setLoadingUser] = useState(true)
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', bio: '', institutionType: '', institution: '', city: '', state: '', notificationsEnabled: true, messageNotificationsEnabled: true, priceDropAlerts: true })
+  const [form, setForm] = useState(() => { const u = JSON.parse(localStorage.getItem('user') || '{}'); return { firstName: '', lastName: '', phone: '', bio: '', institutionType: '', institution: '', city: '', state: '', notificationsEnabled: u.notificationsEnabled ?? true, messageNotificationsEnabled: u.messageNotificationsEnabled ?? true, priceDropAlerts: u.priceDropAlerts ?? true } })
   const [changingType, setChangingType] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -428,6 +460,7 @@ export default function Settings() {
     { id: 'institution',   label: 'Institution',   icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
     { id: 'appearance',    label: 'Appearance',    icon: <PaintIcon sz={14} col="currentColor"/> },
     { id: 'notifications', label: 'Notifications', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
+    { id: 'password',      label: 'Password',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> },
     { id: 'account',       label: 'Account',       icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
   ]
 
@@ -455,7 +488,12 @@ export default function Settings() {
 
   async function handleToggle(key, val) {
     set(key, val)
-    try { await API.put('/users/profile', { [key]: val }); setSaved(true); setTimeout(() => setSaved(false), 1200) } catch {}
+    try {
+      await API.put('/users/profile', { [key]: val })
+      const stored = JSON.parse(localStorage.getItem('user') || '{}')
+      localStorage.setItem('user', JSON.stringify({ ...stored, [key]: val }))
+      setSaved(true); setTimeout(() => setSaved(false), 1200)
+    } catch {}
   }
 
   async function handleSave() {
@@ -476,7 +514,7 @@ export default function Settings() {
   }
 
   const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : null
-  const noSave = ['appearance', 'account', 'notifications'].includes(activeSection)
+  const noSave = ['appearance', 'account', 'notifications', 'password'].includes(activeSection)
   const isDirty = !noSave && !!savedFormRef.current && (saving || ['firstName', 'lastName', 'phone', 'bio', 'institutionType', 'institution', 'city', 'state'].some(k => (form[k] || '') !== (savedFormRef.current[k] || '')))
 
   const wasDirtyRef = useRef(false)
@@ -732,34 +770,99 @@ export default function Settings() {
               )}
 
               {/* ── ACCOUNT ── */}
-              {activeSection === 'account' && (
+              {activeSection === 'password' && (
                 <div style={{ animation: 'stFadeUp 0.25s ease' }}>
-                  <SectionCard title="Account" subtitle="Manage your account security and data" icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.9rem 1.125rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-input)', border: '1.5px solid var(--border)' }}>
-                        <div><div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>Member since</div><div style={{ fontSize: '0.73rem', marginTop: '0.15rem', color: 'var(--text-muted)' }}>{memberSince || '—'}</div></div>
-                        <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login') }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.9rem', borderRadius: '999px', fontSize: '0.73rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'var(--font-body)', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)', color: '#ef4444' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.14)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.07)'}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Log out
-                        </button>
+                  <SectionCard
+                    title={user?.authProvider === 'google' ? 'Create Password' : 'Change Password'}
+                    subtitle={user?.authProvider === 'google' ? 'Add a password so you can also log in with your email' : 'Update your current account password'}
+                    icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}>
+                    {user?.authProvider === 'google'
+                      ? <CreatePasswordPanel onSuccess={u => { setUser(u); upd(u) }} />
+                      : <ChangePasswordPanel />}
+                  </SectionCard>
+                </div>
+              )}
+
+              {activeSection === 'account' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', animation: 'stFadeUp 0.25s ease' }}>
+
+                  {/* ── Member row ── */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', border: '1.5px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-soft)', border: '1.5px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       </div>
-                      <Accordion title="Change Email" icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}>
-                        <ChangeEmailPanel currentEmail={user?.email || ''} onSuccess={u => { setUser(u); localStorage.setItem('user', JSON.stringify(u)) }} />
-                      </Accordion>
-                      <Accordion title="Change Password" icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}>
-                        <ChangePasswordPanel />
-                      </Accordion>
-                      <div style={{ height: '1px', background: 'var(--border)' }} />
-                      <div style={{ padding: '1.125rem', borderRadius: 'var(--radius-md)', background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.1)' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Danger Zone</div>
-                        <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '0.875rem', lineHeight: '1.65' }}>Permanently deletes your account, listings, messages and history. Cannot be reversed.</div>
-                        <button onClick={() => setShowDeleteDialog(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.125rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'var(--font-body)', background: 'transparent', border: '1.5px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete Account
-                        </button>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)' }}>{user?.firstName} {user?.lastName}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>Member since {memberSince || '—'}</div>
                       </div>
                     </div>
+                    <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login') }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 1rem', borderRadius: '999px', fontSize: '0.73rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'var(--font-body)', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)', color: '#ef4444', transition: 'background 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.14)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.07)'}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      Log out
+                    </button>
+                  </div>
+
+                  {/* ── Connected accounts ── */}
+                  <SectionCard title="Connected Accounts" subtitle="How you sign in to Student Shop" icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}>
+                    {/* Email/password row — only show if registered with email (local or both) */}
+                    {(user?.authProvider === 'local' || user?.authProvider === 'both') && <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'var(--bg-input)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)' }}>Email & Password</div>
+                        <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{user?.email}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.7rem', borderRadius: '999px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '0.68rem', fontWeight: '700', color: '#22c55e' }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="#22c55e"><circle cx="12" cy="12" r="12"/></svg>Active
+                      </div>
+                    </div>}
+                    {/* Google row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.875rem 0 0 0' }}>
+                      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: user?.authProvider === 'google' || user?.authProvider === 'both' ? 'rgba(34,197,94,0.06)' : 'var(--bg-input)', border: `1.5px solid ${user?.authProvider === 'google' || user?.authProvider === 'both' ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)' }}>Google</div>
+                        <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                          {user?.authProvider === 'google' || user?.authProvider === 'both' ? user?.email : 'Not connected'}
+                        </div>
+                      </div>
+                      {(user?.authProvider === 'google' || user?.authProvider === 'both') ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.7rem', borderRadius: '999px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', fontSize: '0.68rem', fontWeight: '700', color: '#22c55e' }}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="#22c55e"><circle cx="12" cy="12" r="12"/></svg>Connected
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.3rem 0.7rem', borderRadius: '999px', background: 'var(--bg-input)', border: '1px solid var(--border)', fontSize: '0.68rem', fontWeight: '600', color: 'var(--text-muted)' }}>Not linked</div>
+                      )}
+                    </div>
                   </SectionCard>
+
+                  {/* ── Change Email ── */}
+                  <SectionCard title="Change Email" subtitle="Update your login email address" icon={<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}>
+                    <ChangeEmailPanel currentEmail={user?.email || ''} onSuccess={u => { setUser(u); localStorage.setItem('user', JSON.stringify(u)) }} />
+                  </SectionCard>
+
+
+                  {/* ── Danger Zone ── */}
+                  <div style={{ padding: '1.25rem', borderRadius: 'var(--radius-md)', background: 'rgba(239,68,68,0.02)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#ef4444', marginBottom: '0.2rem' }}>Danger Zone</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>Permanently deletes your account, listings, messages and history.</div>
+                      </div>
+                      <button onClick={() => setShowDeleteDialog(true)}
+                        style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', fontFamily: 'var(--font-body)', background: 'transparent', border: '1.5px solid rgba(239,68,68,0.3)', color: '#ef4444', marginLeft: '1rem', transition: 'background 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Delete Account
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               )}
 

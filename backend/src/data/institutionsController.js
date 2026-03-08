@@ -495,11 +495,19 @@ export function searchInstitutions(query = '', type = 'all', limit = 20, state =
       if (state && i.state.toLowerCase() !== state.toLowerCase()) return false
       // empty query returns everything matching type/state filter
       if (!q) return true
+      const nameLower  = i.name.toLowerCase()
+      const cityLower  = (i.city  || '').toLowerCase()
+      const stateLower = (i.state || '').toLowerCase()
       return (
-        i.name.toLowerCase().includes(q) ||
-        (i.city  || '').toLowerCase().includes(q) ||
-        (i.state || '').toLowerCase().includes(q)
+        nameLower.startsWith(q) ||
+        cityLower.startsWith(q) ||
+        stateLower.startsWith(q)
       )
+    })
+    .sort((a, b) => {
+      const an = a.name.toLowerCase().startsWith(q) ? 0 : 1
+      const bn = b.name.toLowerCase().startsWith(q) ? 0 : 1
+      return an - bn
     })
     .slice(0, limit)
 }

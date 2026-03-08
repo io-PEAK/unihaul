@@ -1120,17 +1120,20 @@ function Dashboard() {
 
   useEffect(() => { if (tabParam) setActiveFilter(tabParam) }, [tabParam])
 
-  // When arriving from ItemDetail (?item=ID), switch to the correct tab
+  // When arriving from notification (?tab=watching/sold&item=ID)
   useEffect(() => {
-    if (!highlightItemId || items.length === 0) return
+    if (!highlightItemId) return
+    if (tabParam === 'watching') { setActiveFilter('watching'); setTimeout(() => setSearchParams(p => { p.delete('item'); return p }), 2200); return }
+    if (tabParam === 'sold') { setActiveFilter('sold'); setTimeout(() => setSearchParams(p => { p.delete('item'); return p }), 2200); return }
+    if (items.length === 0) return
     const target = items.find(i => i.id === highlightItemId)
     if (!target) return
     const s = target.status?.toLowerCase()
     if (s === 'available') setActiveFilter('active')
     else if (s === 'pending') setActiveFilter('pending')
-    else setActiveFilter('all')
+    else setActiveFilter('sold')
     setTimeout(() => setSearchParams(p => { p.delete('item'); return p }), 2200)
-  }, [highlightItemId, items])
+  }, [highlightItemId, items, tabParam])
 
   const user     = JSON.parse(localStorage.getItem('user') || '{}')
   const username = user.firstName || 'there'
@@ -1534,12 +1537,14 @@ function Dashboard() {
               {watchedItems.map(w => {
                 const dropped = w.item.price < w.priceAtWatch
                 const pct = Math.round(((w.priceAtWatch - w.item.price) / w.priceAtWatch) * 100)
+                const isHL = highlightItemId === w.item.id
                 return (
                   <div key={w.id}
                     onClick={() => navigate(`/items/${w.item.id}`)}
-                    onMouseEnter={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)'}
-                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '1rem' }}
+                    onMouseEnter={e => { if (!isHL) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)' }}
+                    onMouseLeave={e => { if (!isHL) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' }}
+                    ref={isHL ? (el => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150) }) : null}
+                    style={{ background: isHL ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.1) 0%, rgba(var(--accent-rgb),0.03) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: isHL ? '1px solid rgba(var(--accent-rgb),0.5)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: isHL ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08)' : 'none' }}
                   >
                     {w.item.images?.[0] && (
                       <img src={w.item.images[0]} alt={w.item.title}
