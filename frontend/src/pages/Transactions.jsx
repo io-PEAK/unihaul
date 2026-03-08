@@ -134,13 +134,13 @@ function TxnDetailModal({ txn, onClose }) {
                 </span>
                 <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.7rem' }}>=</span>
                 <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'rgba(255,255,255,0.7)' }}>
-                  &#8377;{totalPrice} total
+                  &#8377;{Number(totalPrice).toLocaleString('en-IN')} total
                 </span>
               </div>
             </div>
           ) : (
             <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', display: 'inline-block' }}>
-              &#8377;{totalPrice}
+              &#8377;{Number(totalPrice).toLocaleString('en-IN')}
             </div>
           )}
         </div>
@@ -260,7 +260,7 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
 
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            &#8377;{txn.price}
+            &#8377;{Number(txn.price).toLocaleString('en-IN')}
           </span>
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{otherParty}</span>

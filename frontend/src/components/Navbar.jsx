@@ -593,6 +593,8 @@ function Navbar({ registerOpenBell }) {
   const [showNudge, setShowNudge] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const drawerHoverTimer = useRef(null)
+  const hamburgerRef = useRef(null)
+  const dropdownRef = useRef(null)
   const [scrolled, setScrolled] = useState(false)
   const [navSearchActive, setNavSearchActive] = useState(false)
   const [navSearch, setNavSearch] = useState('')
@@ -641,10 +643,20 @@ function Navbar({ registerOpenBell }) {
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
 
-  // Lock body scroll when drawer open
+  // (No body scroll lock — dropdown doesn't cover full screen)
+
+  // Close dropdown on click outside hamburger + dropdown card
   useEffect(() => {
-    document.body.style.overflow = drawerOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
+    if (!drawerOpen) return
+    function onMouseDown(e) {
+      if (
+        hamburgerRef.current?.contains(e.target) ||
+        dropdownRef.current?.contains(e.target)
+      ) return
+      setDrawerOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
   }, [drawerOpen])
 
   useEffect(() => {
@@ -798,6 +810,7 @@ function Navbar({ registerOpenBell }) {
 
             {/* Hamburger — LEFT side, mobile only */}
             <button
+              ref={hamburgerRef}
               className="hamburger-btn"
               onClick={() => setDrawerOpen(v => !v)}
               onMouseEnter={() => { clearTimeout(drawerHoverTimer.current); setDrawerOpen(true) }}
@@ -1034,75 +1047,74 @@ function Navbar({ registerOpenBell }) {
         {showNudge && <ProfileNudge onDismiss={handleDismissNudge} />}
       </nav>
 
-      {/* ── Overlay ── */}
-      {drawerOpen && (
-        <div
-          onClick={() => setDrawerOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(4px)', zIndex: 150,
-            animation: 'overlayFade 0.25s ease',
-          }}
-        />
-      )}
-
-      {/* ── Slide-in Drawer (LEFT side) ── */}
+      {/* ── Floating dropdown card — anchored below hamburger ── */}
       <div
+        ref={dropdownRef}
         onMouseEnter={() => clearTimeout(drawerHoverTimer.current)}
         onMouseLeave={() => setDrawerOpen(false)}
         style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0,
-        width: 'min(280px, 80vw)',
-        background: 'var(--bg-surface)',
-        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        borderRight: '1px solid var(--border)',
-        boxShadow: '8px 0 40px rgba(0,0,0,0.3)',
-        zIndex: 160,
-        display: 'flex', flexDirection: 'column',
-        transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      }}>
-
-        {/* Drawer header — Logo + brand */}
+          position: 'fixed',
+          top: '56px',
+          left: '12px',
+          width: '260px',
+          background: 'var(--bg-surface)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid var(--border)',
+          borderRadius: '20px',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.12)',
+          zIndex: 160,
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+          opacity: drawerOpen ? 1 : 0,
+          transform: drawerOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
+          pointerEvents: drawerOpen ? 'auto' : 'none',
+          transition: 'opacity 0.2s ease, transform 0.2s cubic-bezier(0.34,1.2,0.64,1)',
+          transformOrigin: 'top left',
+        }}
+      >
+        {/* ── Profile section ── */}
         <div style={{
-          padding: '1.25rem 1.25rem 1rem',
+          padding: '1.5rem 1.25rem 1.25rem',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: '0.75rem',
           borderBottom: '1px solid var(--border)',
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem',
         }}>
-          {/* Brand mark */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{
-              width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'var(--shadow-accent)', flexShrink: 0,
-            }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-            </div>
-            <div style={{ lineHeight: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
-                <span style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.5px', textTransform: 'uppercase', fontFamily: 'var(--font-body)' }}>Student</span>
-                <span style={{ fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.5px', textTransform: 'uppercase', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontFamily: 'var(--font-body)' }}>Shop</span>
-              </div>
-              <div style={{ fontSize: '0.42rem', color: 'var(--text-muted)', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: 'var(--font-body)' }}>Campus Buy &amp; Sell</div>
-            </div>
+          {/* Avatar */}
+          <div style={{
+            width: '72px', height: '72px', borderRadius: '50%',
+            background: user?.avatar ? 'transparent' : 'var(--accent-soft)',
+            border: '2.5px solid var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', flexShrink: 0,
+            boxShadow: '0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent)',
+          }}>
+            {user?.avatar
+              ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--accent)', fontFamily: 'var(--font-body)' }}>
+                  {(user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase()}
+                </span>
+            }
           </div>
-
-          {/* User info if logged in */}
-          {isLoggedIn && user && (
-            <div style={{ paddingLeft: '0.1rem' }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>{user.firstName} {user.lastName}</div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginTop: '1px' }}>{user.email}</div>
+          {/* Name + email */}
+          {isLoggedIn && user ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', letterSpacing: '-0.2px' }}>
+                {user.firstName} {user.lastName}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginTop: '2px' }}>
+                {user.email}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>Student Shop</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', marginTop: '2px' }}>Campus Buy &amp; Sell</div>
             </div>
           )}
         </div>
 
-        {/* Nav links */}
-        <div style={{ flex: 1, padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', overflowY: 'auto' }}>
+        {/* ── Nav links ── */}
+        <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {isLoggedIn
             ? drawerItems.map(item => (
                 <DrawerLink key={item.to} to={item.to} label={item.label} icon={item.icon} isActive={item.isActive} onClick={() => setDrawerOpen(false)} />
@@ -1121,72 +1133,33 @@ function Navbar({ registerOpenBell }) {
           }
         </div>
 
-        {/* Footer: Appearance (mobile only — ThemeToggle hidden on mobile) + Logout */}
-        <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {/* ── Footer: Theme + Logout ── */}
+        <div style={{ padding: '0.5rem 0.75rem 0.75rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.25rem' }}>
 
-          {/* Theme — segmented 3-icon switcher */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            padding: '0.5rem 0.85rem',
-            fontFamily: 'var(--font-body)',
-          }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-secondary)', flex: 1 }}>
-              Theme
-            </span>
-            {/* Segmented pill */}
+          {/* Theme row */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '0.4rem 0.5rem', fontFamily: 'var(--font-body)' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: '500', color: 'var(--text-secondary)', flex: 1 }}>Theme</span>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '3px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
-              borderRadius: '999px',
-              padding: '4px',
+              background: 'var(--bg-input)', border: '1px solid var(--border)',
+              borderRadius: '999px', padding: '4px',
             }}>
               {[
-                { id: 'ember', icon: (
-                  // Moon — ember
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                  </svg>
-                )},
-                { id: 'midnight', icon: (
-                  // Half circle — midnight
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2a10 10 0 0 1 0 20V2z"/>
-                    <circle cx="12" cy="12" r="10"/>
-                  </svg>
-                )},
-                { id: 'chalk', icon: (
-                  // Sun — chalk
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="5"/>
-                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                  </svg>
-                )},
+                { id: 'ember', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> },
+                { id: 'midnight', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 0 1 0 20V2z"/><circle cx="12" cy="12" r="10"/></svg> },
+                { id: 'chalk', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> },
               ].map(({ id, icon }) => {
                 const isActive = theme === id
                 return (
-                  <button
-                    key={id}
-                    onClick={() => setThemeById(id)}
-                    title={id.charAt(0).toUpperCase() + id.slice(1)}
+                  <button key={id} onClick={() => setThemeById(id)} title={id.charAt(0).toUpperCase() + id.slice(1)}
                     style={{
-                      width: '32px', height: '32px',
-                      borderRadius: '999px',
-                      border: 'none',
+                      width: '32px', height: '32px', borderRadius: '999px', border: 'none',
                       background: isActive ? 'var(--bg-card)' : 'transparent',
                       boxShadow: isActive ? '0 1px 6px rgba(0,0,0,0.18), 0 0 0 1px var(--border)' : 'none',
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-                      transition: 'all 0.18s ease',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {icon}
-                  </button>
+                      transition: 'all 0.18s ease', flexShrink: 0,
+                    }}>{icon}</button>
                 )
               })}
             </div>
@@ -1196,7 +1169,7 @@ function Navbar({ registerOpenBell }) {
           {isLoggedIn && (
             <button
               onClick={handleLogout}
-              style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', color: '#ff6b6b', fontFamily: 'var(--font-body)', transition: 'all 0.2s ease', letterSpacing: '0.5px' }}
+              style={{ width: '100%', padding: '0.65rem', borderRadius: '12px', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', color: '#ff6b6b', fontFamily: 'var(--font-body)', transition: 'all 0.2s ease' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.15)'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.4)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,107,107,0.2)' }}
             >

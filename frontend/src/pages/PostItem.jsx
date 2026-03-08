@@ -687,6 +687,9 @@ function PostItem() {
     description: prefill?.description || '',
     condition: prefill?.condition || '',
     quantity: prefill?.quantity || 1,
+    purchaseYear: prefill?.purchaseYear || '',
+    expiryDate:   prefill?.expiryDate ? prefill.expiryDate.slice(0,10) : '',
+    madeOn:       prefill?.madeOn     ? prefill.madeOn.slice(0,10)     : '',
   })
   const [specs, setSpecs]               = useState(prefill?.specs || {})
   const [images, setImages]             = useState([])
@@ -817,6 +820,7 @@ function PostItem() {
     e.preventDefault()
     setError(null)
     if (!form.title || !form.price || !form.category || !form.condition) { setError('Title, price, category and condition are required.'); return }
+    if (['Electronics', 'Appliances', 'Games & Hobbies'].includes(form.category) && !form.purchaseYear) { setError('Purchase year is required for this category.'); return }
     if (/^[^a-zA-Z0-9]/.test(form.title.trim())) { setError('Title can\'t start with a special character.'); return }
     if (/^\d/.test(form.title.trim())) { setError('Title can\'t start with a number.'); return }
     if (form.title.trim().length < 10) { setError('Title too short (min 10 chars).'); return }
@@ -828,7 +832,7 @@ function PostItem() {
     const uploadedUrls = images.filter(img => img.url).map(img => img.url)
     try {
       setLoading(true)
-      await API.post('/items', {
+      const res = await API.post('/items', {
         title: form.title, price: parseFloat(form.price),
         category: form.category, subcategory: form.subcategory || null,
         description: form.description, condition: form.condition,
@@ -836,12 +840,15 @@ function PostItem() {
         specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null,
         imageUrl: uploadedUrls[0] || null,
         images: uploadedUrls,
+        purchaseYear: form.purchaseYear ? parseInt(form.purchaseYear) : null,
+        expiryDate:   form.expiryDate   || null,
+        madeOn:       form.madeOn       || null,
       })
       setSuccess(true)
       successRef.current = true
       uploadedPublicIds.current = []
       if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-      setTimeout(() => navigate('/dashboard'), 1500)
+      setTimeout(() => navigate(`/items/${res.data.id}`), 1500)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to post item.')
     } finally { setLoading(false) }
@@ -1038,7 +1045,7 @@ function PostItem() {
                 </div>
                 <div>
                   <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#51cf66', letterSpacing: '-0.2px' }}>Listing Published!</div>
-                  <div style={{ fontSize: '0.72rem', color: 'rgba(81,207,102,0.55)', fontWeight: '500', marginTop: '1px' }}>Redirecting to your dashboard…</div>
+                  <div style={{ fontSize: '0.72rem', color: 'rgba(81,207,102,0.55)', fontWeight: '500', marginTop: '1px' }}>Redirecting to your listing…</div>
                 </div>
               </div>
             </div>
@@ -1122,7 +1129,7 @@ function PostItem() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
                   <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800' }}>{form.category} Specifications</span>
-                  <span style={{ fontSize: '0.58rem', color: 'var(--text-ghost)', fontWeight: '500', marginLeft: 'auto' }}>type or pick a suggestion</span>
+
                 </div>
                 <div className="pi-spec-grid">
                   {specFields.map(field => (
@@ -1132,6 +1139,63 @@ function PostItem() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── Purchase Year — Electronics, Appliances, Games & Hobbies ── */}
+            {['Electronics', 'Appliances', 'Games & Hobbies'].includes(form.category) && (
+              <div style={{ marginBottom: '1.15rem', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '16px', padding: '1.15rem', animation: 'specsIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800' }}>Purchase Year</span>
+                </div>
+                <CustomSelect
+                  value={form.purchaseYear ? String(form.purchaseYear) : ''}
+                  onChange={val => setForm(f => ({ ...f, purchaseYear: val }))}
+                  options={Array.from({ length: new Date().getFullYear() - 1999 }, (_, i) => {
+                    const y = new Date().getFullYear() - i
+                    return { value: String(y), label: String(y) }
+                  })}
+                  placeholder="Select year bought"
+                  focusKey="purchaseYear"
+                  focusedField={focusedField}
+                  setFocusedField={setFocusedField}
+                />
+              </div>
+            )}
+
+            {/* ── Expiry / Made On — Food & Drinks ── */}
+            {form.category === 'Food & Drinks' && (
+              <div style={{ marginBottom: '1.15rem', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '16px', padding: '1.15rem', animation: 'specsIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.9rem' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800' }}>
+                    {form.subcategory === 'Homemade' ? 'Made On' : 'Expiry Date'}
+                  </span>
+                </div>
+                {form.subcategory === 'Homemade' ? (
+                  <input
+                    type="date"
+                    name="madeOn"
+                    value={form.madeOn}
+                    max={new Date().toISOString().slice(0,10)}
+                    onChange={handleChange}
+                    onFocus={() => setFocusedField('madeOn')}
+                    onBlur={() => setFocusedField(null)}
+                    style={inputStyle('madeOn')}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    name="expiryDate"
+                    value={form.expiryDate}
+                    min={new Date().toISOString().slice(0,10)}
+                    onChange={handleChange}
+                    onFocus={() => setFocusedField('expiryDate')}
+                    onBlur={() => setFocusedField(null)}
+                    style={inputStyle('expiryDate')}
+                  />
+                )}
               </div>
             )}
 

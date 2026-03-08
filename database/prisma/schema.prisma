@@ -55,8 +55,11 @@ model Item {
   condition   String
   status      String   @default("available")
   quantity    Int      @default(1)
-  specs       Json?
-  createdAt   DateTime @default(now())
+  specs        Json?
+  purchaseYear Int?       
+  expiryDate   DateTime?  
+  madeOn       DateTime? 
+  createdAt    DateTime @default(now())
 
   imageUrl    String?
   images      String[]

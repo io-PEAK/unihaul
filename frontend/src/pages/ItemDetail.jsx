@@ -520,6 +520,9 @@ function ItemDetail() {
     { label:'Status',    value:status, isStatus:true },
     { label:'Stock',     value:status==='sold'?'0 remaining':`${stockLeft}` },
     ...(item.subcategory?[{ label:item.category==='Clothing'?'Size':item.category==='Books & Notes'?'Semester':'Subcategory', value:item.subcategory }]:[]),
+    ...(item.purchaseYear ? [{ label:'Purchased', value:`${item.purchaseYear} · ${new Date().getFullYear() - item.purchaseYear} yr${new Date().getFullYear() - item.purchaseYear === 1 ? '' : 's'} old` }] : []),
+    ...(item.expiryDate   ? [{ label:'Expires',   value: new Date(item.expiryDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) }] : []),
+    ...(item.madeOn       ? [{ label:'Made On',   value: new Date(item.madeOn).toLocaleDateString('en-IN',     { day:'numeric', month:'short', year:'numeric' }) }] : []),
   ]
 
   return (
@@ -761,7 +764,7 @@ function ItemDetail() {
           </div>
 
           <h1 className="id-title" style={{ fontWeight:'900', letterSpacing:'-1px', lineHeight:'1.15', color:'var(--text-primary)', margin:'0 0 0.75rem' }}>{item.title}</h1>
-          <div className="id-price" style={{ fontWeight:'900', letterSpacing:'-1.5px', marginBottom:'1.5rem' }}><span className="price-text">₹{item.price}</span></div>
+          <div className="id-price" style={{ fontWeight:'900', letterSpacing:'-1.5px', marginBottom:'1.5rem' }}><span className="price-text">₹{Number(item.price).toLocaleString('en-IN')}</span></div>
 
           <div className="divider" />
 

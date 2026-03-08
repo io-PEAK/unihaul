@@ -225,6 +225,7 @@ export const updateItem = async (req, res) => {
     })
 
     // ── Price drop detection ───────────────────────────────────
+    console.log("PRICE CHECK:", parsedPrice, "<", item.price, "=", parsedPrice < item.price)
     if (parsedPrice < item.price) {
       // Find all watchers who have priceDropAlerts enabled
       const watchers = await prisma.watchedItem.findMany({

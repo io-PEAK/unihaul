@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
 import LocationPicker from '../components/LocationPicker'
 import { defaultLocation } from '../utils/locationUtils'
@@ -512,7 +512,7 @@ function ItemCard({ item, isWatching = false }) {
       {item.quantity > 1 && <span style={{ fontSize: '0.67rem', color: 'var(--text-ghost)', fontWeight: '600', display: 'block', marginBottom: '0.3rem' }}>{item.quantity}x in stock</span>}
       <div style={{ height: '1px', background: 'var(--glass-divider)', margin: '1rem 0' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="price-text" style={{ fontSize: '1.5rem' }}>₹{item.price}</span>
+        <span className="price-text" style={{ fontSize: '1.5rem' }}>₹{Number(item.price).toLocaleString('en-IN')}</span>
         <button style={{
           padding: '0.45rem 1.1rem',
           background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)',
@@ -529,6 +529,7 @@ function ItemCard({ item, isWatching = false }) {
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
 function Home() {
+  const { key: routeKey } = useLocation()
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const homeSearchRef = useRef(null)
@@ -742,7 +743,7 @@ const res = await API.get('/items', { params })
     }
     const t = setTimeout(run, 300)
     return () => clearTimeout(t)
-  }, [search, filters, location])
+  }, [search, filters, location, routeKey])
 
   const filteredItems = items.filter(item => filters.statuses.includes(item.status?.toLowerCase()))
 

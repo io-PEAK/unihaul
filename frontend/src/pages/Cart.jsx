@@ -98,14 +98,14 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
                     {item.category && <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>{item.category}</div>}
                   </div>
                 </div>
-                <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', flexShrink: 0, marginLeft: '0.75rem' }}>₹{item.price}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', flexShrink: 0, marginLeft: '0.75rem' }}>₹{Number(item.price).toLocaleString('en-IN')}</div>
               </div>
             ))}
           </div>
         </div>
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.5px' }}>TOTAL PAID</span>
-          <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{totalPaid}</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(totalPaid).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
@@ -192,8 +192,8 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
           )}
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{(item.price * currentQty).toFixed(2)}</span>
-          {currentQty > 1 && <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>₹{item.price} × {currentQty}</span>}
+          <span style={{ fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{(item.price * currentQty).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2})}</span>
+          {currentQty > 1 && <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>₹{Number(item.price).toLocaleString('en-IN')} × {currentQty}</span>}
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
           {item.subcategory && <><span style={{ color: 'var(--text-ghost)', fontSize: '0.75rem' }}>›</span><span style={{ color: 'var(--accent)', fontSize: '0.75rem', fontWeight: '600', opacity: 0.55 }}>{item.subcategory}</span></>}
@@ -374,7 +374,7 @@ function Cart() {
   const guestTotal = guestItems.reduce((sum, i) => sum + ((i.price || 0) * (i.cartQty || 1)), 0).toFixed(2)
 
   async function handleCheckout() {
-    if (!window.confirm(`Buy all ${availableItems.length} available item(s) for ₹${totalPrice}?`)) return
+    if (!window.confirm(`Buy all ${availableItems.length} available item(s) for ₹${Number(totalPrice).toLocaleString('en-IN')}?`)) return
     try {
       setCheckingOut(true)
       const snapshot = availableItems.map(c => ({
@@ -464,12 +464,12 @@ function Cart() {
                   <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>{guestItems.length} item{guestItems.length !== 1 ? 's' : ''}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{guestTotal}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(guestTotal).toLocaleString('en-IN')}</span>
                   </div>
                   <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '1rem 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                     <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
-                    <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{guestTotal}</span>
+                    <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(guestTotal).toLocaleString('en-IN')}</span>
                   </div>
                   <button onClick={() => navigate('/login', { state: { from: '/cart' } })}
                     style={{ width: '100%', padding: '0.9rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(var(--accent-rgb),0.3)' }}>Sign In to Buy →</button>
@@ -519,16 +519,16 @@ function Cart() {
               <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>{availableItems.length} item{availableItems.length !== 1 ? 's' : ''}</span>
-                <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{totalPrice}</span>
+                <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(totalPrice).toLocaleString('en-IN')}</span>
               </div>
               <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '1rem 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
-                <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{totalPrice}</span>
+                <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(totalPrice).toLocaleString('en-IN')}</span>
               </div>
               <button onClick={handleCheckout} disabled={checkingOut || availableItems.length === 0}
                 style={{ width: '100%', padding: '0.9rem', background: checkingOut || availableItems.length === 0 ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: checkingOut || availableItems.length === 0 ? 'rgba(255,255,255,0.25)' : 'white', border: 'none', borderRadius: '12px', cursor: checkingOut || availableItems.length === 0 ? 'not-allowed' : 'pointer', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: availableItems.length > 0 && !checkingOut ? '0 4px 15px rgba(var(--accent-rgb),0.3)' : 'none' }}>
-                {checkingOut ? 'Processing...' : `Buy Now — ₹${totalPrice}`}
+                {checkingOut ? 'Processing...' : `Buy Now — ₹${Number(totalPrice).toLocaleString('en-IN')}`}
               </button>
               {unavailableItems.length > 0 && (
                 <p style={{ textAlign: 'center', marginTop: '0.75rem', color: 'rgba(255,107,107,0.5)', fontSize: '0.75rem' }}>

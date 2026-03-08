@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import API from '../api/axios'
 
@@ -187,7 +188,7 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onConfirm, onCancel])
 
-  return (
+  return createPortal(
     <div
       onClick={onCancel}
       style={{
@@ -258,7 +259,8 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
           @keyframes dashMove { from { stroke-dashoffset: 0 } to { stroke-dashoffset: -600 } }
         `}</style>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -372,7 +374,7 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
               )}
             </div>
             <div className="sold-row-meta">
-              <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{displayPrice}</span>
+              <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(displayPrice).toLocaleString('en-IN')}</span>
               {displayCategory && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{displayCategory}</span></>}
               {listedDate && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span className="sold-row-date" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem' }}>Listed {listedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {listedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></>}
             </div>
@@ -416,7 +418,7 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{sale.price}</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(sale.price).toLocaleString('en-IN')}</div>
                       <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>
                         {saleDate ? `${saleDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · ${saleDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}
                       </div>
@@ -568,7 +570,7 @@ function EditSpecInput({ fieldKey, category, value, onChange, placeholder }) {
 }
 
 // ── ListingRow ────────────────────────────────────────────────
-function ListingRow({ item, onDelete, onUpdate, isHighlighted }) {
+function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selected, onToggle }) {
   const [hovered, setHovered]             = useState(false)
   const [editHovered, setEditHovered]     = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
@@ -743,13 +745,17 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted }) {
         ref={rowRef}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onClick={() => { if (selectMode) { onToggle(); } }}
         style={{
-          background: hovered ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+          background: selected
+            ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)'
+            : hovered ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
           backdropFilter: 'blur(20px)',
-          border: flash ? '1px solid rgba(var(--accent-rgb),0.5)' : editing ? '1px solid var(--accent-border)' : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
+          border: flash ? '1px solid rgba(var(--accent-rgb),0.5)' : selected ? '1px solid rgba(var(--accent-rgb),0.3)' : editing ? '1px solid var(--accent-border)' : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
           borderRadius: '16px', padding: '1.25rem 1.75rem',
           transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden',
-          boxShadow: flash ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08), 0 8px 30px rgba(0,0,0,0.35)' : hovered ? '0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
+          cursor: selectMode ? 'pointer' : 'default',
+          boxShadow: selected ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : flash ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08), 0 8px 30px rgba(0,0,0,0.35)' : hovered ? '0 8px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)', borderRadius: '16px 16px 0 0' }} />
@@ -771,10 +777,32 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted }) {
 
         {!editing && (
           <div className="listing-row-view">
+            {/* Checkbox */}
+            <div
+              onClick={e => { e.stopPropagation(); onToggle && onToggle() }}
+              style={{
+                width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
+                border: selected ? 'none' : '1.5px solid rgba(255,255,255,0.18)',
+                background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                boxShadow: selected ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none',
+                opacity: (hovered || selectMode) ? 1 : 0,
+                transform: (hovered || selectMode) ? 'scale(1)' : 'scale(0.7)',
+                pointerEvents: (hovered || selectMode) ? 'auto' : 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {selected && (
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{item.title}</h3>
               <div className="listing-row-meta">
-                <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>&#x20B9;{item.price}</span>
+                <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>&#x20B9;{Number(item.price).toLocaleString('en-IN')}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
                 <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
@@ -784,10 +812,10 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted }) {
               </div>
             </div>
             <div className="listing-row-btns">
-              <button onClick={() => setEditing(true)} onMouseEnter={() => setEditHovered(true)} onMouseLeave={() => setEditHovered(false)}
-                style={{ padding: '0.4rem 1rem', background: editHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)', color: editHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)', border: editHovered ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Edit</button>
-              <button onClick={handleDeleteClick} onMouseEnter={() => setDeleteHovered(true)} onMouseLeave={() => setDeleteHovered(false)}
-                style={{ padding: '0.4rem 1rem', background: deleteHovered ? 'rgba(255,107,107,0.2)' : 'rgba(255,107,107,0.08)', color: deleteHovered ? '#ff6b6b' : 'rgba(255,107,107,0.6)', border: deleteHovered ? '1px solid rgba(255,107,107,0.25)' : '1px solid rgba(255,107,107,0.1)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Delete</button>
+              {!selectMode && <button onClick={e => { e.stopPropagation(); setEditing(true) }} onMouseEnter={() => setEditHovered(true)} onMouseLeave={() => setEditHovered(false)}
+                style={{ padding: '0.4rem 1rem', background: editHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)', color: editHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)', border: editHovered ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Edit</button>}
+              {!selectMode && <button onClick={e => { e.stopPropagation(); handleDeleteClick() }} onMouseEnter={() => setDeleteHovered(true)} onMouseLeave={() => setDeleteHovered(false)}
+                style={{ padding: '0.4rem 1rem', background: deleteHovered ? 'rgba(255,107,107,0.2)' : 'rgba(255,107,107,0.08)', color: deleteHovered ? '#ff6b6b' : 'rgba(255,107,107,0.6)', border: deleteHovered ? '1px solid rgba(255,107,107,0.25)' : '1px solid rgba(255,107,107,0.1)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Delete</button>}
             </div>
           </div>
         )}
@@ -1175,7 +1203,67 @@ function Dashboard() {
     if (stableKey)  setHiddenGroupKeys(prev => new Set([...prev, stableKey]))
   }
   function handleUpdate(updatedItem) { setItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i)) }
-  function handleTabChange(key)      { setActiveFilter(key); setSearchParams({}) }
+  function handleTabChange(key) { setActiveFilter(key); setSearchParams({}); setSelectMode(false); setSelected(new Set()) }
+
+  // ── Bulk selection state ───────────────────────────────────
+  const [selectMode,  setSelectMode]  = useState(false)
+  const [selected,    setSelected]    = useState(new Set())
+  const [bulkConfirm, setBulkConfirm] = useState(null) // { action, ids }
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') { setSelectMode(false); setSelected(new Set()) } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  function toggleSelect(id) {
+    if (!selectMode) setSelectMode(true)
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.size === 0) setSelectMode(false)
+      return next
+    })
+  }
+
+  async function executeBulkAction(action, ids) {
+    setBulkConfirm(null)
+    if (action === 'delete') {
+      for (const id of ids) {
+        try { await API.delete(`/items/${id}`); setItems(prev => prev.filter(i => i.id !== id)) } catch {}
+      }
+    } else if (action === 'pending') {
+      // Only convert available → pending; already-pending stay pending
+      for (const id of ids) {
+        const item = items.find(i => i.id === id)
+        if (!item || item.status?.toLowerCase() === 'pending') continue
+        try {
+          await API.patch(`/items/${id}/status`, { status: 'pending' })
+          setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'pending' } : i))
+        } catch {}
+      }
+    } else if (action === 'active') {
+      // Only convert pending → available; already-active stay active
+      for (const id of ids) {
+        const item = items.find(i => i.id === id)
+        if (!item || item.status?.toLowerCase() === 'available') continue
+        try {
+          await API.patch(`/items/${id}/status`, { status: 'available' })
+          setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'available' } : i))
+        } catch {}
+      }
+    } else if (action === 'unwatch') {
+      // ids here are item IDs
+      for (const itemId of ids) {
+        try {
+          await API.delete(`/items/${itemId}/watch`)
+          setWatchedItems(prev => prev.filter(w => w.item.id !== itemId))
+        } catch {}
+      }
+    }
+    setSelectMode(false)
+    setSelected(new Set())
+  }
 
   const activeCount  = items.filter(i => i.status?.toLowerCase() === 'available').length
   const pendingCount = items.filter(i => i.status?.toLowerCase() === 'pending').length
@@ -1464,17 +1552,128 @@ function Dashboard() {
 
         <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
 
-        <div className="dash-filter-tabs">
-          {FILTERS.map(f => {
-            const isActive = activeFilter === f.key
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="dash-filter-tabs" style={{ margin: 0 }}>
+            {FILTERS.map(f => {
+              const isActive = activeFilter === f.key
+              return (
+                <button key={f.key} onClick={() => handleTabChange(f.key)}
+                  style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.08)', color: isActive ? 'white' : 'rgba(255,255,255,0.65)', border: isActive ? 'none' : '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? 'var(--shadow-accent)' : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
+          {/* Select button — hidden on sold tab */}
+          {activeFilter !== 'sold' && !loading && !error && (() => {
+            const listLen = activeFilter === 'watching' ? watchedItems.length
+              : activeFilter === 'active' ? activeItems.length
+              : activeFilter === 'pending' ? pendingItems.length
+              : allNonSoldItems.length
+            if (listLen === 0) return null
             return (
-              <button key={f.key} onClick={() => handleTabChange(f.key)}
-                style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.08)', color: isActive ? 'white' : 'rgba(255,255,255,0.65)', border: isActive ? 'none' : '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? 'var(--shadow-accent)' : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
-                {f.label}
+              <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()) }}
+                style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', background: selectMode ? 'rgba(var(--accent-rgb),0.1)' : 'rgba(255,255,255,0.04)', border: selectMode ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid rgba(255,255,255,0.06)', color: selectMode ? 'var(--accent)' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-body)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                {selectMode ? 'Cancel' : 'Select'}
               </button>
             )
-          })}
+          })()}
         </div>
+
+        {/* ── Bulk toolbar ── */}
+        {selectMode && activeFilter !== 'sold' && (() => {
+          const listIds = activeFilter === 'watching'
+            ? watchedItems.map(w => w.item.id)
+            : activeFilter === 'active'  ? activeItems.map(i => i.id)
+            : activeFilter === 'pending' ? pendingItems.map(i => i.id)
+            : allNonSoldItems.map(i => i.id)
+          const allSel = listIds.length > 0 && listIds.every(id => selected.has(id))
+
+          // Build action buttons per tab
+          const actions = []
+          if (activeFilter === 'active')   actions.push({ key: 'pending', label: 'Mark Pending', bg: 'rgba(251,189,35,0.12)', border: 'rgba(251,189,35,0.3)', color: '#fbbf24' })
+          if (activeFilter === 'pending')  actions.push({ key: 'active',  label: 'Mark Active',  bg: 'rgba(81,207,102,0.12)', border: 'rgba(81,207,102,0.3)', color: '#51cf66' })
+          if (activeFilter === 'all') {
+            actions.push({ key: 'active',  label: 'Mark Active',  bg: 'rgba(81,207,102,0.12)',  border: 'rgba(81,207,102,0.3)',  color: '#51cf66' })
+            actions.push({ key: 'pending', label: 'Mark Pending', bg: 'rgba(251,189,35,0.12)',  border: 'rgba(251,189,35,0.3)',  color: '#fbbf24' })
+          }
+          if (activeFilter === 'watching') {
+            actions.push({ key: 'unwatch', label: 'Remove from Watching', bg: 'rgba(255,77,77,0.1)', border: 'rgba(255,77,77,0.22)', color: '#ff6b6b', isDanger: true })
+          } else {
+            actions.push({ key: 'delete', label: `Delete`, bg: 'rgba(255,77,77,0.1)', border: 'rgba(255,77,77,0.22)', color: '#ff6b6b', isDanger: true })
+          }
+
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)', border: '1px solid rgba(var(--accent-rgb),0.18)', borderRadius: '14px', padding: '0.75rem 1.25rem', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem', animation: 'fadeSlideIn 0.2s ease' }}>
+              <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
+                <button
+                  onClick={() => { if (allSel) { setSelected(new Set()); setSelectMode(false) } else setSelected(new Set(listIds)) }}
+                  style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                >{allSel ? 'Deselect All' : 'Select All'}</button>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {actions.map(a => (
+                  <button key={a.key}
+                    disabled={selected.size === 0}
+                    onClick={() => { if (selected.size > 0) setBulkConfirm({ action: a.key, ids: [...selected] }) }}
+                    style={{ padding: '0.35rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size > 0 ? a.bg : 'rgba(255,255,255,0.03)', border: `1px solid ${selected.size > 0 ? a.border : 'rgba(255,255,255,0.05)'}`, color: selected.size > 0 ? a.color : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
+                  >
+                    {a.isDanger && (
+                      <svg width="11" height="11" viewBox="0 0 16 17" fill="none">
+                        <path d="M2 4h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                        <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                        <path d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {a.key === 'delete' ? `Delete${selected.size > 0 ? ` (${selected.size})` : ''}` : a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ── Bulk confirm modal ── */}
+        {bulkConfirm && createPortal(
+          <div onClick={() => setBulkConfirm(null)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cdFadeIn 0.18s ease' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2rem', width: '380px', maxWidth: '90vw', boxShadow: '0 40px 80px rgba(0,0,0,0.6)', position: 'relative', overflow: 'hidden', animation: 'cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.4)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.4)' : 'rgba(81,207,102,0.4)'}, transparent)` }} />
+              <div style={{ width: '48px', height: '48px', borderRadius: '14px', margin: '0 auto 1.25rem', background: bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.1)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.1)' : 'rgba(81,207,102,0.1)', border: `1px solid ${bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.2)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.2)' : 'rgba(81,207,102,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch')
+                  ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={bulkConfirm.action === 'pending' ? '#fbbf24' : '#51cf66'} strokeWidth="2.2" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                }
+              </div>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'rgba(255,255,255,0.92)', marginBottom: '0.5rem', letterSpacing: '-0.3px' }}>
+                  {bulkConfirm.action === 'delete'  && `Delete ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''}?`}
+                  {bulkConfirm.action === 'unwatch' && `Remove ${bulkConfirm.ids.length} item${bulkConfirm.ids.length > 1 ? 's' : ''} from watching?`}
+                  {bulkConfirm.action === 'pending' && `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''} as Pending?`}
+                  {bulkConfirm.action === 'active'  && `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''} as Active?`}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5' }}>
+                  {bulkConfirm.action === 'delete'  && 'Permanently removes all selected listings and their images. Cannot be undone.'}
+                  {bulkConfirm.action === 'unwatch' && 'You will stop receiving price drop alerts for these items.'}
+                  {bulkConfirm.action === 'pending' && 'Active listings will be marked as pending. Already-pending ones are unchanged.'}
+                  {bulkConfirm.action === 'active'  && 'Pending listings will be made active again. Already-active ones are unchanged.'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.65rem' }}>
+                <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)' }}>Cancel</button>
+                <button onClick={() => executeBulkAction(bulkConfirm.action, bulkConfirm.ids)}
+                  style={{ flex: 1, padding: '0.75rem', background: bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))' : bulkConfirm.action === 'pending' ? 'linear-gradient(135deg, rgba(251,189,35,0.9), rgba(220,160,20,0.9))' : 'linear-gradient(135deg, rgba(81,207,102,0.9), rgba(55,178,77,0.9))', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'white', fontFamily: 'var(--font-body)' }}>Confirm</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
         <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.7rem', marginBottom: '1rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
           {sectionLabel[activeFilter]}
@@ -1499,14 +1698,14 @@ function Dashboard() {
           const list = activeFilter === 'active' ? activeItems : pendingItems
           if (list.length === 0) return <EmptyState label={activeFilter + ' listings'} />
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} />)}
+            {list.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} selectMode={selectMode} selected={selected.has(item.id)} onToggle={() => toggleSelect(item.id)} />)}
           </div>
         })()}
 
         {!loading && !error && activeFilter === 'all' && (() => {
           if (allNonSoldItems.length === 0 && soldGroups.length === 0) return <EmptyState label="listings" />
           return <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} />)}
+            {allNonSoldItems.map(item => <ListingRow key={item.id} item={item} onDelete={handleDelete} onUpdate={handleUpdate} isHighlighted={highlightItemId === item.id} selectMode={selectMode} selected={selected.has(item.id)} onToggle={() => toggleSelect(item.id)} />)}
             {visibleSoldGroups.map(group => (
               <SoldGroupRow key={group.stableKey} group={group} stableKey={group.stableKey}
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
@@ -1540,12 +1739,17 @@ function Dashboard() {
                 const isHL = highlightItemId === w.item.id
                 return (
                   <div key={w.id}
-                    onClick={() => navigate(`/items/${w.item.id}`)}
-                    onMouseEnter={e => { if (!isHL) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)' }}
-                    onMouseLeave={e => { if (!isHL) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' }}
+                    onClick={() => { if (selectMode) { toggleSelect(w.item.id) } else navigate(`/items/${w.item.id}`) }}
+                    onMouseEnter={e => { if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.15) 0%, rgba(var(--accent-rgb),0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)' }}
+                    onMouseLeave={e => { if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' }}
                     ref={isHL ? (el => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150) }) : null}
-                    style={{ background: isHL ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.1) 0%, rgba(var(--accent-rgb),0.03) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: isHL ? '1px solid rgba(var(--accent-rgb),0.5)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: isHL ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08)' : 'none' }}
+                    style={{ background: isHL ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.1) 0%, rgba(var(--accent-rgb),0.03) 100%)' : selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: isHL ? '1px solid rgba(var(--accent-rgb),0.5)' : selected.has(w.item.id) ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: selected.has(w.item.id) ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : isHL ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08)' : 'none' }}
                   >
+                    {/* Checkbox */}
+                    <div onClick={e => { e.stopPropagation(); toggleSelect(w.item.id) }}
+                      style={{ width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0, border: selected.has(w.item.id) ? 'none' : '1.5px solid rgba(255,255,255,0.18)', background: selected.has(w.item.id) ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', boxShadow: selected.has(w.item.id) ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none', opacity: selectMode || selected.has(w.item.id) ? 1 : 0, transform: selectMode || selected.has(w.item.id) ? 'scale(1)' : 'scale(0.7)', pointerEvents: 'auto', cursor: 'pointer' }}>
+                      {selected.has(w.item.id) && <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
                     {w.item.images?.[0] && (
                       <img src={w.item.images[0]} alt={w.item.title}
                         style={{ width: '52px', height: '52px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
