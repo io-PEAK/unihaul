@@ -30,7 +30,7 @@ function ThemeToggle() {
   return (
     <>
       <style>{`
-        @media (max-width: 900px) { .theme-toggle-btn { display: none !important; } }
+        @media (max-width: 1250px) { .theme-toggle-btn { display: none !important; } }
       `}</style>
       <button
         ref={nodeRef}

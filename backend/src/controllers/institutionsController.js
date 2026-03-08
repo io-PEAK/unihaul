@@ -315,9 +315,10 @@ const FAMOUS_COLLEGES = [
 ]
 
 // ─────────────────────────────────────────────────────────────
-// SOURCE 5 — SCHOOLS (hand-curated)
+// SOURCE 2 — SCHOOLS (hand-curated fallback — replaced by CSV below)
+// kept here only as emergency fallback; loadAll() prefers india_schools.csv
 // ─────────────────────────────────────────────────────────────
-const SCHOOLS_RAW = [
+const SCHOOLS_FALLBACK = [
   { name: "Delhi Public School R.K. Puram",              city: "New Delhi",   state: "Delhi",          board: "CBSE" },
   { name: "Delhi Public School Vasant Kunj",             city: "New Delhi",   state: "Delhi",          board: "CBSE" },
   { name: "Delhi Public School Dwarka",                  city: "New Delhi",   state: "Delhi",          board: "CBSE" },
@@ -415,47 +416,44 @@ function loadAll() {
     const key = dedupKey(inst.name)
     if (!key || seen.has(key)) return
     seen.add(key)
-    // normalize state + trim city at load time so all downstream code is clean
     all.push({ ...inst, state: normalizeState(inst.state), city: (inst.city || '').trim() })
   }
 
-  // 1. Famous colleges (priority — shown first in results)
+  // 1. Famous colleges (priority — always shown first in search results)
   for (const c of FAMOUS_COLLEGES) add({ ...c, type: 'college' })
 
-  // 2. Schools
-  for (const s of SCHOOLS_RAW) add({ ...s, type: 'school' })
-
-  // 3. NIRF CSV — clean City + State columns
+  // 2. Colleges — india_colleges.csv (merged from nirf + college-data + engineering CSVs)
+  //    Columns: name, city, state, type, fees_ug_inr, placement_avg_lpa, rating, nirf_rank
   try {
-    const rows = parseCSV(readFileSync(join(__dir, '../data/nirf_university_rankings.csv'), 'utf8'))
+    const rows = parseCSV(readFileSync(join(__dir, '../data/india_colleges.csv'), 'utf8'))
     for (const r of rows) {
-      const name = cleanName(r['Name'] || '')
-      if (name) add({ name, city: r['City']?.trim() || '', state: r['State']?.trim() || '', type: 'college' })
+      const name = cleanName(r['name'] || '')
+      if (name) add({ name, city: r['city']?.trim() || '', state: r['state']?.trim() || '', type: 'college' })
     }
-  } catch { console.warn('[institutions] nirf CSV not found — skipping') }
+    console.log(`[institutions] loaded india_colleges.csv (${rows.length} rows)`)
+  } catch { console.warn('[institutions] india_colleges.csv not found — skipping') }
 
-  // 4. college-dataNew CSV — location is "City, State"
+  // 3. Schools — india_schools.csv (247 schools — replaces hand-curated fallback)
+  //    Columns: s_no, name, city, state, board
+  let schoolsFromCSV = false
   try {
-    const rows = parseCSV(readFileSync(join(__dir, '../data/college-dataNew.csv'), 'utf8'))
+    const rows = parseCSV(readFileSync(join(__dir, '../data/india_schools.csv'), 'utf8'))
     for (const r of rows) {
-      const name = cleanName(r['college_name'] || '')
-      const [city = '', state = ''] = (r['location'] || '').split(',').map(s => s.trim())
-      if (name) add({ name, city, state, type: 'college' })
+      const name = cleanName(r['name'] || '')
+      if (name) add({ name, city: r['city']?.trim() || '', state: r['state']?.trim() || '', board: r['board']?.trim() || '', type: 'school' })
     }
-  } catch { console.warn('[institutions] college-dataNew CSV not found — skipping') }
+    schoolsFromCSV = true
+    console.log(`[institutions] loaded india_schools.csv (${rows.length} rows)`)
+  } catch { console.warn('[institutions] india_schools.csv not found — falling back to SCHOOLS_FALLBACK') }
 
-  // 5. Engineering colleges CSV — has State, no city
-  try {
-    const rows = parseCSV(readFileSync(join(__dir, '../data/Indian_Engineering_Colleges_Dataset.csv'), 'utf8'))
-    for (const r of rows) {
-      const name = cleanName(r['College_Name'] || '')
-      if (name) add({ name, city: '', state: r['State']?.trim() || '', type: 'college' })
-    }
-  } catch { console.warn('[institutions] engineering CSV not found — skipping') }
+  // Fallback: hand-curated list only if CSV is missing
+  if (!schoolsFromCSV) {
+    for (const s of SCHOOLS_FALLBACK) add({ ...s, type: 'school' })
+  }
 
   const colleges = all.filter(i => i.type === 'college').length
   const schools  = all.filter(i => i.type === 'school').length
-  console.log(`[institutions] loaded ${colleges} colleges + ${schools} schools (${all.length} total)`)
+  console.log(`[institutions] total: ${colleges} colleges + ${schools} schools (${all.length} combined)`)
 
   _cache = all
   return _cache

@@ -592,14 +592,51 @@ function Navbar({ registerOpenBell }) {
   const [cartCount, setCartCount] = useState(0)
   const [showNudge, setShowNudge] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const drawerHoverTimer = useRef(null)
+  const [scrolled, setScrolled] = useState(false)
+  const [navSearchActive, setNavSearchActive] = useState(false)
+  const [navSearch, setNavSearch] = useState('')
+  const [navSearchFocused, setNavSearchFocused] = useState(false)
+  const navSearchRef = useRef(null)
 
   const token = localStorage.getItem('token')
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const isLoggedIn = !!token
   const isHomePath = location.pathname === '/' || location.pathname === '/home'
-  const { theme, toggle } = useTheme()
+  const { theme, toggle, setThemeById } = useTheme()
   const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0]
   const nextTheme = THEMES[(THEMES.findIndex(t => t.id === theme) + 1) % THEMES.length]
+
+  // Scroll-based transparent navbar
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Home search bar visibility → show/hide navbar search
+  useEffect(() => {
+    function onVisibility(e) {
+      const visible = e.detail?.visible
+      setNavSearchActive(!visible)
+      if (visible) setNavSearch('')
+      else {
+        // sync current home search value into nav search
+        const bridge = window.__homeSearchBridge
+        if (bridge) setNavSearch(bridge.get() || '')
+      }
+    }
+    window.addEventListener('home-searchbar-visibility', onVisibility)
+    return () => window.removeEventListener('home-searchbar-visibility', onVisibility)
+  }, [])
+
+  // Reset nav search when leaving home page
+  useEffect(() => {
+    if (location.pathname !== '/' && location.pathname !== '/home') {
+      setNavSearchActive(false)
+      setNavSearch('')
+    }
+  }, [location.pathname])
 
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
@@ -694,9 +731,26 @@ function Navbar({ registerOpenBell }) {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
+        .nav-search-input { background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important; -webkit-appearance: none !important; appearance: none !important; }
+        .nav-search-input:focus { outline: none !important; box-shadow: none !important; }
+        .nav-search-input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px transparent inset !important; }
         .notif-scroll::-webkit-scrollbar { width: 4px; }
         .notif-scroll::-webkit-scrollbar-track { background: transparent; }
         .notif-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+        /* Scroll-transparent navbar */
+        .nav-inner {
+          transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease, backdrop-filter 0.35s ease;
+          background: color-mix(in srgb, var(--bg-nav) 75%, transparent) !important;
+          border-bottom-color: color-mix(in srgb, var(--border) 70%, transparent) !important;
+        }
+        .nav-inner.nav-scrolled {
+          background: color-mix(in srgb, var(--bg-nav) 40%, transparent) !important;
+          border-bottom-color: color-mix(in srgb, var(--border) 30%, transparent) !important;
+          box-shadow: none !important;
+          backdrop-filter: blur(32px) !important;
+          -webkit-backdrop-filter: blur(32px) !important;
+        }
 
         /* ── Logo text: hide below 600px ── */
         .logo-text { display: block; }
@@ -714,7 +768,7 @@ function Navbar({ registerOpenBell }) {
         /* ── Settings icon in bar: hidden below 900px (moves to drawer) ── */
         .settings-icon-bar { display: flex !important; }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1200px) {
           .nav-links-desktop { display: none !important; }
           .nav-divider       { display: none !important; }
           .hamburger-btn     { display: flex !important; }
@@ -728,10 +782,11 @@ function Navbar({ registerOpenBell }) {
 
       <nav style={{ position: 'sticky', top: 0, zIndex: 100 }}>
         <div
-          className="nav-inner-pad"
+          className={`nav-inner-pad nav-inner${scrolled ? ' nav-scrolled' : ''}`}
           style={{
-            display: 'flex', alignItems: 'center', height: '60px',
+            display: 'flex', alignItems: 'center', height: navSearchActive ? '64px' : '60px',
             padding: '0 1.75rem', gap: '0.4rem',
+            transition: 'height 0.3s ease',
             background: 'var(--bg-nav)',
             backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
             borderBottom: '1px solid var(--border)',
@@ -745,6 +800,8 @@ function Navbar({ registerOpenBell }) {
             <button
               className="hamburger-btn"
               onClick={() => setDrawerOpen(v => !v)}
+              onMouseEnter={() => { clearTimeout(drawerHoverTimer.current); setDrawerOpen(true) }}
+              onMouseLeave={() => { drawerHoverTimer.current = setTimeout(() => setDrawerOpen(false), 100) }}
               title="Menu"
               style={{
                 width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
@@ -795,7 +852,9 @@ function Navbar({ registerOpenBell }) {
             </Link>
           </div>
 
-          {/* ── CENTER: "Hi, [name]" — absolutely centered, fades out on small screens ── */}
+          {/* ── CENTER: greeting OR search bar — both absolutely centred in the nav ── */}
+
+          {/* Greeting: visible only when NOT searching */}
           {isLoggedIn && user?.firstName && (
             <div
               className="nav-greeting"
@@ -803,13 +862,100 @@ function Navbar({ registerOpenBell }) {
                 position: 'absolute', left: '50%', top: '50%',
                 transform: 'translate(-50%, -50%)',
                 fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '500',
-                letterSpacing: '0.5px', pointerEvents: 'none', userSelect: 'none',
+                letterSpacing: '0.5px', userSelect: 'none', pointerEvents: 'none',
                 whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
+                opacity: navSearchActive ? 0 : 1,
+                transition: 'opacity 0.2s ease',
+                zIndex: 1,
               }}
             >
               Hi, {user.firstName}
             </div>
           )}
+
+          {/* Navbar search bar — slides up into view when home search scrolls away */}
+          <div style={{
+            position: 'absolute', left: '50%', top: '50%',
+            transform: navSearchActive
+              ? 'translate(-50%, -50%) scale(1)'
+              : 'translate(-50%, -50%) scale(0.95)',
+            opacity: navSearchActive ? 1 : 0,
+            pointerEvents: navSearchActive ? 'auto' : 'none',
+            transition: 'opacity 0.25s ease, transform 0.25s cubic-bezier(0.34,1.3,0.64,1)',
+            zIndex: 2,
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.6rem',
+              background: navSearchFocused ? 'var(--bg-card)' : 'var(--bg-input)',
+              border: navSearchFocused
+                ? '1.5px solid var(--accent-border)'
+                : '1.5px solid var(--border-hover)',
+              borderRadius: '999px',
+              padding: '0.42rem 1rem 0.42rem 0.85rem',
+              width: navSearchFocused ? 'min(340px, 30vw)' : 'min(280px, 25vw)',
+              transition: 'width 0.3s ease, border-color 0.2s, background 0.2s, box-shadow 0.2s',
+              boxShadow: navSearchFocused
+                ? '0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent), 0 2px 12px rgba(0,0,0,0.15)'
+                : '0 2px 8px rgba(0,0,0,0.1)',
+            }}>
+              {/* Search icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke={navSearchFocused ? 'var(--accent)' : 'var(--text-secondary)'}
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ flexShrink: 0, transition: 'stroke 0.2s', opacity: navSearchFocused ? 1 : 0.7 }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+
+              <input
+                ref={navSearchRef}
+                type="text"
+                className="nav-search-input"
+                value={navSearch}
+                placeholder="Search items..."
+                onChange={e => {
+                  const val = e.target.value
+                  setNavSearch(val)
+                  if (window.__homeSearchBridge) window.__homeSearchBridge.set(val)
+                  window.dispatchEvent(new CustomEvent('home-navbar-search', { detail: { value: val } }))
+                  // Scroll home to top so search bar comes back into view, then hand off focus
+                  window.dispatchEvent(new CustomEvent('home-navbar-handoff', { detail: { value: val } }))
+                }}
+                onFocus={() => setNavSearchFocused(true)}
+                onBlur={() => setNavSearchFocused(false)}
+                style={{
+                  background: 'transparent', border: 'none', outline: 'none',
+                  boxShadow: 'none', appearance: 'none', WebkitAppearance: 'none',
+                  color: 'var(--text-primary)', fontSize: '0.85rem',
+                  fontFamily: 'var(--font-body)', width: '100%',
+                  fontWeight: '500', minWidth: 0, padding: 0, margin: 0,
+                }}
+              />
+
+              {/* Clear button */}
+              {navSearch && (
+                <button
+                  onClick={() => {
+                    setNavSearch('')
+                    if (window.__homeSearchBridge) window.__homeSearchBridge.set('')
+                    window.dispatchEvent(new CustomEvent('home-navbar-search', { detail: { value: '' } }))
+                    navSearchRef.current?.focus()
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '0',
+                    color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                    flexShrink: 0, transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* ── Spacer between logo and links ── */}
           <div style={{ width: '0.75rem', flexShrink: 0 }} />
@@ -901,7 +1047,10 @@ function Navbar({ registerOpenBell }) {
       )}
 
       {/* ── Slide-in Drawer (LEFT side) ── */}
-      <div style={{
+      <div
+        onMouseEnter={() => clearTimeout(drawerHoverTimer.current)}
+        onMouseLeave={() => setDrawerOpen(false)}
+        style={{
         position: 'fixed', top: 0, left: 0, bottom: 0,
         width: 'min(280px, 80vw)',
         background: 'var(--bg-surface)',
@@ -975,26 +1124,73 @@ function Navbar({ registerOpenBell }) {
         {/* Footer: Appearance (mobile only — ThemeToggle hidden on mobile) + Logout */}
         <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
-          {/* Appearance row */}
-          <button
-            onClick={toggle}
-            title="Switch theme"
-            style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.7rem', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
-          >
-            <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              {theme === 'ember' && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
-              {theme === 'midnight' && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>}
-              {theme === 'chalk' && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>}
+          {/* Theme — segmented 3-icon switcher */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            padding: '0.5rem 0.85rem',
+            fontFamily: 'var(--font-body)',
+          }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-secondary)', flex: 1 }}>
+              Theme
             </span>
-            <span style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-secondary)', flex: 1, textAlign: 'left' }}>
-              Appearance
-            </span>
-            <span style={{ fontSize: '0.65rem', fontWeight: '600', letterSpacing: '0.5px', padding: '0.18rem 0.55rem', borderRadius: '20px', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent)', textTransform: 'uppercase' }}>
-              {currentTheme.label}
-            </span>
-          </button>
+            {/* Segmented pill */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '3px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: '999px',
+              padding: '4px',
+            }}>
+              {[
+                { id: 'ember', icon: (
+                  // Moon — ember
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                )},
+                { id: 'midnight', icon: (
+                  // Half circle — midnight
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a10 10 0 0 1 0 20V2z"/>
+                    <circle cx="12" cy="12" r="10"/>
+                  </svg>
+                )},
+                { id: 'chalk', icon: (
+                  // Sun — chalk
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                )},
+              ].map(({ id, icon }) => {
+                const isActive = theme === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setThemeById(id)}
+                    title={id.charAt(0).toUpperCase() + id.slice(1)}
+                    style={{
+                      width: '32px', height: '32px',
+                      borderRadius: '999px',
+                      border: 'none',
+                      background: isActive ? 'var(--bg-card)' : 'transparent',
+                      boxShadow: isActive ? '0 1px 6px rgba(0,0,0,0.18), 0 0 0 1px var(--border)' : 'none',
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                      transition: 'all 0.18s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {icon}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           {/* Logout */}
           {isLoggedIn && (

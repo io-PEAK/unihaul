@@ -531,6 +531,7 @@ function ItemCard({ item, isWatching = false }) {
 function Home() {
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const homeSearchRef = useRef(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [watchedIds, setWatchedIds] = useState(new Set())
@@ -572,6 +573,53 @@ function Home() {
 
   // One spec dropdown open at a time
   const [openSpecKey, setOpenSpecKey] = useState(null)
+
+  // Navbar search bridge — tells navbar when our search bar is out of view
+  const searchRowRef = useRef(null)
+  useEffect(() => {
+    // Expose setter so navbar can update our search state
+    window.__homeSearchBridge = { set: setSearch, get: () => search }
+  })
+  useEffect(() => {
+    // Listen for navbar search input → update our state
+    function onNavSearch(e) { setSearch(e.detail.value) }
+    window.addEventListener('home-navbar-search', onNavSearch)
+    return () => window.removeEventListener('home-navbar-search', onNavSearch)
+  }, [])
+
+  useEffect(() => {
+    // Navbar typed → scroll home to top → focus home search input so user keeps typing
+    function onHandoff(e) {
+      const val = e.detail?.value ?? ''
+      setSearch(val)
+      // Scroll to very top first
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      // Wait for scroll + intersection observer to fire (search bar comes back into view)
+      // then steal focus so user can keep typing without re-clicking
+      setTimeout(() => {
+        homeSearchRef.current?.focus()
+        // Move cursor to end of existing text
+        const inp = homeSearchRef.current
+        if (inp) { const len = inp.value.length; inp.setSelectionRange(len, len) }
+      }, 350)
+    }
+    window.addEventListener('home-navbar-handoff', onHandoff)
+    return () => window.removeEventListener('home-navbar-handoff', onHandoff)
+  }, [])
+  useEffect(() => {
+    const el = searchRowRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        window.dispatchEvent(new CustomEvent('home-searchbar-visibility', {
+          detail: { visible: entry.isIntersecting }
+        }))
+      },
+      { threshold: 0.3 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   // Single source of truth — filters applied live, no draft
   // Restore from sessionStorage so filters survive back-navigation
@@ -778,7 +826,7 @@ const res = await API.get('/items', { params })
       </div>
 
       {/* Search bar + filter row */}
-      <div style={{
+      <div ref={searchRowRef} style={{
         background: 'var(--glass-bg-row)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         border: '1px solid var(--glass-border)', borderRadius: '20px',
@@ -792,7 +840,7 @@ const res = await API.get('/items', { params })
 <LocationPicker location={location} setLocation={setLocation} />
 
           {/* Search */}
-          <input type="text" placeholder="Search items..." value={search}
+          <input ref={homeSearchRef} type="text" placeholder="Search items..." value={search}
             onChange={e => setSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
             className="home-search-input"

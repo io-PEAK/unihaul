@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js'
-import institutions from '../data/institutionsController.js'
+import institutions from './institutionsController.js'
 const { searchInstitutions } = institutions
 
 const toTitleCase = s => s
