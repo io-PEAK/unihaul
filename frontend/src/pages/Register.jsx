@@ -45,7 +45,12 @@ function Register() {
   const [emailError, setEmailError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [draggable, setDraggable] = useState(false)
+  const backRef = useRef(null)
   const navigate = useNavigate()
+
+  function onBackMouseDown() {}
+  function onBackTouchStart() {}
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -122,7 +127,6 @@ function Register() {
       `}</style>
       <div style={{ width: '100%', maxWidth: '420px', position: 'relative' }}>
 
-        {/* ── Back button — outside the box ── */}
         <button
           ref={backRef}
           className="reg-back"
@@ -156,10 +160,8 @@ function Register() {
           </p>
         </div>
 
-        {/* Google Button */}
         <GoogleButton onClick={googleLogin} loading={googleLoading} />
 
-        {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
           <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
           <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', fontWeight: '600', letterSpacing: '1px' }}>OR</span>
@@ -167,7 +169,6 @@ function Register() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* First + Last name side by side */}
           <div className="reg-name-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.15rem' }}>
             {fields.slice(0, 2).map(field => (
               <div key={field.name}>
@@ -195,7 +196,6 @@ function Register() {
             ))}
           </div>
 
-          {/* Email + Password */}
           {fields.slice(2).map(field => (
             <div key={field.name} style={{ marginBottom: '1.15rem' }}>
               <label style={{
