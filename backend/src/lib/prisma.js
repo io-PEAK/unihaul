@@ -1,12 +1,9 @@
 import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
-import { createRequire } from 'module';
 
 dotenv.config();
-
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require('/Users/peakmac/github/student-shop/database/node_modules/@prisma/client/default.js');
 
 const { Pool } = pg;
 
