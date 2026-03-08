@@ -4,8 +4,11 @@
   "description": "",
   "main": "server.js",
   "type": "module",
+  "prisma": {
+    "schema": "../database/prisma/schema.prisma"
+  },
   "scripts": {
-    "postinstall": "npx prisma generate --schema=../database/prisma/schema.prisma",
+    "postinstall": "npx prisma generate",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
