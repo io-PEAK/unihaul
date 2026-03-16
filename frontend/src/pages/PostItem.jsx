@@ -358,8 +358,8 @@ function ImagePreviewModal({ src, index, total, onClose, onPrev, onNext }) {
         style={{
           position: 'fixed', top: '1.25rem', right: '1.25rem',
           width: '38px', height: '38px', borderRadius: '50%',
-          background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)',
-          color: 'rgba(255,255,255,0.75)', fontSize: '1rem', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)',
+          color: 'var(--text-secondary)', fontSize: '1rem', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.2s',
         }}
@@ -372,7 +372,7 @@ function ImagePreviewModal({ src, index, total, onClose, onPrev, onNext }) {
         position: 'fixed', top: '1.4rem', left: '50%', transform: 'translateX(-50%)',
         background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
         borderRadius: '20px', padding: '4px 14px',
-        fontSize: '0.72rem', fontWeight: '700', color: 'rgba(255,255,255,0.6)',
+        fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-secondary)',
         letterSpacing: '1px',
       }}>{index + 1} / {total}</div>
 
@@ -383,7 +383,7 @@ function ImagePreviewModal({ src, index, total, onClose, onPrev, onNext }) {
           style={{
             position: 'fixed', left: '1.25rem', top: '50%', transform: 'translateY(-50%)',
             width: '44px', height: '44px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)',
             color: 'white', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s', fontSize: '1.1rem',
@@ -400,7 +400,7 @@ function ImagePreviewModal({ src, index, total, onClose, onPrev, onNext }) {
           style={{
             position: 'fixed', right: '1.25rem', top: '50%', transform: 'translateY(-50%)',
             width: '44px', height: '44px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)',
             color: 'white', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s', fontSize: '1.1rem',
@@ -457,9 +457,9 @@ function ImageUploadZone({ images, onAdd, onRemove, onReorder, uploading, onClea
   return (
     <>
       <div style={{ marginBottom: '1.15rem' }}>
-        <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontWeight: '700', marginBottom: '0.55rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.55rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           Photos
-          {images.length === 0 && <span style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '500', textTransform: 'none', letterSpacing: '0', fontSize: '0.6rem' }}>min. 2 required</span>}
+          {images.length === 0 && <span style={{ color: 'var(--text-ghost)', fontWeight: '500', textTransform: 'none', letterSpacing: '0', fontSize: '0.6rem' }}>min. 2 required</span>}
           {images.length === 1 && <span style={{ color: 'rgba(255,107,107,0.7)', fontWeight: '600', textTransform: 'none', letterSpacing: '0', fontSize: '0.6rem' }}>1 more needed</span>}
           {images.length >= 2 && <span style={{ color: 'var(--accent)', fontWeight: '600', opacity: 0.7 }}>({images.length}/{MAX}) · drag to reorder</span>}
         </div>
@@ -528,7 +528,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onReorder, uploading, onClea
                 <button
                   onMouseDown={e => { e.stopPropagation(); onRemove(i) }}
                   onClick={e => e.stopPropagation()}
-                  style={{ position: 'absolute', top: '5px', right: '5px', width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s', zIndex: 2 }}
+                  style={{ position: 'absolute', top: '5px', right: '5px', width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid var(--border-hover)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s', zIndex: 2 }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.85)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.75)'}
                 >
@@ -559,7 +559,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onReorder, uploading, onClea
                 ? <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'piSpin 0.7s linear infinite' }} />
                 : <>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', fontWeight: '600', textAlign: 'center', letterSpacing: '0.3px' }}>{images.length === 0 ? 'Add photo' : 'Add more'}</span>
+                    <span style={{ fontSize: '0.58rem', color: 'var(--text-ghost)', fontWeight: '600', textAlign: 'center', letterSpacing: '0.3px' }}>{images.length === 0 ? 'Add photo' : 'Add more'}</span>
                   </>
               }
             </div>
@@ -567,7 +567,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onReorder, uploading, onClea
 
           {/* Empty placeholder slots */}
           {Array.from({ length: Math.max(0, MAX - images.length - 1) }).map((_, i) => (
-            <div key={`empty-${i}`} style={{ aspectRatio: '1', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)', background: 'rgba(255,255,255,0.01)' }} />
+            <div key={`empty-${i}`} style={{ aspectRatio: '1', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }} />
           ))}
         </div>
 
@@ -692,7 +692,14 @@ function PostItem() {
     madeOn:       prefill?.madeOn     ? prefill.madeOn.slice(0,10)     : '',
   })
   const [specs, setSpecs]               = useState(prefill?.specs || {})
-  const [images, setImages]             = useState([])
+  const [images, setImages] = useState(() => {
+    if (prefill?.images && prefill.images.length > 0) {
+      return prefill.images.map((url, i) => ({
+        _uid: `prefill-${i}`, url, preview: url, uploading: false, publicId: null,
+      }))
+    }
+    return []
+  })
   const [focusedField, setFocusedField] = useState(null)
   const [openSpecKey, setOpenSpecKey]   = useState(null)
   const [btnHovered, setBtnHovered]     = useState(false)
@@ -1014,13 +1021,13 @@ function PostItem() {
         {/* ── Back button ── */}
         <button
           ref={backRef}
-          className="pi-back-btn"
+          className="pi-back-btn back-btn-circle"
           onClick={() => navigate(-1)}
           onMouseDown={onBackMouseDown}
           onTouchStart={onBackTouchStart}
-          style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
+          style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow = 'none' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = 'none' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
@@ -1029,11 +1036,11 @@ function PostItem() {
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', borderRadius: '24px 24px 0 0' }} />
 
           <div style={{ marginBottom: '2rem' }}>
-            <h1 className="pi-heading" style={{ fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
+            <h1 className="pi-heading" style={{ fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
               {prefill ? 'Relist' : 'List an'}<br />
               <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Item.</span>
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem' }}>{prefill ? 'Edit the details and repost your listing' : 'Fill in the details to post your listing'}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{prefill ? 'Edit the details and repost your listing' : 'Fill in the details to post your listing'}</p>
           </div>
 
           {success && (

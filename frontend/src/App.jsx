@@ -12,18 +12,21 @@ import Transactions from './pages/Transactions'
 import Cart from './pages/Cart'
 import Settings from './pages/Settings'
 import Navbar from './components/Navbar'
+import FindSellers from './pages/FindSellers'
+import SellerProfile from './pages/SellerProfile'
 import MessageButton from './components/MessageButton'
 import ProtectedRoute from './components/ProtectedRoute'
 import PageWrapper from './components/PageWrapper'
 import ToastNotification from './components/ToastNotification'
 import { useState, useEffect, useRef } from 'react'
 import { connectSocket, disconnectSocket } from './socket'
+import PageTitle from './components/PageTitle'
 
 function ScrollToTopButton() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
   const location = useLocation()
-  const isHomePage = location.pathname === '/' || location.pathname === '/home'
+  const isHomePage = location.pathname === '/' || location.pathname === '/home' || location.pathname === '/sellers' || location.pathname === '/sellers'
 
   useEffect(() => {
     const onScroll = () => {
@@ -108,6 +111,7 @@ function AppInner() {
 
   return (
     <>
+      <PageTitle /> 
       <Navbar registerOpenBell={(fn) => { openBellRef.current = fn }} />
       <PageWrapper>
         <Routes>
@@ -122,6 +126,8 @@ function AppInner() {
           <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/sellers" element={<FindSellers />} />
+          <Route path="/users/:id" element={<SellerProfile />} />
         </Routes>
       </PageWrapper>
       <MessageButton />

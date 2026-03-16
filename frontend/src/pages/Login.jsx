@@ -163,7 +163,7 @@ function Login() {
 
         <button
           ref={backRef}
-          className="login-back"
+          className="login-back back-btn-circle"
           onClick={() => navigate(-1)}
           onMouseDown={onBackMouseDown}
           onTouchStart={onBackTouchStart}

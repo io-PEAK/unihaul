@@ -28,7 +28,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --bg-input-focus:   rgba(255, 255, 255, 0.10);
   --bg-nav:           rgba(8, 8, 16, 0.88);
 
-  /* Glass layers extracted from Login, Register, PostItem, Home, ItemDetail, Dashboard */
   --glass-bg:         linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
   --glass-bg-hover:   linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%);
   --glass-bg-deep:    linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,20,0.99) 100%);
@@ -43,10 +42,9 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --border:           rgba(255, 255, 255, 0.07);
   --border-hover:     rgba(255, 255, 255, 0.14);
   --border-accent:    rgba(232, 119, 34, 0.22);
-  --border-dashed:      rgba(255, 255, 255, 0.18);  /* dashed border at rest — no accent */
-  --border-dashed-hover: rgba(232, 119, 34, 0.50);  /* dashed border on hover — soft accent */
+  --border-dashed:      rgba(255, 255, 255, 0.18);
+  --border-dashed-hover: rgba(232, 119, 34, 0.50);
 
-  /* Dropdown menu */
   --dropdown-bg:        linear-gradient(160deg, rgba(20,20,28,0.99) 0%, rgba(13,13,20,0.99) 100%);
   --dropdown-border:    rgba(232, 119, 34, 0.25);
   --dropdown-divider:   rgba(255, 255, 255, 0.05);
@@ -54,7 +52,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --dropdown-item-active: #f0a040;
   --dropdown-item-hover-bg: rgba(232, 119, 34, 0.08);
   --dropdown-item-active-bg: rgba(232, 119, 34, 0.12);
-  /* Select button */
   --select-bg:          rgba(255, 255, 255, 0.05);
   --select-bg-focus:    rgba(255, 255, 255, 0.10);
   --select-border:      rgba(255, 255, 255, 0.06);
@@ -88,7 +85,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --shadow-inset:     inset 0 1px 0 rgba(255,255,255,0.06);
   --shadow-nav:       0 4px 20px rgba(0, 0, 0, 0.25);
 
-  /* Status colors used in every page */
   --color-available:  #51cf66;
   --bg-available:     rgba(81, 207, 102, 0.10);
   --bd-available:     rgba(81, 207, 102, 0.15);
@@ -99,7 +95,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --bg-sold:          rgba(255, 107, 107, 0.10);
   --bd-sold:          rgba(255, 107, 107, 0.15);
 
-  /* Danger / Error */
   --color-danger:     #ff6b6b;
   --bg-danger:        rgba(255, 107, 107, 0.08);
   --bd-danger:        rgba(255, 107, 107, 0.15);
@@ -109,6 +104,12 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
 
   --select-opt-bg:    #0d0d18;
   --scrollbar:        rgba(255, 255, 255, 0.08);
+
+  /* Tab/stat card backgrounds for dark themes */
+  --tab-btn-bg:       rgba(255, 255, 255, 0.06);
+  --tab-btn-border:   rgba(255, 255, 255, 0.06);
+--stat-card-bg: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%);
+  --stat-card-border: rgba(255, 255, 255, 0.14);
 
   color-scheme: dark;
 }
@@ -145,10 +146,9 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --border:           rgba(79, 142, 247, 0.10);
   --border-hover:     rgba(79, 142, 247, 0.22);
   --border-accent:    rgba(79, 142, 247, 0.30);
-  --border-dashed:      rgba(255, 255, 255, 0.18);  /* dashed border at rest — no accent */
-  --border-dashed-hover: rgba(79, 142, 247, 0.50);  /* dashed border on hover — soft accent */
+  --border-dashed:      rgba(255, 255, 255, 0.18);
+  --border-dashed-hover: rgba(79, 142, 247, 0.50);
 
-  /* Dropdown menu */
   --dropdown-bg:        linear-gradient(160deg, rgba(12,18,32,0.99) 0%, rgba(7,11,20,0.99) 100%);
   --dropdown-border:    rgba(79, 142, 247, 0.25);
   --dropdown-divider:   rgba(255, 255, 255, 0.05);
@@ -156,7 +156,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --dropdown-item-active: #7eb3ff;
   --dropdown-item-hover-bg: rgba(79, 142, 247, 0.08);
   --dropdown-item-active-bg: rgba(79, 142, 247, 0.12);
-  /* Select button */
   --select-bg:          rgba(255, 255, 255, 0.05);
   --select-bg-focus:    rgba(79, 142, 247, 0.09);
   --select-border:      rgba(255, 255, 255, 0.06);
@@ -210,6 +209,11 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --select-opt-bg:    #0c1220;
   --scrollbar:        rgba(79, 142, 247, 0.15);
 
+  --tab-btn-bg:       rgba(79, 142, 247, 0.05);
+  --tab-btn-border:   rgba(79, 142, 247, 0.08);
+  --stat-card-bg: linear-gradient(135deg, rgba(79,142,247,0.10) 0%, rgba(79,142,247,0.04) 100%);
+  --stat-card-border: rgba(79, 142, 247, 0.20);
+
   color-scheme: dark;
 }
 
@@ -245,10 +249,9 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --border:           rgba(0, 0, 0, 0.08);
   --border-hover:     rgba(0, 0, 0, 0.16);
   --border-accent:    rgba(79, 70, 229, 0.25);
-  --border-dashed:      rgba(0, 0, 0, 0.18);        /* dashed border at rest — no accent */
-  --border-dashed-hover: rgba(79, 70, 229, 0.50);   /* dashed border on hover — soft accent */
+  --border-dashed:      rgba(0, 0, 0, 0.18);
+  --border-dashed-hover: rgba(79, 70, 229, 0.50);
 
-  /* Dropdown menu */
   --dropdown-bg:        linear-gradient(160deg, rgba(245,244,240,0.99) 0%, rgba(235,234,230,0.99) 100%);
   --dropdown-border:    rgba(79, 70, 229, 0.25);
   --dropdown-divider:   rgba(0, 0, 0, 0.06);
@@ -256,7 +259,6 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --dropdown-item-active: #4f46e5;
   --dropdown-item-hover-bg: rgba(79, 70, 229, 0.08);
   --dropdown-item-active-bg: rgba(79, 70, 229, 0.12);
-  /* Select button */
   --select-bg:          rgba(0, 0, 0, 0.04);
   --select-bg-focus:    rgba(79, 70, 229, 0.06);
   --select-border:      rgba(0, 0, 0, 0.08);
@@ -310,6 +312,24 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --select-opt-bg:    #ffffff;
   --scrollbar:        rgba(0, 0, 0, 0.10);
 
+  --glass-panel-bg:     rgba(0, 0, 0, 0.03);
+  --glass-panel-border: rgba(0, 0, 0, 0.08);
+
+  --inline-text-high:   #111118;
+  --inline-text-med:    rgba(17, 17, 24, 0.55);
+  --inline-text-low:    rgba(17, 17, 24, 0.40);
+  --inline-text-faint:  rgba(17, 17, 24, 0.25);
+  --inline-bg-card:     rgba(0, 0, 0, 0.04);
+  --inline-bg-hover:    rgba(0, 0, 0, 0.07);
+  --inline-border:      rgba(0, 0, 0, 0.08);
+  --inline-border-hover: rgba(0, 0, 0, 0.14);
+
+  /* Tab/stat card backgrounds for Chalk */
+  --tab-btn-bg:       rgba(0, 0, 0, 0.04);
+  --tab-btn-border:   rgba(0, 0, 0, 0.08);
+  --stat-card-bg:     #ffffff;
+  --stat-card-border: rgba(0, 0, 0, 0.08);
+
   color-scheme: light;
 }
 
@@ -335,12 +355,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 
 /* ══════════════════════════════════════════════════════════════
    GLASS CARDS
-   .glass-card  — Login, Register, PostItem outer wrapper
-   .glass-row   — Dashboard rows, Transaction rows, ItemDetail cells
-   .glass-panel — Messages sidebar + chat panel
-   .glass-modal — TxnDetailModal, ConfirmDialog
-   .glass-deep  — Filter dropdown, status menu
-   .glass-infobox — specs / description boxes inside cards
 ══════════════════════════════════════════════════════════════ */
 
 .glass-card {
@@ -354,7 +368,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   overflow: hidden;
 }
 
-/* Drop this as first child of .glass-card for the top shimmer line */
 .glass-shimmer-line {
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -377,7 +390,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   border-color: var(--glass-border);
 }
 
-/* Messages panels */
 .glass-panel {
   background: rgba(255,255,255,0.03);
   backdrop-filter: blur(20px);
@@ -397,7 +409,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   overflow: hidden;
 }
 
-/* Filter dropdown, status menu */
 .glass-deep {
   background: var(--glass-bg-deep);
   backdrop-filter: blur(30px);
@@ -407,7 +418,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   box-shadow: 0 40px 80px rgba(0,0,0,0.65);
 }
 
-/* Specs / description boxes inside detail pages */
 .glass-infobox {
   background: var(--glass-bg-infobox);
   border: 1px solid var(--glass-border-row);
@@ -418,15 +428,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 
 /* ══════════════════════════════════════════════════════════════
    PAGE HEADINGS
-   Every page: "My" white + "Dashboard." orange gradient
-
-   <h1 className="page-title">
-     <span className="page-title-white">My</span>
-     <span className="page-title-accent">Dashboard.</span>
-   </h1>
-   <p className="page-subtitle">Welcome back...</p>
-
-   Inside Login/Register/PostItem cards use card-title-* (smaller)
 ══════════════════════════════════════════════════════════════ */
 
 .page-title {
@@ -451,7 +452,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   background-clip: text;
 }
 
-/* Smaller variant inside Login, Register, PostItem */
 .card-title-white {
   display: block;
   font-size: 2.4rem;
@@ -478,7 +478,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   margin-top: 0.4rem;
 }
 
-/* ₹299 price gradient — used in every item listing */
 .price-text {
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -488,7 +487,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   background-clip: text;
 }
 
-/* Midnight: price is white, not blue */
 [data-theme="midnight"] .price-text {
   background: none;
   -webkit-background-clip: unset;
@@ -508,8 +506,7 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   MICRO LABELS — uppercase field headings inside cards
-   Used in Dashboard, PostItem, ItemDetail info cells
+   MICRO LABELS
 ══════════════════════════════════════════════════════════════ */
 
 .label-micro {
@@ -526,7 +523,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
    BUTTONS
 ══════════════════════════════════════════════════════════════ */
 
-/* Primary — Login/Register/PostItem submit */
 .btn-primary {
   width: 100%;
   padding: 0.8rem;
@@ -555,7 +551,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   box-shadow: none;
 }
 
-/* CTA — "Post New Item", "Add to Cart →" */
 .btn-cta {
   padding: 0.85rem 1.75rem;
   background: linear-gradient(135deg, var(--accent), var(--accent-alt));
@@ -577,7 +572,7 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   box-shadow: var(--shadow-accent-lg);
 }
 
-/* Small row actions — Edit, Relist, History, Cancel */
+/* Small row actions — uses CSS vars, works on all themes */
 .btn-sm {
   padding: 0.4rem 1rem;
   border-radius: 10px;
@@ -589,17 +584,16 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid var(--glass-border-row);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
   color: var(--text-secondary);
 }
 .btn-sm:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: var(--glass-border);
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
   color: var(--text-primary);
 }
 
-/* Accent variant — Relist button */
 .btn-sm-accent {
   background: var(--accent-soft);
   color: var(--accent);
@@ -610,7 +604,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   border-color: var(--accent);
 }
 
-/* Danger — Delete everywhere */
 .btn-danger {
   padding: 0.4rem 1rem;
   background: var(--bg-danger);
@@ -630,14 +623,13 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 }
 .btn-danger:disabled { cursor: not-allowed; opacity: 0.5; }
 
-/* Back — small ghost at top of pages */
 .btn-back {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.3rem 0.75rem;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -647,11 +639,11 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   transition: all 0.2s ease;
 }
 .btn-back:hover {
-  background: rgba(255,255,255,0.10);
+  background: var(--bg-card-hover);
   color: var(--text-primary);
 }
 
-/* Tab/Filter — Dashboard + Transactions filter row */
+/* Tab/Filter — uses CSS vars so works on all themes */
 .btn-tab {
   padding: 0.55rem 1.4rem;
   border-radius: var(--radius-md);
@@ -660,9 +652,9 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
   font-weight: 700;
   cursor: pointer;
   transition: all 0.25s ease;
-  background: rgba(255,255,255,0.06);
+  background: var(--tab-btn-bg);
   color: var(--text-secondary);
-  border: 1px solid var(--glass-border-row);
+  border: 1px solid var(--tab-btn-border);
 }
 .btn-tab.active {
   background: linear-gradient(135deg, var(--accent), var(--accent-alt));
@@ -673,7 +665,6 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 
 /* ══════════════════════════════════════════════════════════════
    STATUS PILLS
-   <span className="status-pill status-available">Available</span>
 ══════════════════════════════════════════════════════════════ */
 
 .status-pill {
@@ -692,19 +683,20 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 .status-sold      { color: var(--color-sold);      background: var(--bg-sold);      border: 1px solid var(--bd-sold); }
 
 /* ══════════════════════════════════════════════════════════════
-   STAT CARDS — Dashboard and Transactions summary row
+   STAT CARDS — uses CSS vars so works on all themes
 ══════════════════════════════════════════════════════════════ */
 
 .stat-card {
-  background: var(--glass-bg-row);
+  background: var(--stat-card-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border-row);
+  border: 1px solid var(--stat-card-border);
   border-radius: var(--radius-md);
   padding: 0.85rem 1.25rem;
   min-width: 72px;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 .stat-card::before {
   content: '';
@@ -729,9 +721,7 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   FORM INPUT — PostItem, Login, Register, Settings
-   Use className="field-input" on inputs that are NOT using
-   the global input {} reset below
+   FORM INPUT
 ══════════════════════════════════════════════════════════════ */
 
 .field-input {
@@ -801,12 +791,12 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SPINNER — every loading state across all pages
+   SPINNER
 ══════════════════════════════════════════════════════════════ */
 
 .spinner {
   border-radius: 50%;
-  border: 2.5px solid rgba(255,255,255,0.08);
+  border: 2.5px solid var(--border);
   border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -829,7 +819,7 @@ select option { background: var(--select-opt-bg); color: var(--text-primary); }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   LEGACY — kept so old pages don't break before being updated
+   LEGACY
 ══════════════════════════════════════════════════════════════ */
 
 .glass {
@@ -899,4 +889,17 @@ label {
   color: var(--text-secondary);
   font-weight: 500;
   font-family: var(--font-body);
+}
+
+/* ── Back button circle — smooth theme transition, no flash ── */
+.back-btn-circle {
+  background: transparent !important;
+  border: 1.5px solid var(--border) !important;
+  color: var(--text-muted) !important;
+  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease !important;
+}
+.back-btn-circle:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 8px 2px rgba(var(--accent-rgb), 0.35) !important;
 }

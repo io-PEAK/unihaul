@@ -10,14 +10,10 @@ const __dir = __dirname
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
-// ── Load indiaCities.json from frontend — real city+state pairs ──
-// Path: database/prisma/seed.ts → ../../frontend/src/data/indiaCities.json
 const indiaCities: Record<string, string[]> = JSON.parse(
   readFileSync(join(__dir, '../../frontend/src/data/indiaCities.json'), 'utf8')
 )
 
-// Build a flat array of { city, state } pairs from the JSON
-// Filter to major states only so seed data feels realistic
 const MAJOR_STATES = [
   'Delhi', 'Maharashtra', 'Tamil Nadu', 'Karnataka', 'Telangana',
   'Rajasthan', 'West Bengal', 'Gujarat', 'Uttar Pradesh', 'Bihar',
@@ -28,7 +24,6 @@ const MAJOR_STATES = [
 const CITY_STATE_PAIRS: { city: string; state: string }[] = []
 for (const state of MAJOR_STATES) {
   const cities = indiaCities[state] || []
-  // take up to 10 cities per state so the data is spread well
   const sample = faker.helpers.shuffle(cities).slice(0, 15)
   for (const city of sample) {
     CITY_STATE_PAIRS.push({ city, state })
@@ -37,7 +32,6 @@ for (const state of MAJOR_STATES) {
 
 console.log(`📍 Loaded ${CITY_STATE_PAIRS.length} city+state pairs from indiaCities.json`)
 
-// ── Constants matching your real app data ──────────────────────
 const CATEGORIES: Record<string, string[]> = {
   'Books & Notes':    ['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', 'Reference Books', 'Notes'],
   'Electronics':      ['Phones', 'Laptops', 'Tablets', 'Earphones', 'Chargers', 'Accessories'],
@@ -72,11 +66,14 @@ const MSG_TEMPLATES  = [
 async function main() {
   console.log('🌱 Starting seed...')
 
-  // Clear in correct FK order (children before parents)
+  await prisma.review.deleteMany()
+  await prisma.chatRequest.deleteMany()
+  await prisma.watchedItem.deleteMany()
   await prisma.notification.deleteMany()
   await prisma.cartItem.deleteMany()
   await prisma.transaction.deleteMany()
   await prisma.message.deleteMany()
+  await prisma.otpCode.deleteMany()
   await prisma.item.deleteMany()
   await prisma.user.deleteMany()
   console.log('🗑️  Cleared existing data')
@@ -84,7 +81,6 @@ async function main() {
   // ─── USERS (100) ───────────────────────────────────────────
   const users = []
   for (let i = 0; i < 100; i++) {
-    // pick a real city+state pair — guaranteed to match
     const { city, state } = faker.helpers.arrayElement(CITY_STATE_PAIRS)
     const firstName = faker.person.firstName()
     const lastName  = faker.person.lastName()
@@ -115,7 +111,6 @@ async function main() {
   console.log(`✅ Created ${users.length} users`)
 
   // ─── ITEMS (300) ───────────────────────────────────────────
-  // items inherit seller's city+state — guaranteed correct pairs
   const items = []
   for (let i = 0; i < 300; i++) {
     const seller      = faker.helpers.arrayElement(users)
@@ -138,7 +133,6 @@ async function main() {
         }), { probability: 0.3 }),
         imageUrl: faker.helpers.maybe(() => `https://picsum.photos/seed/${faker.string.alphanumeric(6)}/400/300`, { probability: 0.7 }),
         images:   [],
-        // seller's city+state flows into item — this is what location filter queries
         sellerInstitution:     seller.institution,
         sellerInstitutionType: seller.institutionType,
         sellerCity:            seller.city,
@@ -168,10 +162,11 @@ async function main() {
   console.log(`✅ Created 200 messages`)
 
   // ─── TRANSACTIONS (100) ────────────────────────────────────
+  const transactions = []
   for (let i = 0; i < 100; i++) {
     const item  = faker.helpers.arrayElement(items)
     const buyer = faker.helpers.arrayElement(users.filter(u => u.id !== item.sellerId))
-    await prisma.transaction.create({
+    const txn = await prisma.transaction.create({
       data: {
         status:       faker.helpers.arrayElement(['pending', 'completed', 'cancelled']),
         quantity:     1,
@@ -183,11 +178,65 @@ async function main() {
         sellerId:     item.sellerId,
       },
     })
+    transactions.push(txn)
   }
   console.log(`✅ Created 100 transactions`)
 
+  // ─── WATCHED ITEMS (50) ────────────────────────────────────
+  const watchedPairs = new Set()
+  let watchCount = 0
+  for (let i = 0; i < 50; i++) {
+    const user = faker.helpers.arrayElement(users)
+    const item = faker.helpers.arrayElement(items.filter(it => it.sellerId !== user.id))
+    const key  = `${user.id}-${item.id}`
+    if (watchedPairs.has(key)) continue
+    watchedPairs.add(key)
+    await prisma.watchedItem.create({
+      data: { userId: user.id, itemId: item.id, priceAtWatch: item.price }
+    })
+    watchCount++
+  }
+  console.log(`✅ Created ${watchCount} watched items`)
+
+  // ─── CHAT REQUESTS (30) ────────────────────────────────────
+  const chatPairs = new Set()
+  let chatCount = 0
+  for (let i = 0; i < 30; i++) {
+    const sender   = faker.helpers.arrayElement(users)
+    const receiver = faker.helpers.arrayElement(users.filter(u => u.id !== sender.id))
+    const key = `${sender.id}-${receiver.id}`
+    if (chatPairs.has(key)) continue
+    chatPairs.add(key)
+    await prisma.chatRequest.create({
+      data: {
+        senderId:   sender.id,
+        receiverId: receiver.id,
+        status:     faker.helpers.arrayElement(['pending', 'pending', 'accepted', 'declined']),
+        message:    faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.5 }),
+      }
+    })
+    chatCount++
+  }
+  console.log(`✅ Created ${chatCount} chat requests`)
+
+  // ─── REVIEWS (for completed transactions) ──────────────────
+  const completedTxns = transactions.filter(t => t.status === 'completed')
+  let reviewCount = 0
+  for (const txn of completedTxns) {
+    await prisma.review.create({
+      data: {
+        reviewerId:    txn.buyerId,
+        revieweeId:    txn.sellerId,
+        transactionId: txn.id,
+        rating:        faker.number.int({ min: 3, max: 5 }),
+        comment:       faker.helpers.maybe(() => faker.lorem.sentence(), { probability: 0.6 }),
+      }
+    })
+    reviewCount++
+  }
+  console.log(`✅ Created ${reviewCount} reviews`)
+
   // ─── NOTIFICATIONS (for completed transactions) ─────────────
-  const completedTxns = await prisma.transaction.findMany({ where: { status: 'completed' } })
   for (const txn of completedTxns) {
     const buyer = users.find(u => u.id === txn.buyerId)
     const buyerName = buyer ? `${buyer.firstName} ${buyer.lastName}`.trim() : 'Unknown Buyer'
@@ -205,7 +254,7 @@ async function main() {
   console.log(`✅ Created ${completedTxns.length} notifications`)
 
   console.log('\n🎉 Database seeded successfully!')
-  console.log(`   Users: 100 | Items: 300 | Messages: 200 | Transactions: 100`)
+  console.log(`   Users: 100 | Items: 300 | Messages: 200 | Transactions: 100 | Chat Requests: ${chatCount} | Reviews: ${reviewCount}`)
 }
 
 main()

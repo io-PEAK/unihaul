@@ -350,14 +350,14 @@ function AvatarCropModal({ src, onConfirm, onCancel }) {
           <canvas ref={canvasRef} width={W} height={canvasH} style={{ width: '100%', display: 'block', cursor: 'move', userSelect: 'none' }} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp} />
           {!loaded && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '22px', height: '22px', border: '2.5px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'stSpin 0.7s linear infinite' }} /></div>}
           {loaded && (
-            <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '40px', padding: '5px 8px' }}>
-              <button onClick={() => resizeTo(sizePct - 10)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', border: '1px solid var(--border-hover)', borderRadius: '40px', padding: '5px 8px' }}>
+              <button onClick={() => resizeTo(sizePct - 10)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
               <div style={{ position: 'relative', width: '80px', height: '4px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', cursor: 'pointer' }}
                 onMouseDown={e => { trackDragging.current = true; const rc = e.currentTarget.getBoundingClientRect(); const calc = cx => Math.max(0, Math.min(100, Math.round(((cx - rc.left) / rc.width) * 100))); resizeTo(calc(e.clientX)); const mv = e2 => { if (trackDragging.current) resizeTo(calc(e2.clientX)) }; const up = () => { trackDragging.current = false; window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up) }; window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up) }}>
                 <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${sizePct}%`, background: 'linear-gradient(90deg,var(--accent),var(--accent-alt))', borderRadius: '2px' }} />
                 <div style={{ position: 'absolute', top: '50%', left: `${sizePct}%`, transform: 'translate(-50%,-50%)', width: '12px', height: '12px', borderRadius: '50%', background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }} />
               </div>
-              <button onClick={() => resizeTo(sizePct + 10)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+              <button onClick={() => resizeTo(sizePct + 10)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
             </div>
           )}
           <img ref={imgRef} src={src} alt="" style={{ display: 'none' }} onLoad={onImgLoad} />
@@ -574,15 +574,15 @@ export default function Settings() {
 
       {/* ── Page header ── */}
       <div className="st-header" style={{ flexShrink: 0, maxWidth: '1080px', width: '100%', margin: '0 auto', padding: '4rem 2.5rem 1rem', boxSizing: 'border-box', position: 'relative' }}>
-        <button onClick={() => navigate(-1)} className="st-back-btn"
-          style={{ position: 'absolute', left: '-10px', top: '4.5rem', width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}>
+        <button onClick={() => navigate(-1)} className="st-back-btn back-btn-circle"
+          style={{ position: 'absolute', left: '-10px', top: '4.5rem', width: '34px', height: '34px', borderRadius: '50%', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
           My<br />
           <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Settings.</span>
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', marginTop: '0.5rem', fontWeight: '400', margin: 0 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem', fontWeight: '400', margin: 0 }}>
           Manage your profile, institution and preferences
         </p>
       </div>
@@ -606,7 +606,7 @@ export default function Settings() {
           {user && (
             <div className="st-sidebar-profile" style={{ borderRadius: 'var(--radius-xl)', background: 'var(--bg-surface)', border: '1.5px solid var(--border)', padding: '1.25rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: user.avatar ? 'transparent' : 'var(--accent-soft)', border: '2px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                {user.avatar ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--accent)' }}>{(user.firstName?.[0] || user.email?.[0] || '?').toUpperCase()}</span>}
+                {user.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display='none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--accent)' }}>{(user.firstName?.[0] || user.email?.[0] || '?').toUpperCase()}</span>}
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Your Account'}</div>
@@ -647,7 +647,7 @@ export default function Settings() {
                         style={{ width: '80px', height: '80px', borderRadius: '50%', background: user?.avatar ? 'transparent' : 'var(--accent-soft)', border: '3px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: avatarUploading ? 'not-allowed' : 'pointer', overflow: 'hidden', position: 'relative' }}
                         onMouseEnter={e => { if (!avatarUploading) { const ov = e.currentTarget.querySelector('.pov'); if (ov) ov.style.opacity = '1' } }}
                         onMouseLeave={e => { const ov = e.currentTarget.querySelector('.pov'); if (ov && !avatarUploading) ov.style.opacity = '0' }}>
-                        {user?.avatar ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--accent)' }}>{(user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase()}</span>}
+                        {user?.avatar ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display='none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--accent)' }}>{(user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase()}</span>}
                         <div className="pov" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: avatarUploading ? 1 : 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
                           {avatarUploading ? <div style={{ width: '22px', height: '22px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'stSpin 0.7s linear infinite' }} /> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>}
                         </div>
@@ -697,7 +697,7 @@ export default function Settings() {
                             <button onClick={() => changeSection('account')}
                               style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: '700', color: 'var(--accent)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', borderRadius: '5px', cursor: 'pointer', padding: '0.2rem 0.5rem', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', lineHeight: 1 }}
                               onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = 'white' }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)'; e.currentTarget.style.color = 'var(--accent)' }}>
-                              Change <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                              Change
                             </button>
                           </div>
                         </div>
@@ -787,7 +787,7 @@ export default function Settings() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', animation: 'stFadeUp 0.25s ease' }}>
 
                   {/* ── Member row ── */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', border: '1.5px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'transparent', border: '1.5px solid var(--border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-soft)', border: '1.5px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

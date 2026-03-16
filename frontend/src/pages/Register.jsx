@@ -129,7 +129,7 @@ function Register() {
 
         <button
           ref={backRef}
-          className="reg-back"
+          className="reg-back back-btn-circle"
           onClick={() => navigate(-1)}
           onMouseDown={onBackMouseDown}
           onTouchStart={onBackTouchStart}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import API from '../api/axios'
+import { getSocket } from '../socket'
 
 const categories = [
   'Books & Notes', 'Electronics', 'Food & Drinks', 'Clothing',
@@ -205,7 +206,7 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
         style={{
           background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)',
           backdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid var(--border-hover)',
           borderRadius: '20px',
           padding: '2rem',
           width: '380px',
@@ -231,20 +232,20 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '1rem', fontWeight: '800', color: 'rgba(255,255,255,0.92)', marginBottom: '0.5rem', letterSpacing: '-0.3px' }}>
+          <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.3px' }}>
             Delete listing?
           </div>
-          <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5' }}>
-            <span style={{ color: 'rgba(255,255,255,0.65)', fontWeight: '600' }}>"{title}"</span>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>"{title}"</span>
             {' '}will be permanently removed along with its images. This cannot be undone.
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.65rem' }}>
           <button onClick={onCancel}
-            style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
+            style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-muted)' }}
           >Cancel</button>
           <button onClick={onConfirm}
             style={{ flex: 1, padding: '0.75rem', background: 'linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'white', transition: 'all 0.2s ease', boxShadow: '0 4px 15px rgba(255,107,107,0.25)', fontFamily: 'var(--font-body)' }}
@@ -265,7 +266,7 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
 }
 
 // ── SoldGroupRow ──────────────────────────────────────────────
-function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) {
+function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey, selectMode, selected, onToggle }) {
   const navigate = useNavigate()
   const rowRef   = useRef(null)
 
@@ -301,12 +302,14 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
 
   async function handleConfirmDelete() {
     setShowConfirm(false)
-    if (item) onDelete(item.id)
-    else      onDelete(null, stableKey)
-    try {
-      if (item) await API.delete(`/items/${item.id}`)
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete.')
+    const deleteId = item?.id ?? itemId
+    onDelete(deleteId, stableKey)
+    if (deleteId) {
+      try {
+        await API.delete(`/items/${deleteId}`)
+      } catch (err) {
+        alert(err.response?.data?.error || 'Failed to delete.')
+      }
     }
   }
 
@@ -330,15 +333,19 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
         style={{
           background: flash
             ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)'
-            : showNew
-              ? 'linear-gradient(135deg, rgba(81,207,102,0.08) 0%, rgba(255,255,255,0.02) 100%)'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+            : selected
+              ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)'
+              : showNew
+                ? 'linear-gradient(135deg, rgba(81,207,102,0.08) 0%, rgba(255,255,255,0.02) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
           backdropFilter: 'blur(20px)',
           border: flash
             ? '1px solid var(--accent)'
-            : showNew
-              ? '1px solid rgba(81,207,102,0.25)'
-              : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
+            : selected
+              ? '1px solid rgba(var(--accent-rgb),0.3)'
+              : showNew
+                ? '1px solid rgba(81,207,102,0.25)'
+                : hovered ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.09)',
           borderRadius: '16px', overflow: 'hidden', transition: 'all 0.4s ease',
           boxShadow: flash
             ? 'var(--shadow-accent)'
@@ -346,6 +353,7 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onClick={() => { if (selectMode) onToggle() }}
       >
         <div style={{ height: '1px', background: flash
           ? 'linear-gradient(90deg, transparent, var(--accent), transparent)'
@@ -354,9 +362,31 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
             : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
 
         <div className="sold-row-inner">
+          {/* Checkbox */}
+          <div
+            onClick={e => { e.stopPropagation(); onToggle && onToggle() }}
+            style={{
+              width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
+              border: selected ? 'none' : '1.5px solid rgba(255,255,255,0.18)',
+              background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              boxShadow: selected ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none',
+              opacity: (hovered || selectMode) ? 1 : 0,
+              transform: (hovered || selectMode) ? 'scale(1)' : 'scale(0.7)',
+              pointerEvents: (hovered || selectMode) ? 'auto' : 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {selected && (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{displayTitle}</h3>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{displayTitle}</h3>
               <div style={{ fontSize: '0.62rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', background: 'rgba(255,107,107,0.1)', color: '#ff6b6b', border: '1px solid rgba(255,107,107,0.15)', whiteSpace: 'nowrap' }}>
                 Sold {sales.reduce((sum, s) => sum + (s.quantity || 1), 0)}×
               </div>
@@ -375,21 +405,21 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
             </div>
             <div className="sold-row-meta">
               <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(displayPrice).toLocaleString('en-IN')}</span>
-              {displayCategory && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{displayCategory}</span></>}
-              {listedDate && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span className="sold-row-date" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem' }}>Listed {listedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {listedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></>}
+              {displayCategory && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{displayCategory}</span></>}
+              {listedDate && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span className="sold-row-date" style={{ color: 'var(--text-ghost)', fontSize: '0.72rem' }}>Listed {listedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {listedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span></>}
             </div>
           </div>
 
           <div className="sold-row-actions">
             <button onClick={() => setExpanded(e => !e)}
-              style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: expanded ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)', color: expanded ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
+              style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: expanded ? 'var(--bg-card-hover)' : 'var(--bg-card)', color: expanded ? 'var(--text-primary)' : 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               History
             </button>
             <button
-              onClick={() => navigate('/post', { state: { prefill: { title: displayTitle, price: displayPrice, category: displayCategory, condition: item?.condition, description: item?.description } } })}
+              onClick={() => navigate('/post', { state: { prefill: { title: displayTitle, price: displayPrice, category: displayCategory, condition: item?.condition, description: item?.description, images: item?.images || [] } } })}
               onMouseEnter={() => setRelistHovered(true)} onMouseLeave={() => setRelistHovered(false)}
-              style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: relistHovered ? 'var(--accent-soft)' : 'rgba(255,255,255,0.04)', color: relistHovered ? 'var(--accent)' : 'rgba(255,255,255,0.4)', border: relistHovered ? '1px solid var(--accent-border)' : '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
+              style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '5px', background: relistHovered ? 'var(--accent-soft)' : 'var(--bg-card)', color: relistHovered ? 'var(--accent)' : 'var(--text-muted)', border: relistHovered ? '1px solid var(--accent-border)' : '1px solid var(--border)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', transition: 'all 0.2s ease' }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               Relist
             </button>
@@ -403,7 +433,7 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
 
         {expanded && (
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)', padding: '0.75rem 1.75rem 1rem' }}>
-            <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.75rem' }}>Sale History</div>
+            <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '0.75rem' }}>Sale History</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {sales.map((sale, i) => {
                 const saleTs   = getTimestamp(sale)
@@ -413,13 +443,13 @@ function SoldGroupRow({ group, isNewSale, isHighlighted, onDelete, stableKey }) 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: '800', color: 'var(--accent)', flexShrink: 0 }}>{i + 1}</div>
                       <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>{sale.buyer_name}</div>
-                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>Buyer</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-secondary)' }}>{sale.buyer_name}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-ghost)', marginTop: '1px' }}>Buyer</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(sale.price).toLocaleString('en-IN')}</div>
-                      <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-ghost)', marginTop: '2px' }}>
                         {saleDate ? `${saleDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · ${saleDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}
                       </div>
                     </div>
@@ -569,6 +599,25 @@ function EditSpecInput({ fieldKey, category, value, onChange, placeholder }) {
   )
 }
 
+
+const editSubcategoryMap = {
+  'Clothing':         ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  'Books & Notes':    ['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'],
+  'Electronics':      ['Laptop', 'Phone', 'Tablet', 'Headphones', 'Camera', 'Accessories', 'Other'],
+  'Furniture':        ['Chair', 'Table', 'Bed', 'Shelf', 'Sofa', 'Other'],
+  'Sports & Fitness': ['Cricket', 'Football', 'Basketball', 'Gym Equipment', 'Badminton', 'Cycling', 'Other'],
+  'Stationery':       ['Notes', 'Textbook', 'Novel', 'Art Supplies', 'Geometry Box', 'Other'],
+  'Appliances':       ['Fan', 'Fridge', 'Microwave', 'Washing Machine', 'AC', 'Heater', 'Other'],
+  'Games & Hobbies':  ['Board Game', 'Video Game', 'Puzzle', 'Instrument', 'Collectible', 'Other'],
+  'Services':         ['Tutoring', 'Repair', 'Design', 'Photography', 'Other'],
+  'Food & Drinks':    ['Homemade', 'Packaged', 'Beverages', 'Snacks', 'Other'],
+  'Other':            [],
+}
+const editSubcategoryLabelMap = {
+  'Clothing': 'Size', 'Books & Notes': 'Semester',
+  'Electronics': 'Type', 'Furniture': 'Type', 'Sports & Fitness': 'Sport',
+}
+
 // ── ListingRow ────────────────────────────────────────────────
 function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selected, onToggle }) {
   const [hovered, setHovered]             = useState(false)
@@ -594,6 +643,10 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
   const [editForm, setEditForm] = useState({
     title: item.title, price: item.price, category: item.category,
     condition: item.condition, description: item.description || '', status: item.status,
+    quantity: item.quantity || 1, subcategory: item.subcategory || '',
+    purchaseYear: item.purchaseYear ? String(item.purchaseYear) : '',
+    expiryDate: item.expiryDate ? item.expiryDate.slice(0,10) : '',
+    madeOn: item.madeOn ? item.madeOn.slice(0,10) : '',
   })
   const [editSpecs, setEditSpecs] = useState(() => {
     const existing = item.specs && typeof item.specs === 'object' ? item.specs : {}
@@ -668,7 +721,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
     const newFields = SPEC_FIELDS[newCategory] || []
     const newSpecs  = {}
     newFields.forEach(f => { newSpecs[f.key] = '' })
-    setEditForm(prev => ({ ...prev, category: newCategory }))
+    setEditForm(prev => ({ ...prev, category: newCategory, subcategory: '' }))
     setEditSpecs(newSpecs)
     setSpecErrors({})
   }
@@ -720,7 +773,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
     try {
       setSaving(true)
       const uploadedUrls = editImages.filter(img => img.url).map(img => img.url)
-      const res = await API.put(`/items/${item.id}`, { ...editForm, price: parsedPrice, specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null, images: uploadedUrls, imageUrl: uploadedUrls[0] || null })
+      const res = await API.put(`/items/${item.id}`, { ...editForm, price: parsedPrice, quantity: parseInt(editForm.quantity) || 1, purchaseYear: editForm.purchaseYear ? parseInt(editForm.purchaseYear) : null, expiryDate: editForm.expiryDate || null, madeOn: editForm.madeOn || null, specs: Object.keys(cleanSpecs).length > 0 ? cleanSpecs : null, images: uploadedUrls, imageUrl: uploadedUrls[0] || null })
       onUpdate(res.data)
       setEditing(false)
     } catch (err) {
@@ -730,7 +783,9 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
     }
   }
 
-  const currentSpecFields = SPEC_FIELDS[editForm.category] || []
+  const editSubcategories     = editSubcategoryMap[editForm.category] || []
+  const editSubcategoryLabel  = editSubcategoryLabelMap[editForm.category] || ''
+  const currentSpecFields     = SPEC_FIELDS[editForm.category] || []
 
   return (
     <>
@@ -800,20 +855,20 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
               )}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{item.title}</h3>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{item.title}</h3>
               <div className="listing-row-meta">
                 <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>&#x20B9;{Number(item.price).toLocaleString('en-IN')}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
                 <span style={{ fontSize: '0.7rem', fontWeight: '700', color: status === 'pending' ? '#ffd43b' : '#51cf66', background: status === 'pending' ? 'rgba(255,212,59,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: status === 'pending' ? '1px solid rgba(255,212,59,0.15)' : '1px solid rgba(81,207,102,0.15)', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{status}</span>
                 <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem' }}>Listed {formatDate(item.createdAt)} &middot; {formatTime(item.createdAt)}</span>
+                <span style={{ color: 'var(--text-ghost)', fontSize: '0.7rem' }}>Listed {formatDate(item.createdAt)} &middot; {formatTime(item.createdAt)}</span>
               </div>
             </div>
             <div className="listing-row-btns">
               {!selectMode && <button onClick={e => { e.stopPropagation(); setEditing(true) }} onMouseEnter={() => setEditHovered(true)} onMouseLeave={() => setEditHovered(false)}
-                style={{ padding: '0.4rem 1rem', background: editHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)', color: editHovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)', border: editHovered ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Edit</button>}
+                style={{ padding: '0.4rem 1rem', background: editHovered ? 'var(--bg-card-hover)' : 'var(--bg-card)', color: editHovered ? 'var(--text-primary)' : 'var(--text-secondary)', border: editHovered ? '1px solid var(--border-hover)' : '1px solid var(--border)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Edit</button>}
               {!selectMode && <button onClick={e => { e.stopPropagation(); handleDeleteClick() }} onMouseEnter={() => setDeleteHovered(true)} onMouseLeave={() => setDeleteHovered(false)}
                 style={{ padding: '0.4rem 1rem', background: deleteHovered ? 'rgba(255,107,107,0.2)' : 'rgba(255,107,107,0.08)', color: deleteHovered ? '#ff6b6b' : 'rgba(255,107,107,0.6)', border: deleteHovered ? '1px solid rgba(255,107,107,0.25)' : '1px solid rgba(255,107,107,0.1)', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.2s ease' }}>Delete</button>}
             </div>
@@ -822,13 +877,13 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
 
         {editing && (
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.7, fontWeight: '700', marginBottom: '1rem' }}>Editing: <span style={{ color: 'rgba(255,255,255,0.9)', opacity: 1 }}>{item.title}</span></div>
+            <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.7, fontWeight: '700', marginBottom: '1rem' }}>Editing: <span style={{ color: 'var(--text-primary)', opacity: 1 }}>{item.title}</span></div>
 
             {/* ── Photos ── */}
             <div style={{ marginBottom: '0.85rem' }}>
-              <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 Photos
-                {editImages.length === 0 && <span style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '500', textTransform: 'none', letterSpacing: 0, fontSize: '0.6rem' }}>optional — add to update</span>}
+                {editImages.length === 0 && <span style={{ color: 'var(--text-ghost)', fontWeight: '500', textTransform: 'none', letterSpacing: 0, fontSize: '0.6rem' }}>optional — add to update</span>}
                 {editImages.length >= 1 && <span style={{ color: 'var(--accent)', fontWeight: '600', opacity: 0.7, textTransform: 'none', letterSpacing: 0, fontSize: '0.6rem' }}>({editImages.length}/5) · drag to reorder</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', maxWidth: '420px' }}>
@@ -854,7 +909,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
                     )}
                     {!img.uploading && (
                       <button onMouseDown={e => { e.stopPropagation(); handleRemoveImage(i) }} onClick={e => e.stopPropagation()}
-                        style={{ position: 'absolute', top: '5px', right: '5px', width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+                        style={{ position: 'absolute', top: '5px', right: '5px', width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(0,0,0,0.75)', border: '1px solid var(--border-hover)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.85)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.75)'}
                       >
@@ -874,11 +929,11 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
                     onMouseLeave={e => { if (!editDragOver) { e.currentTarget.style.borderColor = 'var(--border-dashed)'; e.currentTarget.style.background = 'transparent' } }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', fontWeight: '600', textAlign: 'center' }}>{editImages.length === 0 ? 'Add photo' : 'Add more'}</span>
+                    <span style={{ fontSize: '0.58rem', color: 'var(--text-ghost)', fontWeight: '600', textAlign: 'center' }}>{editImages.length === 0 ? 'Add photo' : 'Add more'}</span>
                   </div>
                 )}
                 {Array.from({ length: Math.max(0, 5 - editImages.length - 1) }).map((_, i) => (
-                  <div key={`ep-${i}`} style={{ aspectRatio: '1', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)', background: 'rgba(255,255,255,0.01)' }} />
+                  <div key={`ep-${i}`} style={{ aspectRatio: '1', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }} />
                 ))}
               </div>
               <input ref={editFileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { handleAddImages(e.target.files); e.target.value = '' }} />
@@ -889,7 +944,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
             {editPreviewIdx !== null && editImages[editPreviewIdx] && (
               <div onClick={() => setEditPreviewIdx(null)} style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
                 <img src={editImages[editPreviewIdx].url || editImages[editPreviewIdx].preview} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth: '85vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: '14px', boxShadow: '0 40px 100px rgba(0,0,0,0.7)', cursor: 'default' }} />
-                <button onClick={() => setEditPreviewIdx(null)} style={{ position: 'fixed', top: '1.25rem', right: '1.25rem', width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                <button onClick={() => setEditPreviewIdx(null)} style={{ position: 'fixed', top: '1.25rem', right: '1.25rem', width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border-hover)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
               </div>
             )}
 
@@ -979,6 +1034,67 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
                 />
               </div>
 
+              {/* ── Quantity ── */}
+              <div>
+                <label style={labelStyle}>Quantity</label>
+                <input
+                  type="number" min="1" step="1" value={editForm.quantity}
+                  onChange={e => setEditForm({ ...editForm, quantity: e.target.value })}
+                  onFocus={() => setFocusedField('quantity')} onBlur={() => setFocusedField(null)}
+                  onKeyDown={e => ['e','E','+','-','.'].includes(e.key) && e.preventDefault()}
+                  placeholder="1"
+                  style={{ ...inputStyle, borderColor: focusedField === 'quantity' ? 'var(--accent-border)' : 'rgba(255,255,255,0.08)' }}
+                />
+              </div>
+
+              {/* ── Subcategory ── */}
+              {(editSubcategories.length > 0) && (
+                <div>
+                  <label style={labelStyle}>{editSubcategoryLabel || 'Subcategory'}</label>
+                  <EditCustomSelect
+                    value={editForm.subcategory}
+                    onChange={val => setEditForm({ ...editForm, subcategory: val })}
+                    options={editSubcategories}
+                    placeholder="Select..."
+                    focusKey="subcategory"
+                    focusedField={focusedField}
+                    setFocusedField={setFocusedField}
+                  />
+                </div>
+              )}
+
+              {/* ── Purchase Year ── */}
+              {['Electronics', 'Appliances', 'Games & Hobbies'].includes(editForm.category) && (
+                <div>
+                  <label style={labelStyle}>Purchase Year</label>
+                  <EditCustomSelect
+                    value={editForm.purchaseYear}
+                    onChange={val => setEditForm({ ...editForm, purchaseYear: val })}
+                    options={Array.from({ length: 11 }, (_, i) => String(new Date().getFullYear() - i))}
+                    placeholder="Select year..."
+                    focusKey="purchaseYear"
+                    focusedField={focusedField}
+                    setFocusedField={setFocusedField}
+                  />
+                </div>
+              )}
+
+              {/* ── Expiry / Made On ── */}
+              {editForm.category === 'Food & Drinks' && (
+                <div>
+                  <label style={labelStyle}>{editForm.subcategory === 'Homemade' ? 'Made On' : 'Expiry Date'}</label>
+                  <input
+                    type="date"
+                    value={editForm.subcategory === 'Homemade' ? editForm.madeOn : editForm.expiryDate}
+                    onChange={e => setEditForm(editForm.subcategory === 'Homemade'
+                      ? { ...editForm, madeOn: e.target.value }
+                      : { ...editForm, expiryDate: e.target.value }
+                    )}
+                    style={{ ...inputStyle, borderColor: 'rgba(255,255,255,0.08)', colorScheme: 'dark' }}
+                  />
+                </div>
+              )}
+
               {/* ── Description ── */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Description</label>
@@ -999,7 +1115,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
                   <span style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--accent)', opacity: 0.8, fontWeight: '800' }}>{editForm.category} Specifications</span>
-                  <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)', fontWeight: '500', marginLeft: 'auto' }}>type or pick a suggestion</span>
+                  <span style={{ fontSize: '0.55rem', color: 'var(--text-ghost)', fontWeight: '500', marginLeft: 'auto' }}>type or pick a suggestion</span>
                 </div>
                 <div className="edit-grid">
                   {currentSpecFields.map(field => (
@@ -1020,7 +1136,7 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
 
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button onClick={() => { setEditing(false); setSpecErrors({}) }}
-                style={{ padding: '0.4rem 1rem', borderRadius: '10px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', fontWeight: '600' }}>Cancel</button>
+                style={{ padding: '0.4rem 1rem', borderRadius: '10px', cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)', fontSize: '0.8rem', fontWeight: '600' }}>Cancel</button>
               <button onClick={handleSave} disabled={saving}
                 style={{ padding: '0.4rem 1.25rem', borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: saving ? 'rgba(255,255,255,0.3)' : 'white', border: 'none', fontSize: '0.8rem', fontWeight: '700', boxShadow: saving ? 'none' : 'var(--shadow-accent)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
             </div>
@@ -1031,8 +1147,8 @@ function ListingRow({ item, onDelete, onUpdate, isHighlighted, selectMode, selec
   )
 }
 
-const labelStyle = { display: 'block', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '0.35rem' }
-const inputStyle  = { width: '100%', padding: '0.55rem 0.85rem', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: 'white', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }
+const labelStyle = { display: 'block', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.35rem' }
+const inputStyle  = { width: '100%', padding: '0.55rem 0.85rem', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }
 
 // ── Dashboard ─────────────────────────────────────────────────
 function Dashboard() {
@@ -1166,36 +1282,43 @@ function Dashboard() {
   const user     = JSON.parse(localStorage.getItem('user') || '{}')
   const username = user.firstName || 'there'
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    try {
+      if (!silent) { setLoading(true); setError(null) }
+      const [itemsRes, txnRes, watchedRes] = await Promise.all([
+        API.get('/items/mine'),
+        API.get('/transactions'),
+        API.get('/items/watched'),
+      ])
+      setItems(itemsRes.data)
+      setTransactions(txnRes.data)
+      setWatchedItems(watchedRes.data || [])
       try {
-        setLoading(true); setError(null)
-        const [itemsRes, txnRes, watchedRes] = await Promise.all([
-          API.get('/items/mine'),
-          API.get('/transactions'),
-          API.get('/items/watched'),
-        ])
-        setItems(itemsRes.data)
-        setTransactions(txnRes.data)
-        setWatchedItems(watchedRes.data || [])
-        try {
-          const notifRes    = await API.get('/notifications')
-          const unseenNotifs = notifRes.data
-          if (unseenNotifs.length > 0) {
-            await API.post('/notifications/mark-seen')
-            const itemIds = new Set(unseenNotifs.map(n => Number(n.itemId)).filter(Boolean))
-            setFreshSaleItemIds(itemIds)
-            setActiveFilter('sold')
-          }
-        } catch (_) {}
-      } catch (err) {
-        setError('Failed to load your dashboard.')
-      } finally {
-        setLoading(false)
-      }
+        const notifRes    = await API.get('/notifications')
+        const unseenNotifs = notifRes.data
+        if (unseenNotifs.length > 0) {
+          await API.post('/notifications/mark-seen')
+          const itemIds = new Set(unseenNotifs.map(n => Number(n.itemId)).filter(Boolean))
+          setFreshSaleItemIds(itemIds)
+          setActiveFilter('sold')
+        }
+      } catch (_) {}
+    } catch (err) {
+      if (!silent) setError('Failed to load your dashboard.')
+    } finally {
+      if (!silent) setLoading(false)
     }
-    fetchData()
   }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+    const handler = () => { fetchData({ silent: true }); setActiveFilter('sold') }
+    socket.on('new-sale', handler)
+    return () => socket.off('new-sale', handler)
+  }, [fetchData])
 
   const [hiddenGroupKeys, setHiddenGroupKeys] = useState(new Set())
   function handleDelete(id, stableKey) {
@@ -1209,6 +1332,7 @@ function Dashboard() {
   const [selectMode,  setSelectMode]  = useState(false)
   const [selected,    setSelected]    = useState(new Set())
   const [bulkConfirm, setBulkConfirm] = useState(null) // { action, ids }
+  const [hoveredWatchId, setHoveredWatchId] = useState(null)
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') { setSelectMode(false); setSelected(new Set()) } }
@@ -1230,23 +1354,29 @@ function Dashboard() {
     setBulkConfirm(null)
     if (action === 'delete') {
       for (const id of ids) {
-        try { await API.delete(`/items/${id}`); setItems(prev => prev.filter(i => i.id !== id)) } catch {}
+        try {
+          await API.delete(`/items/${id}`)
+          setItems(prev => prev.filter(i => i.id !== id))
+          // Also hide sold group if it had this item
+          const grp = visibleSoldGroups.find(g => g.groupKey === id)
+          if (grp) setHiddenGroupKeys(prev => new Set([...prev, grp.stableKey]))
+        } catch {}
       }
     } else if (action === 'pending') {
-      // Only convert available → pending; already-pending stay pending
+      // Only convert available → pending; skip sold and already-pending
       for (const id of ids) {
         const item = items.find(i => i.id === id)
-        if (!item || item.status?.toLowerCase() === 'pending') continue
+        if (!item || item.status?.toLowerCase() === 'pending' || item.status?.toLowerCase() === 'sold') continue
         try {
           await API.patch(`/items/${id}/status`, { status: 'pending' })
           setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'pending' } : i))
         } catch {}
       }
     } else if (action === 'active') {
-      // Only convert pending → available; already-active stay active
+      // Only convert pending → available; skip sold and already-active
       for (const id of ids) {
         const item = items.find(i => i.id === id)
-        if (!item || item.status?.toLowerCase() === 'available') continue
+        if (!item || item.status?.toLowerCase() === 'available' || item.status?.toLowerCase() === 'sold') continue
         try {
           await API.patch(`/items/${id}/status`, { status: 'available' })
           setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'available' } : i))
@@ -1289,7 +1419,7 @@ function Dashboard() {
     }).sort((a, b) => new Date(getTimestamp(b.sales[0]) || 0) - new Date(getTimestamp(a.sales[0]) || 0))
   })()
 
-  const visibleSoldGroups = soldGroups.filter(g => !hiddenGroupKeys.has(g.stableKey))
+  const visibleSoldGroups = soldGroups.filter(g => g.groupKey != null && !hiddenGroupKeys.has(g.stableKey))
   const activeItems       = items.filter(i => i.status?.toLowerCase() === 'available')
   const pendingItems      = items.filter(i => i.status?.toLowerCase() === 'pending')
   const allNonSoldItems   = items.filter(i => i.status?.toLowerCase() !== 'sold')
@@ -1297,9 +1427,9 @@ function Dashboard() {
   const sectionLabel = { active: 'Active Listings', pending: 'Pending Listings', sold: 'Sold Items', all: 'All Listings' }
 
   const EmptyState = ({ label }) => (
-    <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+    <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', borderRadius: '20px', border: '1px solid var(--border)' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }}>📭</div>
-      <p style={{ color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>No {label} yet.</p>
+      <p style={{ color: 'var(--text-ghost)', fontWeight: '500' }}>No {label} yet.</p>
     </div>
   )
 
@@ -1511,21 +1641,21 @@ function Dashboard() {
           {/* ── Back button ── */}
           <button
             ref={backRef}
-            className="dash-back-btn"
+            className="dash-back-btn back-btn-circle"
             onClick={() => navigate(-1)}
             onMouseDown={onBackMouseDown}
             onTouchStart={onBackTouchStart}
-            style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
+            style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow = 'none' }}>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = 'none' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
 
-          <h1 className="dash-heading" style={{ fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
+          <h1 className="dash-heading" style={{ fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
             My<br />
             <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Dashboard.</span>
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', marginTop: '0.5rem', fontWeight: '400' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem', fontWeight: '400' }}>
             Welcome back, {username} — {activeCount} active listing{activeCount !== 1 ? 's' : ''}
           </p>
         </div>
@@ -1537,10 +1667,10 @@ function Dashboard() {
             { label: 'Sold',    value: soldCount },
             { label: 'Total',   value: items.length },
           ].map(stat => (
-            <div key={stat.label} style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '72px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
+            <div key={stat.label} style={{ background: 'var(--glass-bg-row)', backdropFilter: 'blur(12px)', border: '1px solid var(--border)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '72px', position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
-              <div style={{ fontSize: '0.5rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '0.25rem' }}>{stat.label}</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.5px' }}>{stat.value}</div>
+              <div style={{ fontSize: '0.5rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.25rem' }}>{stat.label}</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-secondary)', letterSpacing: '-0.5px' }}>{stat.value}</div>
             </div>
           ))}
           <div style={{ flex: 1 }} />
@@ -1550,7 +1680,7 @@ function Dashboard() {
           </button>
         </div>
 
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
+        <div style={{ height: '1px', background: 'var(--glass-divider)', marginBottom: '1.5rem' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div className="dash-filter-tabs" style={{ margin: 0 }}>
@@ -1558,22 +1688,34 @@ function Dashboard() {
               const isActive = activeFilter === f.key
               return (
                 <button key={f.key} onClick={() => handleTabChange(f.key)}
-                  style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.08)', color: isActive ? 'white' : 'rgba(255,255,255,0.65)', border: isActive ? 'none' : '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? 'var(--shadow-accent)' : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+                  style={{ padding: '0.55rem 1.4rem', background: isActive ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)', color: isActive ? 'white' : 'var(--text-secondary)', border: isActive ? 'none' : '1px solid var(--border)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.25s ease', boxShadow: isActive ? 'var(--shadow-accent)' : 'none' }}>
                   {f.label}
                 </button>
               )
             })}
           </div>
           {/* Select button — hidden on sold tab */}
-          {activeFilter !== 'sold' && !loading && !error && (() => {
+          {!loading && !error && (() => {
             const listLen = activeFilter === 'watching' ? watchedItems.length
               : activeFilter === 'active' ? activeItems.length
               : activeFilter === 'pending' ? pendingItems.length
+              : activeFilter === 'sold' ? visibleSoldGroups.length
               : allNonSoldItems.length
             if (listLen === 0) return null
             return (
-              <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()) }}
-                style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', background: selectMode ? 'rgba(var(--accent-rgb),0.1)' : 'rgba(255,255,255,0.04)', border: selectMode ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid rgba(255,255,255,0.06)', color: selectMode ? 'var(--accent)' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-body)' }}>
+              <button onClick={() => {
+                if (selectMode) { setSelectMode(false); setSelected(new Set()); return }
+                setSelectMode(true)
+                if (listLen === 1) {
+                  const singleId = activeFilter === 'watching' ? watchedItems[0]?.item?.id
+                    : activeFilter === 'active'  ? activeItems[0]?.id
+                    : activeFilter === 'pending' ? pendingItems[0]?.id
+                    : activeFilter === 'sold'    ? visibleSoldGroups[0]?.groupKey
+                    : allNonSoldItems[0]?.id ?? visibleSoldGroups[0]?.groupKey
+                  if (singleId != null) setSelected(new Set([singleId]))
+                }
+              }}
+                style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', background: selectMode ? 'rgba(var(--accent-rgb),0.1)' : 'var(--bg-card)', border: selectMode ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid var(--border)', color: selectMode ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-body)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
@@ -1584,12 +1726,13 @@ function Dashboard() {
         </div>
 
         {/* ── Bulk toolbar ── */}
-        {selectMode && activeFilter !== 'sold' && (() => {
+        {selectMode && (() => {
           const listIds = activeFilter === 'watching'
             ? watchedItems.map(w => w.item.id)
             : activeFilter === 'active'  ? activeItems.map(i => i.id)
             : activeFilter === 'pending' ? pendingItems.map(i => i.id)
-            : allNonSoldItems.map(i => i.id)
+            : activeFilter === 'sold'    ? visibleSoldGroups.map(g => g.groupKey).filter(Boolean)
+            : [...allNonSoldItems.map(i => i.id), ...visibleSoldGroups.map(g => g.groupKey).filter(Boolean)]
           const allSel = listIds.length > 0 && listIds.every(id => selected.has(id))
 
           // Build action buttons per tab
@@ -1603,17 +1746,17 @@ function Dashboard() {
           if (activeFilter === 'watching') {
             actions.push({ key: 'unwatch', label: 'Remove from Watching', bg: 'rgba(255,77,77,0.1)', border: 'rgba(255,77,77,0.22)', color: '#ff6b6b', isDanger: true })
           } else {
-            actions.push({ key: 'delete', label: `Delete`, bg: 'rgba(255,77,77,0.1)', border: 'rgba(255,77,77,0.22)', color: '#ff6b6b', isDanger: true })
+            actions.push({ key: 'delete', label: 'Delete', bg: 'rgba(255,77,77,0.1)', border: 'rgba(255,77,77,0.22)', color: '#ff6b6b', isDanger: true })
           }
 
           return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)', border: '1px solid rgba(var(--accent-rgb),0.18)', borderRadius: '14px', padding: '0.75rem 1.25rem', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem', animation: 'fadeSlideIn 0.2s ease' }}>
               <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
                 <button
                   onClick={() => { if (allSel) { setSelected(new Set()); setSelectMode(false) } else setSelected(new Set(listIds)) }}
-                  style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
+                  style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', transition: 'all 0.2s ease', fontFamily: 'var(--font-body)' }}
                   onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
                   onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
                 >{allSel ? 'Deselect All' : 'Select All'}</button>
@@ -1643,7 +1786,7 @@ function Dashboard() {
         {/* ── Bulk confirm modal ── */}
         {bulkConfirm && createPortal(
           <div onClick={() => setBulkConfirm(null)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'cdFadeIn 0.18s ease' }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2rem', width: '380px', maxWidth: '90vw', boxShadow: '0 40px 80px rgba(0,0,0,0.6)', position: 'relative', overflow: 'hidden', animation: 'cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)', border: '1px solid var(--border-hover)', borderRadius: '20px', padding: '2rem', width: '380px', maxWidth: '90vw', boxShadow: '0 40px 80px rgba(0,0,0,0.6)', position: 'relative', overflow: 'hidden', animation: 'cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.4)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.4)' : 'rgba(81,207,102,0.4)'}, transparent)` }} />
               <div style={{ width: '48px', height: '48px', borderRadius: '14px', margin: '0 auto 1.25rem', background: bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.1)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.1)' : 'rgba(81,207,102,0.1)', border: `1px solid ${bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'rgba(255,107,107,0.2)' : bulkConfirm.action === 'pending' ? 'rgba(251,189,35,0.2)' : 'rgba(81,207,102,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {(bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch')
@@ -1652,13 +1795,13 @@ function Dashboard() {
                 }
               </div>
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'rgba(255,255,255,0.92)', marginBottom: '0.5rem', letterSpacing: '-0.3px' }}>
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '-0.3px' }}>
                   {bulkConfirm.action === 'delete'  && `Delete ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''}?`}
                   {bulkConfirm.action === 'unwatch' && `Remove ${bulkConfirm.ids.length} item${bulkConfirm.ids.length > 1 ? 's' : ''} from watching?`}
                   {bulkConfirm.action === 'pending' && `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''} as Pending?`}
                   {bulkConfirm.action === 'active'  && `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? 's' : ''} as Active?`}
                 </div>
-                <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
                   {bulkConfirm.action === 'delete'  && 'Permanently removes all selected listings and their images. Cannot be undone.'}
                   {bulkConfirm.action === 'unwatch' && 'You will stop receiving price drop alerts for these items.'}
                   {bulkConfirm.action === 'pending' && 'Active listings will be marked as pending. Already-pending ones are unchanged.'}
@@ -1666,7 +1809,7 @@ function Dashboard() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.65rem' }}>
-                <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)' }}>Cancel</button>
+                <button onClick={() => setBulkConfirm(null)} style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>Cancel</button>
                 <button onClick={() => executeBulkAction(bulkConfirm.action, bulkConfirm.ids)}
                   style={{ flex: 1, padding: '0.75rem', background: bulkConfirm.action === 'delete' || bulkConfirm.action === 'unwatch' ? 'linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))' : bulkConfirm.action === 'pending' ? 'linear-gradient(135deg, rgba(251,189,35,0.9), rgba(220,160,20,0.9))' : 'linear-gradient(135deg, rgba(81,207,102,0.9), rgba(55,178,77,0.9))', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', color: 'white', fontFamily: 'var(--font-body)' }}>Confirm</button>
               </div>
@@ -1675,7 +1818,7 @@ function Dashboard() {
           document.body
         )}
 
-        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.7rem', marginBottom: '1rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+        <p style={{ color: 'var(--text-ghost)', fontSize: '0.7rem', marginBottom: '1rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
           {sectionLabel[activeFilter]}
         </p>
 
@@ -1684,7 +1827,7 @@ function Dashboard() {
             <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }
         @keyframes dashSpin { to { transform: rotate(360deg); } }`}</style>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading your dashboard...</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading your dashboard...</p>
           </div>
         )}
 
@@ -1711,6 +1854,7 @@ function Dashboard() {
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
                 isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
                 onDelete={handleDelete}
+                selectMode={selectMode} selected={group.groupKey != null && selected.has(group.groupKey)} onToggle={() => { if (group.groupKey != null) toggleSelect(group.groupKey) }}
               />
             ))}
           </div>
@@ -1724,6 +1868,7 @@ function Dashboard() {
                 isNewSale={group.groupKey != null && freshSaleItemIds.has(group.groupKey)}
                 isHighlighted={highlightItemId != null && group.groupKey === highlightItemId}
                 onDelete={handleDelete}
+                selectMode={selectMode} selected={group.groupKey != null && selected.has(group.groupKey)} onToggle={() => { if (group.groupKey != null) toggleSelect(group.groupKey) }}
               />
             ))}
           </div>
@@ -1740,14 +1885,14 @@ function Dashboard() {
                 return (
                   <div key={w.id}
                     onClick={() => { if (selectMode) { toggleSelect(w.item.id) } else navigate(`/items/${w.item.id}`) }}
-                    onMouseEnter={e => { if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.15) 0%, rgba(var(--accent-rgb),0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)' }}
-                    onMouseLeave={e => { if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' }}
+                    onMouseEnter={e => { setHoveredWatchId(w.item.id); if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.15) 0%, rgba(var(--accent-rgb),0.05) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)' }}
+                    onMouseLeave={e => { setHoveredWatchId(null); if (!isHL) e.currentTarget.style.background = selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' }}
                     ref={isHL ? (el => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150) }) : null}
                     style={{ background: isHL ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.1) 0%, rgba(var(--accent-rgb),0.03) 100%)' : selected.has(w.item.id) ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)' : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', border: isHL ? '1px solid rgba(var(--accent-rgb),0.5)' : selected.has(w.item.id) ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '16px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: selected.has(w.item.id) ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : isHL ? '0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08)' : 'none' }}
                   >
                     {/* Checkbox */}
                     <div onClick={e => { e.stopPropagation(); toggleSelect(w.item.id) }}
-                      style={{ width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0, border: selected.has(w.item.id) ? 'none' : '1.5px solid rgba(255,255,255,0.18)', background: selected.has(w.item.id) ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', boxShadow: selected.has(w.item.id) ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none', opacity: selectMode || selected.has(w.item.id) ? 1 : 0, transform: selectMode || selected.has(w.item.id) ? 'scale(1)' : 'scale(0.7)', pointerEvents: 'auto', cursor: 'pointer' }}>
+                      style={{ width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0, border: selected.has(w.item.id) ? 'none' : '1.5px solid rgba(255,255,255,0.18)', background: selected.has(w.item.id) ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease', boxShadow: selected.has(w.item.id) ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none', opacity: selectMode || selected.has(w.item.id) || hoveredWatchId === w.item.id ? 1 : 0, transform: selectMode || selected.has(w.item.id) || hoveredWatchId === w.item.id ? 'scale(1)' : 'scale(0.7)', pointerEvents: 'auto', cursor: 'pointer' }}>
                       {selected.has(w.item.id) && <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
                     {w.item.images?.[0] && (
@@ -1755,17 +1900,17 @@ function Dashboard() {
                         style={{ width: '52px', height: '52px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.item.title}</div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.item.title}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontWeight: '600' }}>Watching since</span>
-                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'rgba(255,255,255,0.5)', textDecoration: dropped ? 'line-through' : 'none' }}>₹{w.priceAtWatch.toLocaleString()}</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: '600' }}>Watching since</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', textDecoration: dropped ? 'line-through' : 'none' }}>₹{w.priceAtWatch.toLocaleString()}</span>
                         {dropped && (<>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                           <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#ef4444' }}>₹{w.item.price.toLocaleString()}</span>
                           <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#ef4444', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', padding: '1px 6px', borderRadius: '5px' }}>-{pct}%</span>
                         </>)}
                         {!dropped && (
-                          <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>· No drop yet</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-ghost)', fontWeight: '500' }}>· No drop yet</span>
                         )}
                       </div>
                     </div>

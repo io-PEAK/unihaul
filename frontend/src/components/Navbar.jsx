@@ -202,7 +202,7 @@ function MsgNotifRow({ msg, onClick }) {
         fontSize: '0.72rem', fontWeight: '800', color: 'var(--accent)', overflow: 'hidden',
       }}>
         {msg.senderAvatar
-          ? <img src={msg.senderAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+          ? <img src={msg.senderAvatar} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display='none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
           : (msg.senderName || 'U').charAt(0).toUpperCase()
         }
       </div>
@@ -634,7 +634,7 @@ function Navbar({ registerOpenBell }) {
 
   // Reset nav search when leaving home page
   useEffect(() => {
-    if (location.pathname !== '/' && location.pathname !== '/home') {
+    if (location.pathname !== '/' && location.pathname !== '/home' && location.pathname !== '/sellers') {
       setNavSearchActive(false)
       setNavSearch('')
     }
@@ -709,6 +709,7 @@ function Navbar({ registerOpenBell }) {
   // All drawer nav items (hamburger contains everything incl. settings + logout)
   const drawerItems = [
     { to: '/', label: 'Home', isActive: isHomePath, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+    { to: '/sellers', label: 'Find Sellers', isActive: location.pathname === '/sellers' || location.pathname.startsWith('/users/'), icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
     { to: '/post', label: 'Post Item', isActive: location.pathname === '/post', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> },
     { to: '/dashboard', label: 'Dashboard', isActive: location.pathname === '/dashboard', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
     { to: '/messages', label: 'Messages', isActive: location.pathname === '/messages', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
@@ -1089,7 +1090,7 @@ function Navbar({ registerOpenBell }) {
             boxShadow: '0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent)',
           }}>
             {user?.avatar
-              ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display='none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--accent)', fontFamily: 'var(--font-body)' }}>
                   {(user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase()}
                 </span>

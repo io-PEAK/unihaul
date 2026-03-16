@@ -19,7 +19,7 @@ function ConfirmDialog({ open, onConfirm, onCancel, name }) {
       `}</style>
       <div style={{
         width: '380px', background: '#0d0d18',
-        border: '1px solid rgba(255,255,255,0.09)',
+        border: '1px solid var(--border)',
         borderRadius: '20px', overflow: 'hidden',
         boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
         animation: 'cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)',
@@ -39,22 +39,22 @@ function ConfirmDialog({ open, onConfirm, onCancel, name }) {
           </div>
 
           {/* Text */}
-          <div style={{ fontSize: '1rem', fontWeight: '800', color: 'rgba(255,255,255,0.92)', letterSpacing: '-0.3px', marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.3px', marginBottom: '0.5rem' }}>
             Delete conversation?
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.55' }}>
-            Your conversation with <span style={{ color: 'rgba(255,255,255,0.75)', fontWeight: '600' }}>{name}</span> will be permanently removed from your inbox. This cannot be undone.
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+            Your conversation with <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>{name}</span> will be permanently removed from your inbox. This cannot be undone.
           </div>
         </div>
 
         {/* Divider */}
-        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 1.75rem' }} />
+        <div style={{ height: '1px', background: 'var(--bg-card)', margin: '0 1.75rem' }} />
 
         {/* Actions */}
         <div style={{ padding: '1.25rem 1.75rem', display: 'flex', gap: '0.75rem' }}>
           <button
             onClick={onCancel}
-            style={{ flex: 1, padding: '0.65rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.18s ease', fontFamily: 'inherit' }}
+            style={{ flex: 1, padding: '0.65rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.18s ease', fontFamily: 'inherit' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
           >
@@ -76,10 +76,11 @@ function ConfirmDialog({ open, onConfirm, onCancel, name }) {
 
 // ── Avatar ────────────────────────────────────────────────────
 function Avatar({ name, size = 36, orange = false, src = null }) {
+  const [imgFailed, setImgFailed] = useState(false)
   const initials = (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  if (src) return (
+  if (src && !imgFailed) return (
     <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: orange ? 'none' : '1px solid rgba(255,255,255,0.1)', boxShadow: orange ? '0 4px 12px rgba(var(--accent-rgb),0.35)' : 'none' }}>
-      <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <img src={src} alt={name} referrerPolicy="no-referrer" onError={() => setImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   )
   return (
@@ -285,7 +286,7 @@ function ItemCard({ convo, myId, onStatusChange }) {
           <div
             onClick={() => isSeller ? navigate(`/dashboard?tab=${status === 'available' ? 'active' : status}`) : navigate(`/items/${convo.item_id}`)}
             title={isSeller ? 'Go to Dashboard' : 'View Item'}
-            style={{ width: '40px', height: '40px', borderRadius: '9px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'opacity 0.15s' }}
+            style={{ width: '40px', height: '40px', borderRadius: '9px', overflow: 'hidden', flexShrink: 0, background: 'var(--bg-card)', border: '1px solid var(--border-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'opacity 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.75' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
@@ -297,7 +298,7 @@ function ItemCard({ convo, myId, onStatusChange }) {
 
           {/* title + price stacked */}
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.1rem' }}>Item</div>
+            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '0.1rem' }}>Item</div>
             {/* title — both clickable */}
             <div
               onClick={() => isSeller ? navigate(`/dashboard?tab=${status === 'available' ? 'active' : status}`) : navigate(`/items/${convo.item_id}`)}
@@ -313,14 +314,14 @@ function ItemCard({ convo, myId, onStatusChange }) {
             <div style={{ marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               {editingPrice ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700' }}>₹</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '700' }}>₹</span>
                   <input
                     ref={priceInputRef}
                     type="number" min="0" value={priceVal}
                     onChange={e => setPriceVal(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') savePrice(); if (e.key === 'Escape') setEditingPrice(false) }}
                     onBlur={savePrice}
-                    style={{ width: '72px', padding: '0.15rem 0.4rem', fontSize: '0.75rem', fontWeight: '700', background: 'rgba(255,255,255,0.07)', border: '1px solid var(--accent-border)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}
+                    style={{ width: '72px', padding: '0.15rem 0.4rem', fontSize: '0.75rem', fontWeight: '700', background: 'var(--bg-card-hover)', border: '1px solid var(--accent-border)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}
                   />
                   {priceSaving && <div style={{ width: '8px', height: '8px', border: '1.5px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'mspin 0.6s linear infinite' }} />}
                 </div>
@@ -334,8 +335,8 @@ function ItemCard({ convo, myId, onStatusChange }) {
                 >
                   {itemPrice != null ? (
                     <>
-                      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700' }}>₹</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{Number(itemPrice).toLocaleString('en-IN')}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>₹</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{Number(itemPrice).toLocaleString('en-IN')}</span>
                       {isSeller && !isSold && (
                         <svg className="edit-icon" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5" strokeLinecap="round" style={{ opacity: 0, transition: 'opacity 0.15s' }}>
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -345,7 +346,7 @@ function ItemCard({ convo, myId, onStatusChange }) {
                     </>
                   ) : (
                     isSeller && !isSold
-                      ? <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500', fontStyle: 'italic' }}>set price</span>
+                      ? <span style={{ fontSize: '0.68rem', color: 'var(--text-ghost)', fontWeight: '500', fontStyle: 'italic' }}>set price</span>
                       : null
                   )}
                 </div>
@@ -606,8 +607,16 @@ function Messages() {
           if (prev.some(m => m.id === msg.id)) return prev
           return [...prev, msg]
         })
+        // ── KEY FIX: Mark read in DB immediately so fetchUnreadCounts()
+        // after leaving /messages won't find a stale read:false row ──
+        if (String(msg.senderId) === String(activeConvo.other_user_id)) {
+          API.post('/messages/mark-convo-read', {
+            itemId: msg.itemId,
+            otherUserId: msg.senderId,
+          }).catch(() => {})
+        }
       }
-      // Update unread count in sidebar for receiver
+      // Update unread count in sidebar for receiver (only for OTHER convos, not active one)
       if (String(msg.receiverId) === String(myId) && msg.itemId !== activeConvo?.item_id) {
         setConversations(prev => prev.map(c =>
           c.item_id === msg.itemId
@@ -648,13 +657,9 @@ function Messages() {
             setNewConvoMode(true)
             setActiveConvo({ item_id: incomingItem.id, item_title: incomingItem.title, item_status: incomingItem.status || 'available', item_seller_id: incomingItem.seller?.id, item_image: incomingItem.images?.[0] || null, other_user_name: `${incomingItem.seller?.firstName} ${incomingItem.seller?.lastName}`.trim() || 'Seller', other_user_id: incomingItem.seller?.id, other_user_avatar: incomingItem.seller?.avatar || null, isNew: true })
           }
-        } else if (res.data.length > 0) {
-          // Pick the conversation with the most unread messages; fall back to most recent
-          const mostUnread = res.data.reduce((best, c) =>
-            (c.unread_count || 0) > (best.unread_count || 0) ? c : best
-          , res.data[0])
-          setActiveConvo(mostUnread)
         }
+        // Auto-open only if there's exactly 1 convo — otherwise user picks (like WhatsApp)
+        else if (res.data.length === 1) { setActiveConvo(res.data[0]) }
       } catch (err) { console.error('Failed to load conversations', err) }
       finally { setLoadingConvos(false) }
     }
@@ -825,7 +830,7 @@ function Messages() {
               <span className="msgs-title" style={{ display: 'block', fontWeight: '900', letterSpacing: '-1.5px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Messages.</span>
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.4rem' }}>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', fontWeight: '500' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                 {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
                 {totalUnread > 0 && <span style={{ color: 'var(--accent)', fontWeight: '700', marginLeft: '0.5rem' }}>· {totalUnread} unread</span>}
               </p>
@@ -918,9 +923,9 @@ function Messages() {
           </button>
 
           {/* LEFT: sidebar */}
-          <div className="msgs-panel-sidebar" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="msgs-panel-sidebar" style={{ background: 'var(--bg-card)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '0.85rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700' }}>Conversations</span>
+              <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700' }}>Conversations</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {selectMode && selectedIds.length > 0 && (
                   <button onClick={() => setConfirmTarget('bulk')}
@@ -951,7 +956,7 @@ function Messages() {
                   <div style={{ width: '28px', height: '28px', border: '2.5px solid rgba(255,255,255,0.08)', borderTop: '2.5px solid var(--accent)', borderRadius: '50%', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
                 </div>
               ) : conversations.length === 0 && !newConvoMode ? (
-                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'rgba(255,255,255,0.2)' }}>
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-ghost)' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.3 }}>✉</div>
                   <p style={{ fontSize: '0.78rem', fontWeight: '500' }}>No conversations yet</p>
                 </div>
@@ -977,9 +982,9 @@ function Messages() {
           </div>
 
           {/* RIGHT: chat panel */}
-          <div className="msgs-panel-chat" style={{ background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+          <div className="msgs-panel-chat" style={{ background: 'var(--bg-card)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)', borderRadius: '20px', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
             {!activeConvo ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'rgba(255,255,255,0.15)' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--text-ghost)' }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -990,7 +995,7 @@ function Messages() {
                 <div style={{ padding: '1rem 1.5rem 0.85rem', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
                     <button className="msgs-hamburger" onClick={() => setMobShowChat(true)}
-                      style={{ width: '32px', height: '32px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', gap: '0' }}>
+                      style={{ width: '32px', height: '32px', borderRadius: '9px', border: '1px solid var(--border-hover)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', gap: '0' }}>
                       <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                         <line x1="2" y1="5"  x2="18" y2="5"/>
                         <line x1="2" y1="10" x2="14" y2="10"/>
@@ -999,7 +1004,7 @@ function Messages() {
                     </button>
                     <Avatar name={activeConvo.other_user_name} size={40} src={activeConvo.other_user_avatar || null} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '1rem', fontWeight: '700', color: 'white', letterSpacing: '-0.3px' }}>{activeConvo.other_user_name}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{activeConvo.other_user_name}</div>
                       <div style={{ fontSize: '0.68rem', marginTop: '0.1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem',
                         color: activeConvo.isNew ? 'rgba(255,255,255,0.3)' : otherUserTyping ? 'var(--accent)' : otherUserOnline ? '#4ade80' : 'rgba(255,255,255,0.3)' }}>
                         {!activeConvo.isNew && (
@@ -1034,16 +1039,16 @@ function Messages() {
                     </div>
                   ) : activeConvo.isNew ? (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', textAlign: 'center' }}>
-                      <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                       </div>
-                      <p style={{ fontSize: '0.85rem', fontWeight: '500', color: 'rgba(255,255,255,0.45)', margin: 0 }}>Say hello to <span style={{ color: 'var(--accent)', fontWeight: '700' }}>{activeConvo.other_user_name}</span></p>
-                      <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.22)', margin: 0 }}>about {activeConvo.item_title}</p>
+                      <p style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', margin: 0 }}>Say hello to <span style={{ color: 'var(--accent)', fontWeight: '700' }}>{activeConvo.other_user_name}</span></p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-ghost)', margin: 0 }}>about {activeConvo.item_title}</p>
                     </div>
                   ) : messages.length === 0 ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '0.82rem' }}>No messages yet. Say hello!</div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-ghost)', fontSize: '0.82rem' }}>No messages yet. Say hello!</div>
                   ) : (
                     messages.map((msg, i) => {
                       const isMe = msg.senderId === myId || msg.sender_id === myId
@@ -1054,7 +1059,7 @@ function Messages() {
                             <div style={{ padding: '0.6rem 0.95rem', borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: isMe ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.08)', border: isMe ? 'none' : '1px solid rgba(255,255,255,0.07)', color: isMe ? 'white' : 'rgba(255,255,255,0.88)', fontSize: '0.875rem', lineHeight: '1.5', boxShadow: isMe ? '0 4px 12px rgba(var(--accent-rgb),0.22)' : 'none' }}>
                               {msg.content}
                             </div>
-                            {time && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', paddingInline: '0.3rem' }}>{new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                            {time && <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', paddingInline: '0.3rem' }}>{new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
                           </div>
                         </div>
                       )

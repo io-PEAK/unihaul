@@ -16,6 +16,8 @@ import notificationRoutes from './src/routes/notificationsRoute.js'
 import userRoutes from './src/routes/usersRoute.js'
 import institutionsRoutes from './src/routes/institutionsRoute.js'
 import uploadRoutes from './src/routes/uploadRoute.js'
+import chatRequestRoutes from './src/routes/chatRequestsRoute.js'
+import reviewRoutes from './src/routes/reviewsRoute.js'
 
 dotenv.config()
 const app = express()
@@ -127,6 +129,8 @@ app.use('/notifications', notificationRoutes)
 app.use('/users',         userRoutes)
 app.use('/institutions',  institutionsRoutes)
 app.use('/upload',        uploadRoutes)
+app.use('/chat-requests', chatRequestRoutes)
+app.use('/reviews',       reviewRoutes)
 
 app.get('/', (req, res) => res.json({ message: 'Student Shop API is running!' }))
 

@@ -53,8 +53,8 @@ function ThemeToggle() {
           WebkitBackdropFilter: 'blur(20px)',
           cursor: draggable ? 'grab' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'box-shadow 0.3s ease, background 0.3s ease, border 0.3s ease',
-          transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          transition: 'box-shadow 0.3s ease, background 0.3s ease, border 0.3s ease, transform 0.3s ease',
+          transform: hovered ? 'scale(1.1) rotate(20deg)' : 'scale(1) rotate(0deg)',
           boxShadow: hovered
             ? '0 0 0 1px rgba(var(--accent-rgb),0.4), 0 0 20px 6px rgba(var(--accent-rgb),0.25), 0 8px 24px rgba(0,0,0,0.4)'
             : 'var(--shadow-card)',

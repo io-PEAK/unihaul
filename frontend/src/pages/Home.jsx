@@ -503,7 +503,7 @@ function ItemCard({ item, isWatching = false }) {
       </div>
       <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: specs.length ? '0.6rem' : '0.4rem', lineHeight: '1.35', letterSpacing: '-0.3px' }}>{item.title}</h3>
       {specs.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem'}}>
           {specs.map(([, v]) => (
             <span key={v} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '6px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>
           ))}
@@ -551,14 +551,14 @@ function Home() {
   const [filterBtnH, setFilterBtnH] = useState(false)
   const filterPanelRef = useRef(null)
   const filterBtnRef = useRef(null)
-  const [panelPos, setPanelPos] = useState({ top: 0, right: 0 })
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 })
 
   // Recalculate panel position on scroll so it tracks the button
   useEffect(() => {
     function updatePos() {
       if (showFilters && filterBtnRef.current) {
         const rect = filterBtnRef.current.getBoundingClientRect()
-        setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+        setPanelPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 180) })
       }
     }
     window.addEventListener('scroll', updatePos, true)
@@ -570,7 +570,19 @@ function Home() {
   const statusRef = useRef(null)
   const statusBtnRef = useRef(null)
   const statusMenuRef = useRef(null)
-  const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
+  const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, left: 0 })
+
+  // Recalculate status menu position on scroll
+  useEffect(() => {
+    function updateStatusPos() {
+      if (showStatusMenu && statusBtnRef.current) {
+        const rect = statusBtnRef.current.getBoundingClientRect()
+        setStatusMenuPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 90) })
+      }
+    }
+    window.addEventListener('scroll', updateStatusPos, true)
+    return () => window.removeEventListener('scroll', updateStatusPos, true)
+  }, [showStatusMenu])
 
   // One spec dropdown open at a time
   const [openSpecKey, setOpenSpecKey] = useState(null)
@@ -668,13 +680,13 @@ function Home() {
   useEffect(() => {
     function onNavStatus(e) {
       const rect = e.detail?.rect
-      if (rect) setStatusMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      if (rect) setStatusMenuPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 90) })
       setShowStatusMenu(v => !v)
       setShowFilters(false)
     }
     function onNavFilters(e) {
       const rect = e.detail?.rect
-      if (rect) setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      if (rect) setPanelPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 180) })
       setShowFilters(v => !v)
       setShowStatusMenu(false)
     }
@@ -702,7 +714,7 @@ function Home() {
   function openStatusMenu() {
     if (statusBtnRef.current) {
       const rect = statusBtnRef.current.getBoundingClientRect()
-      setStatusMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+      setStatusMenuPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 90) })
     }
     setShowStatusMenu(v => !v)
   }
@@ -885,7 +897,7 @@ const res = await API.get('/items', { params })
             onClick={() => {
               if (!showFilters && filterBtnRef.current) {
                 const rect = filterBtnRef.current.getBoundingClientRect()
-                setPanelPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+                setPanelPos({ top: rect.bottom + 8, left: Math.max(8, rect.left + (rect.width / 2) - 180) })
               }
               setShowFilters(v => !v)
             }}
@@ -918,14 +930,14 @@ const res = await API.get('/items', { params })
       </div>
 
       {/* ── Filter Panel — position:fixed, outside search card stacking context ── */}
-      {showFilters && (
+      {showFilters && createPortal(
         <div
           ref={filterPanelRef}
           className="filter-panel"
           style={{
             position: 'fixed',
             top: `${panelPos.top}px`,
-            right: `${panelPos.right}px`,
+            left: `${panelPos.left}px`,
             width: '360px',
             maxHeight: `calc(100vh - ${panelPos.top}px - 16px)`,
             overflowY: 'auto',
@@ -1037,12 +1049,12 @@ const res = await API.get('/items', { params })
               )}
             </div>
           </div>
-        )}
+      , document.body)}
 
       {/* ── Status dropdown ── */}
-      {showStatusMenu && (
+      {showStatusMenu && createPortal(
         <div ref={statusMenuRef} style={{
-          position: 'fixed', top: `${statusMenuPos.top}px`, right: `${statusMenuPos.right}px`,
+          position: 'fixed', top: `${statusMenuPos.top}px`, left: `${statusMenuPos.left}px`,
           background: 'var(--glass-bg-deep)',
           backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid var(--border)', borderRadius: '16px',
@@ -1072,7 +1084,7 @@ const res = await API.get('/items', { params })
             )
           })}
         </div>
-      )}
+      , document.body)}
 
       {/* Active filter chips */}
       {chips.length > 0 && (

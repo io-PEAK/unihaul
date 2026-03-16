@@ -50,7 +50,7 @@ export function AvatarUpload({ user, onUpload }) {
         }}
       >
         {user?.avatar
-          ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ? <img src={user.avatar} alt="" referrerPolicy="no-referrer" onError={e => { e.currentTarget.style.display='none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : <span style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--accent)' }}>{initial}</span>
         }
 

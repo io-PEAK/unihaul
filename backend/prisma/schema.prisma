@@ -43,6 +43,10 @@ model User {
   notifications    Notification[]
   otpCodes         OtpCode[]
   watchedItems     WatchedItem[]
+  sentRequests     ChatRequest[]  @relation("SentRequests")
+  receivedRequests ChatRequest[]  @relation("ReceivedRequests")
+  reviewsGiven     Review[]       @relation("ReviewsGiven")
+  reviewsReceived  Review[]       @relation("ReviewsReceived")
 }
 
 model Item {
@@ -55,10 +59,10 @@ model Item {
   condition   String
   status      String   @default("available")
   quantity    Int      @default(1)
-  specs        Json?
-  purchaseYear Int?       
-  expiryDate   DateTime?  
-  madeOn       DateTime? 
+  specs       Json?
+  purchaseYear Int?
+  expiryDate   DateTime?
+  madeOn       DateTime?
   createdAt    DateTime @default(now())
 
   imageUrl    String?
@@ -100,11 +104,11 @@ model Message {
 
   senderId   Int
   receiverId Int
-  itemId     Int
+  itemId     Int?
 
-  sender     User @relation("SentMessages",    fields: [senderId],   references: [id])
-  receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  item       Item @relation(fields: [itemId],  references: [id])
+  sender     User  @relation("SentMessages",     fields: [senderId],   references: [id])
+  receiver   User  @relation("ReceivedMessages",  fields: [receiverId], references: [id])
+  item       Item? @relation(fields: [itemId],   references: [id], onDelete: SetNull)
 }
 
 model Transaction {
@@ -121,9 +125,11 @@ model Transaction {
   buyerId   Int
   sellerId  Int
 
-  item      Item? @relation(fields: [itemId],   references: [id], onDelete: SetNull)
-  buyer     User  @relation("BuyerTransactions", fields: [buyerId],  references: [id])
+  item      Item? @relation(fields: [itemId],    references: [id], onDelete: SetNull)
+  buyer     User  @relation("BuyerTransactions",  fields: [buyerId],  references: [id])
   seller    User  @relation("SellerTransactions", fields: [sellerId], references: [id])
+
+  review    Review?
 }
 
 model CartItem {
@@ -166,7 +172,8 @@ model OtpCode {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SuggestedInstitution {
@@ -177,4 +184,34 @@ model SuggestedInstitution {
   type      String   @default("college")
   count     Int      @default(1)
   createdAt DateTime @default(now())
+}
+
+model ChatRequest {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  status     String   @default("pending")
+  message    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sender   User @relation("SentRequests",     fields: [senderId],   references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
+
+model Review {
+  id            Int      @id @default(autoincrement())
+  rating        Int
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  reviewerId    Int
+  revieweeId    Int
+  transactionId Int      @unique
+
+  reviewer    User        @relation("ReviewsGiven",    fields: [reviewerId],    references: [id], onDelete: Cascade)
+  reviewee    User        @relation("ReviewsReceived", fields: [revieweeId],    references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }

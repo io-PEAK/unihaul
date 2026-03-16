@@ -72,7 +72,6 @@ export const updateProfile = async (req, res) => {
       select: userSelect,
     })
 
-    // Auto-suggest if institution not in local dataset
     if (institution?.trim()) {
       try {
         const localMatch = searchInstitutions(institution.trim(), 'all', 1)
@@ -141,7 +140,8 @@ export const deleteAccount = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete account.' })
   }
 }
-// POST /users/create-password — Google users create a password
+
+// POST /users/create-password
 export const createPassword = async (req, res) => {
   try {
     const userId = req.user.userId
@@ -161,5 +161,161 @@ export const createPassword = async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to create password.' })
+  }
+}
+
+// GET /users/search?q=&type=&limit=
+export const searchUsers = async (req, res) => {
+  try {
+    const { q, type, limit = 50 } = req.query
+
+    const users = await prisma.user.findMany({
+      where: {
+        AND: [
+          ...(q ? [{
+            OR: [
+              { firstName:   { contains: q, mode: 'insensitive' } },
+              { lastName:    { contains: q, mode: 'insensitive' } },
+              { institution: { contains: q, mode: 'insensitive' } },
+              { city:        { contains: q, mode: 'insensitive' } },
+              { state:       { contains: q, mode: 'insensitive' } },
+            ]
+          }] : []),
+          ...(type && type !== 'all' ? [{ institutionType: type }] : []),
+        ]
+      },
+      select: {
+        id: true, firstName: true, lastName: true,
+        avatar: true, institution: true, institutionType: true,
+        city: true, state: true, createdAt: true,
+      },
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json(users)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to search users' })
+  }
+}
+
+// GET /users/search-by-item?item=&q=&type=&limit=
+export const searchUsersByItem = async (req, res) => {
+  try {
+    const { item, q, type, limit = 50 } = req.query
+    if (!item) return res.json([])
+
+    const items = await prisma.item.findMany({
+      where: {
+        title: { contains: item, mode: 'insensitive' }
+      },
+      select: {
+        id: true, title: true, price: true, status: true,
+        category: true, condition: true, images: true, imageUrl: true,
+        sellerId: true,
+        seller: {
+          select: {
+            id: true, firstName: true, lastName: true,
+            avatar: true, institution: true, institutionType: true,
+            city: true, state: true, createdAt: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+    })
+
+    const sellerMap = new Map()
+    for (const itm of items) {
+      const sid = itm.seller.id
+
+      // Filter by people query (name/institution/city/state)
+      if (q) {
+        const ql = q.toLowerCase()
+        const s = itm.seller
+        const matches =
+          s.firstName?.toLowerCase().includes(ql) ||
+          s.lastName?.toLowerCase().includes(ql) ||
+          s.institution?.toLowerCase().includes(ql) ||
+          s.city?.toLowerCase().includes(ql) ||
+          s.state?.toLowerCase().includes(ql)
+        if (!matches) continue
+      }
+
+      // Filter by institution type
+      if (type && type !== 'all' && itm.seller.institutionType !== type) continue
+
+      if (!sellerMap.has(sid)) {
+        sellerMap.set(sid, { ...itm.seller, matchedItems: [] })
+      }
+      sellerMap.get(sid).matchedItems.push({
+        id: itm.id, title: itm.title, price: itm.price,
+        status: itm.status, category: itm.category,
+        images: itm.images, imageUrl: itm.imageUrl,
+      })
+    }
+
+    res.json(Array.from(sellerMap.values()))
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to search by item' })
+  }
+}
+
+// GET /users/:id/profile — public profile
+export const getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        id: true, firstName: true, lastName: true,
+        avatar: true, bio: true,
+        institution: true, institutionType: true,
+        city: true, state: true, createdAt: true,
+      }
+    })
+
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const listings = await prisma.item.findMany({
+      where: { sellerId: parseInt(id), status: 'available' },
+      select: {
+        id: true, title: true, price: true, category: true,
+        condition: true, images: true, imageUrl: true, createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    })
+
+    const soldItems = await prisma.item.findMany({
+      where: { sellerId: parseInt(id), status: 'sold' },
+      select: {
+        id: true, title: true, price: true, category: true,
+        condition: true, images: true, imageUrl: true, createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    })
+
+    const reviews = await prisma.review.findMany({
+      where: { revieweeId: parseInt(id) },
+      include: {
+        reviewer: { select: { id: true, firstName: true, lastName: true, avatar: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    })
+
+    const avgRating = reviews.length
+      ? parseFloat((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
+      : null
+
+    res.json({ user, listings, soldItems, reviews, averageRating: avgRating })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to get user profile' })
   }
 }

@@ -64,7 +64,7 @@ export default function LocationPicker({ location, setLocation }) {
   const updatePos = useCallback(() => {
     if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 6, left: r.left })
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, r.left + (r.width / 2) - 150) })
     }
   }, [])
 

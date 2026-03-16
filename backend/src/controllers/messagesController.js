@@ -190,6 +190,32 @@ export const markAllRead = async (req, res) => {
   }
 }
 
+// POST /messages/mark-convo-read
+// Marks all messages from otherUser in a specific convo as read
+// Called immediately when a socket message arrives while viewing that convo,
+// so DB stays in sync and fetchUnreadCounts() won't show a stale badge after leaving.
+export const markConvoRead = async (req, res) => {
+  try {
+    const { itemId, otherUserId } = req.body
+    if (!itemId || !otherUserId) {
+      return res.status(400).json({ error: 'itemId and otherUserId are required' })
+    }
+    await prisma.message.updateMany({
+      where: {
+        itemId: parseInt(itemId),
+        senderId: parseInt(otherUserId),
+        receiverId: req.user.userId,
+        read: false,
+      },
+      data: { read: true },
+    })
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to mark convo as read' })
+  }
+}
+
 // DELETE /messages/conversation/:itemId/:otherUserId
 // Deletes all messages between current user and otherUser about a specific item
 export const deleteConversation = async (req, res) => {

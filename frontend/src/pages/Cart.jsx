@@ -30,14 +30,14 @@ function EmptyCartState({ onBrowse }) {
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '3.5rem 2rem',
-      background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
-      borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', position: 'relative', overflow: 'hidden',
+      background: 'var(--glass-bg)',
+      borderRadius: '24px', border: '1px solid var(--border-hover)', position: 'relative', overflow: 'hidden',
       boxShadow: '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
     }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
       <EmptyCartIllustration />
-      <h3 style={{ margin: '1.25rem 0 0.35rem', fontSize: '1.05rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', letterSpacing: '-0.3px' }}>Your cart is empty</h3>
-      <p style={{ margin: '0 0 1.75rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.2)', fontWeight: '500' }}>Find something you like and add it here</p>
+      <h3 style={{ margin: '1.25rem 0 0.35rem', fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-muted)', letterSpacing: '-0.3px' }}>Your cart is empty</h3>
+      <p style={{ margin: '0 0 1.75rem', fontSize: '0.8rem', color: 'var(--text-ghost)', fontWeight: '500' }}>Find something you like and add it here</p>
       <button onClick={onBrowse} style={{ padding: '0.62rem 1.6rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white', border: 'none', borderRadius: '11px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '0.5px', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.28)', transition: 'all 0.25s ease' }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(var(--accent-rgb),0.4)' }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(var(--accent-rgb),0.28)' }}
@@ -69,33 +69,33 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#51cf66" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <h2 style={{ margin: '0 0 0.35rem', fontSize: '1.6rem', fontWeight: '900', letterSpacing: '-0.8px', color: 'white', animation: show ? 'fadeUp 0.4s ease 0.3s both' : 'none' }}>Order Confirmed</h2>
-        <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', animation: show ? 'fadeUp 0.4s ease 0.4s both' : 'none' }}>Your purchase was successful</p>
+        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', animation: show ? 'fadeUp 0.4s ease 0.4s both' : 'none' }}>Your purchase was successful</p>
       </div>
 
-      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', overflow: 'hidden', marginBottom: '1.25rem', animation: show ? 'fadeUp 0.4s ease 0.5s both' : 'none', position: 'relative' }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid var(--border-hover)', borderRadius: '20px', overflow: 'hidden', marginBottom: '1.25rem', animation: show ? 'fadeUp 0.4s ease 0.5s both' : 'none', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(81,207,102,0.3), transparent)' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(81,207,102,0.04)' }}>
           <div>
-            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700', marginBottom: '3px' }}>Order ID</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace', letterSpacing: '1px' }}>{orderId}</div>
+            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '3px' }}>Order ID</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-secondary)', fontFamily: 'monospace', letterSpacing: '1px' }}>{orderId}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: '700', marginBottom: '3px' }}>Date</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>{dateStr} · {timeStr}</div>
+            <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '3px' }}>Date</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>{dateStr} · {timeStr}</div>
           </div>
         </div>
         <div style={{ padding: '0.75rem 1.5rem' }}>
-          <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', fontWeight: '700', marginBottom: '0.75rem' }}>{purchasedItems.length} Item{purchasedItems.length !== 1 ? 's' : ''} Purchased</div>
+          <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', fontWeight: '700', marginBottom: '0.75rem' }}>{purchasedItems.length} Item{purchasedItems.length !== 1 ? 's' : ''} Purchased</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {purchasedItems.map((item, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.75rem', background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg, rgba(232,119,34,0.2), rgba(232,119,34,0.08))', border: '1px solid rgba(232,119,34,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(232,119,34,0.8)" strokeWidth="2.2" strokeLinecap="round"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.83rem', fontWeight: '600', color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
-                    {item.category && <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>{item.category}</div>}
+                    <div style={{ fontSize: '0.83rem', fontWeight: '600', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
+                    {item.category && <div style={{ fontSize: '0.68rem', color: 'var(--text-ghost)', marginTop: '1px' }}>{item.category}</div>}
                   </div>
                 </div>
                 <div style={{ fontSize: '0.88rem', fontWeight: '800', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', flexShrink: 0, marginLeft: '0.75rem' }}>₹{Number(item.price).toLocaleString('en-IN')}</div>
@@ -104,18 +104,18 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
           </div>
         </div>
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.5px' }}>TOTAL PAID</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>TOTAL PAID</span>
           <span style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(totalPaid).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.75rem 1.1rem', background: 'rgba(81,207,102,0.07)', border: '1px solid rgba(81,207,102,0.15)', borderRadius: '12px', marginBottom: '1.5rem', animation: show ? 'fadeUp 0.4s ease 0.65s both' : 'none' }}>
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#51cf66', boxShadow: '0 0 8px rgba(81,207,102,0.6)', flexShrink: 0, animation: 'ringPulse 2s ease infinite' }} />
-        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Payment confirmed · Check your transaction history for details</span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '500' }}>Payment confirmed · Check your transaction history for details</span>
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem', animation: show ? 'fadeUp 0.4s ease 0.75s both' : 'none' }}>
-        <button onClick={onBrowse} style={{ flex: 1, padding: '0.8rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
+        <button onClick={onBrowse} style={{ flex: 1, padding: '0.8rem', background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-hover)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}>← Continue Shopping</button>
         <button onClick={onViewTransactions} style={{ flex: 1, padding: '0.8rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 4px 15px rgba(var(--accent-rgb),0.35)', transition: 'all 0.2s ease' }}
@@ -176,7 +176,7 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
           ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)'
           : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: hovered ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
+        border: hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)',
         borderRadius: '16px', padding: '1.25rem 1.75rem',
         transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden',
         opacity: removing ? 0.4 : 1, gap: '1rem',
@@ -186,23 +186,23 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
 
       <div style={{ flex: 1, cursor: 'pointer', minWidth: 0 }} onClick={() => navigate(`/items/${item.id}`)}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.3px' }}>{item.title}</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{item.title}</h3>
           {status && status !== 'available' && (
             <span style={{ fontSize: '0.65rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', color: '#ff6b6b', background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.15)', whiteSpace: 'nowrap' }}>No longer available</span>
           )}
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: '800', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{(item.price * currentQty).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2})}</span>
-          {currentQty > 1 && <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', fontWeight: '500' }}>₹{Number(item.price).toLocaleString('en-IN')} × {currentQty}</span>}
+          {currentQty > 1 && <span style={{ fontSize: '0.72rem', color: 'var(--text-ghost)', fontWeight: '500' }}>₹{Number(item.price).toLocaleString('en-IN')} × {currentQty}</span>}
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
-          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
           {item.subcategory && <><span style={{ color: 'var(--text-ghost)', fontSize: '0.75rem' }}>›</span><span style={{ color: 'var(--accent)', fontSize: '0.75rem', fontWeight: '600', opacity: 0.55 }}>{item.subcategory}</span></>}
-          {`${item.seller?.firstName} ${item.seller?.lastName}`.trim() && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
+          {`${item.seller?.firstName} ${item.seller?.lastName}`.trim() && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
         </div>
       </div>
 
       {maxQty > 1 && status === 'available' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, opacity: updatingQty ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, opacity: updatingQty ? 0.5 : 1, transition: 'opacity 0.2s' }}>
          <button 
   onClick={() => handleQtyChange(currentQty - 1)} 
   disabled={updatingQty}
@@ -423,15 +423,15 @@ function Cart() {
         {!checkedOut && (
           <div className="cart-header" style={{ position: 'relative', marginBottom: '2.5rem' }}>
             <button ref={backRef} onClick={() => navigate(-1)} onMouseDown={onBackMouseDown} onTouchStart={onBackTouchStart}
-              className="cart-back-btn" style={{ position: 'absolute', left: '-50px', top: '6px', width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
+              className="cart-back-btn back-btn-circle" style={{ position: 'absolute', left: '-50px', top: '6px', width: '34px', height: '34px', borderRadius: '50%', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow='none' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--text-muted)'; e.currentTarget.style.boxShadow='none' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'white' }}>
+            <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
               My <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Cart.</span>
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', margin: 0, fontWeight: '400' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0, fontWeight: '400' }}>
               {isLoggedIn
                 ? `${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} in your cart`
                 : `${guestItems.length} item${guestItems.length !== 1 ? 's' : ''} in your cart`}
@@ -453,27 +453,27 @@ function Cart() {
             : (
               <>
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <p style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '0.75rem' }}>Items ({guestItems.length})</p>
+                  <p style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', marginBottom: '0.75rem' }}>Items ({guestItems.length})</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {guestItems.map(item => <CartItem key={item.id} cartItem={item} onRemove={handleGuestRemove} onQtyChange={handleGuestQtyChange} />)}
                   </div>
                 </div>
                 <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', margin: '1.5rem 0' }} />
-                <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)', borderRadius: '20px', padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
-                  <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
+                  <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>{guestItems.length} item{guestItems.length !== 1 ? 's' : ''}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(guestTotal).toLocaleString('en-IN')}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{guestItems.length} item{guestItems.length !== 1 ? 's' : ''}</span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(guestTotal).toLocaleString('en-IN')}</span>
                   </div>
-                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '1rem 0' }} />
+                  <div style={{ height: '1px', background: 'var(--bg-card)', margin: '1rem 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
                     <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(guestTotal).toLocaleString('en-IN')}</span>
                   </div>
                   <button onClick={() => navigate('/login', { state: { from: '/cart' } })}
                     style={{ width: '100%', padding: '0.9rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 4px 15px rgba(var(--accent-rgb),0.3)' }}>Sign In to Buy →</button>
-                  <p style={{ textAlign: 'center', marginTop: '0.75rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>Your cart will be saved when you sign in</p>
+                  <p style={{ textAlign: 'center', marginTop: '0.75rem', color: 'var(--text-ghost)', fontSize: '0.75rem' }}>Your cart will be saved when you sign in</p>
                 </div>
               </>
             )
@@ -483,7 +483,7 @@ function Cart() {
         {isLoggedIn && !checkedOut && loading && (
           <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
             <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading cart...</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading cart...</p>
           </div>
         )}
 
@@ -497,7 +497,7 @@ function Cart() {
           <>
             {availableItems.length > 0 && (
               <div style={{ marginBottom: '1.5rem' }}>
-                <p style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '0.75rem' }}>Available ({availableItems.length})</p>
+                <p style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', marginBottom: '0.75rem' }}>Available ({availableItems.length})</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {availableItems.map(c => <CartItem key={c.id} cartItem={c} onRemove={handleRemove} onQtyChange={handleQtyChange} />)}
                 </div>
@@ -514,16 +514,16 @@ function Cart() {
 
             <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', margin: '1.5rem 0' }} />
 
-            <div style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', border: '1px solid var(--border)', borderRadius: '20px', padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
-              <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
+              <div style={{ fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '1rem' }}>Order Summary</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>{availableItems.length} item{availableItems.length !== 1 ? 's' : ''}</span>
-                <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(totalPrice).toLocaleString('en-IN')}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{availableItems.length} item{availableItems.length !== 1 ? 's' : ''}</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: '700', fontSize: '0.85rem' }}>₹{Number(totalPrice).toLocaleString('en-IN')}</span>
               </div>
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '1rem 0' }} />
+              <div style={{ height: '1px', background: 'var(--bg-card)', margin: '1rem 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: '700', fontSize: '1rem' }}>Total</span>
                 <span style={{ fontSize: '1.75rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>₹{Number(totalPrice).toLocaleString('en-IN')}</span>
               </div>
               <button onClick={handleCheckout} disabled={checkingOut || availableItems.length === 0}

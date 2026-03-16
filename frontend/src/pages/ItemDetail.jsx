@@ -28,7 +28,7 @@ function ZoomModal({ src, onClose }) {
   )
 }
 
-function SolarCarousel({ images }) {
+function SolarCarousel({ images, isMobile }) {
   const n = images.length
   const [active, setActive] = useState(0)
   const [zoomed, setZoomed] = useState(false)
@@ -91,13 +91,18 @@ function SolarCarousel({ images }) {
     startSpring()
   }
 
+  const isMobileRef = useRef(isMobile)
+  useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
+
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
     function onWheel(e) {
+      if (isMobileRef.current) return
       e.preventDefault()
       e.stopPropagation()
-      targetRef.current += e.deltaY / 180
+      const clamped = Math.max(-40, Math.min(40, e.deltaY))
+      targetRef.current += clamped / 180
       startSpring()
       clearTimeout(snapTimer.current)
       snapTimer.current = setTimeout(snap, 150)
@@ -106,24 +111,93 @@ function SolarCarousel({ images }) {
     return () => el.removeEventListener('wheel', onWheel)
   }, []) // eslint-disable-line
 
-  function onTouchStart(e) { touchRef.current = e.touches[0].clientY }
-  function onTouchMove(e) {
-    if (touchRef.current === null) return
-    e.preventDefault()
-    targetRef.current += (touchRef.current - e.touches[0].clientY) / 160
-    touchRef.current = e.touches[0].clientY
-    startSpring()
-  }
-  function onTouchEnd() { goTo(Math.round(targetRef.current)); touchRef.current = null }
+  const velRef      = useRef(0)
+  const lastTimeRef = useRef(0)
+  const lastPosRef  = useRef(0)
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+  const dirLocked   = useRef(null)
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+
+    function handleTouchStart(e) {
+      const t = e.touches[0]
+      touchStartX.current = t.clientX
+      touchStartY.current = t.clientY
+      touchRef.current    = t.clientX
+      lastPosRef.current  = t.clientX
+      lastTimeRef.current = Date.now()
+      velRef.current      = 0
+      dirLocked.current   = null
+    }
+
+    function handleTouchMove(e) {
+      if (isMobileRef.current) {
+        if (touchRef.current === null) return
+        const t  = e.touches[0]
+        const dx = Math.abs(t.clientX - touchStartX.current)
+        const dy = Math.abs(t.clientY - touchStartY.current)
+        if (!dirLocked.current) {
+          if (dx > 10 || dy > 10) dirLocked.current = dx > dy ? 'h' : 'v'
+          else return
+        }
+        if (dirLocked.current === 'h') {
+          e.preventDefault()
+          e.stopPropagation()
+          const delta = touchRef.current - t.clientX
+          targetRef.current += delta / 40
+          const now = Date.now()
+          const dt  = now - lastTimeRef.current
+          if (dt > 0) velRef.current = (lastPosRef.current - t.clientX) / dt
+          lastPosRef.current  = t.clientX
+          lastTimeRef.current = now
+          touchRef.current    = t.clientX
+          startSpring()
+        }
+      } else {
+        if (touchRef.current === null) return
+        e.preventDefault()
+        targetRef.current += (touchRef.current - e.touches[0].clientY) / 160
+        touchRef.current = e.touches[0].clientY
+        startSpring()
+      }
+    }
+
+    function handleTouchEnd() {
+      if (isMobileRef.current && dirLocked.current === 'h') {
+        targetRef.current += velRef.current * 80
+      }
+      goTo(Math.round(targetRef.current))
+      touchRef.current  = null
+      dirLocked.current = null
+      velRef.current    = 0
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove',  handleTouchMove,  { passive: false })
+    el.addEventListener('touchend',   handleTouchEnd,   { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove',  handleTouchMove)
+      el.removeEventListener('touchend',   handleTouchEnd)
+    }
+  }, []) // eslint-disable-line
 
   useEffect(() => {
     function onKey(e) {
-      if (e.key === 'ArrowUp')   goTo(Math.round(targetRef.current) - 1)
-      if (e.key === 'ArrowDown') goTo(Math.round(targetRef.current) + 1)
+      if (isMobile) {
+        if (e.key === 'ArrowLeft')  goTo(Math.round(targetRef.current) - 1)
+        if (e.key === 'ArrowRight') goTo(Math.round(targetRef.current) + 1)
+      } else {
+        if (e.key === 'ArrowUp')   goTo(Math.round(targetRef.current) - 1)
+        if (e.key === 'ArrowDown') goTo(Math.round(targetRef.current) + 1)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [n]) // eslint-disable-line
+  }, [n, isMobile]) // eslint-disable-line
 
   useEffect(() => () => {
     cancelAnimationFrame(rafRef.current)
@@ -148,6 +222,81 @@ function SolarCarousel({ images }) {
     </>
   )
 
+  // ── MOBILE: pure CSS scroll-snap carousel (no JS touch handling needed) ──────
+  const isChalk = theme === 'chalk'
+  if (isMobile) {
+    const liveActive = ((Math.round(pos) % n) + n) % n
+    return (
+      <>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'10px', width:'100%' }}>
+
+          {/* scroll-snap track */}
+          <div style={{
+            display: 'flex',
+            overflowX: 'auto',
+            scrollSnapType: 'x mandatory',
+            scrollBehavior: 'smooth',
+            WebkitOverflowScrolling: 'touch',
+            width: '100%',
+            gap: '12px',
+            padding: '8px 24px',
+            boxSizing: 'border-box',
+            scrollbarWidth: 'none',
+          }}
+          onScroll={e => {
+            const el = e.currentTarget
+            const idx = Math.round(el.scrollLeft / (el.offsetWidth - 48 + 12))
+            setActive(Math.min(Math.max(idx, 0), n - 1))
+          }}
+          ref={el => {
+            // scroll to active on dot click
+            if (el) el._scrollRef = el
+          }}
+          id="mob-carousel-track"
+          >
+            <style>{`.mob-carousel-track::-webkit-scrollbar{display:none}`}</style>
+            {images.map((src, i) => (
+              <div key={i} style={{
+                scrollSnapAlign: 'center',
+                flexShrink: 0,
+                width: 'calc(100% - 48px)',
+                aspectRatio: '1',
+                borderRadius: '20px',
+                overflow: 'hidden',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
+              }}
+                onClick={() => { if (i === active) setZoomed(true) }}
+              >
+                <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+              </div>
+            ))}
+          </div>
+
+          {/* dot indicators */}
+          <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'6px 10px', borderRadius:'999px', background: isChalk ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)', border: isChalk ? '1.5px solid rgba(0,0,0,0.18)' : '1px solid rgba(255,255,255,0.14)' }}>
+            {images.map((_, i) => {
+              const isAct = i === active
+              return (
+                <button key={i}
+                  onClick={() => {
+                    setActive(i)
+                    const track = document.getElementById('mob-carousel-track')
+                    if (track) track.scrollTo({ left: i * (track.offsetWidth - 48 + 12), behavior: 'smooth' })
+                  }}
+                  style={{ width: isAct ? '22px' : '7px', height: isAct ? '6px' : '5px', borderRadius:'999px', border:'none', padding:0, cursor:'pointer', flexShrink:0, background: isAct ? 'linear-gradient(90deg,var(--accent),var(--accent-alt))' : isChalk ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.22)', boxShadow: isAct ? '0 0 8px var(--accent)' : 'none', transition:'all 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+                />
+              )
+            })}
+            <span style={{ fontSize:'0.58rem', fontWeight:'800', letterSpacing:'1px', color:'var(--accent)', marginLeft:'4px', opacity:0.85 }}>{active+1}/{n}</span>
+          </div>
+
+        </div>
+        {zoomed && <ZoomModal src={images[active]} onClose={() => setZoomed(false)} />}
+      </>
+    )
+  }
+
+  // ── DESKTOP: original vertical solar carousel ────────────────────────────────
   const C    = 280
   const S    = 205
   const SP   = 26
@@ -163,7 +312,6 @@ function SolarCarousel({ images }) {
   }))
 
   const liveActive = ((Math.round(pos) % n) + n) % n
-  const isChalk = theme === 'chalk'
 
   return (
     <>
@@ -172,9 +320,6 @@ function SolarCarousel({ images }) {
         {/* ── Carousel ── */}
         <div
           ref={wrapRef}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
           style={{
             position: 'relative',
             width:  `${C}px`,
@@ -295,7 +440,7 @@ function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const backTo = location.state?.from || '/'
+  
 
   // ── Draggable back button ──────────────────────────────────
   const [draggable, setDraggable] = useState(() => {
@@ -481,7 +626,7 @@ function ItemDetail() {
       <div style={{ width:'72px', height:'72px', margin:'0 auto 1.5rem', background:'var(--glass-bg-row)', borderRadius:'20px', border:'1px solid var(--glass-border-row)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.8rem', opacity:0.5 }}>∅</div>
       <h2 style={{ fontSize:'1.4rem', fontWeight:'700', color:'var(--text-secondary)', marginBottom:'0.5rem' }}>Item not found</h2>
       <p style={{ fontSize:'0.85rem', color:'var(--text-muted)', marginBottom:'1.75rem' }}>This listing may have been removed.</p>
-      <button onClick={() => navigate(backTo)} className="btn-primary" style={{ width:'auto', padding:'0.6rem 1.75rem' }}>← Back</button>
+      <button onClick={() => navigate(-1)} className="btn-primary" style={{ width:'auto', padding:'0.6rem 1.75rem' }}>← Back</button>
     </div>
   )
 
@@ -531,7 +676,7 @@ function ItemDetail() {
       <button
         ref={backRef}
         className="id-back-fixed"
-        onClick={() => navigate(backTo)}
+        onClick={() => navigate(-1)}
         onMouseDown={onBackMouseDown}
         onTouchStart={onBackTouchStart}
         style={{ cursor: draggable ? 'grab' : 'pointer' }}
@@ -641,7 +786,7 @@ function ItemDetail() {
             gap: 1.5rem;
           }
           .id-carousel-col {
-            height: 360px;
+            height: auto;
             justify-content: center;
           }
           /* Back button hidden — fixed button handles mobile */
@@ -682,7 +827,7 @@ function ItemDetail() {
             padding: 1rem 1rem 2rem;
           }
           .id-carousel-col {
-            height: 300px;
+            height: auto;
           }
           .id-title {
             font-size: 1.3rem;
@@ -734,7 +879,7 @@ function ItemDetail() {
           {/* Back button — absolute on desktop, static/inline on mobile via CSS */}
           <button
             className="id-back-btn"
-            onClick={() => navigate(backTo)}
+            onClick={() => navigate(-1)}
             onMouseDown={onBackMouseDown}
             onTouchStart={onBackTouchStart}
             style={{ width:'34px', height:'34px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1.5px solid rgba(255,255,255,0.1)', alignItems:'center', justifyContent:'center', cursor: draggable ? 'grab' : 'pointer', color:'rgba(255,255,255,0.5)', transition:'all 0.15s', flexShrink:0 }}
@@ -743,7 +888,7 @@ function ItemDetail() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div className="id-carousel-inner">
-            <SolarCarousel images={imageList} />
+            <SolarCarousel images={imageList} isMobile={isMobile} />
           </div>
         </div>
 
