@@ -1,13 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import API from '../api/axios'
 
 // ── Transaction Detail Modal ──────────────────────────────────
-function TxnDetailModal({ txn, onClose }) {
+function TxnDetailModal({ txn, onClose, onReviewed }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isBuyer = txn.buyer_id === user.id
   const isDeleted = !txn.item_id
   const showListingRemoved = isDeleted && !isBuyer
+  const [review, setReview] = useState(txn.review || null)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+
+  async function handleSubmitReview() {
+    if (rating === 0) { setReviewError('Please select a rating'); return }
+    setReviewLoading(true); setReviewError('')
+    try {
+      const res = await API.post('/reviews', { transactionId: txn.id, rating, comment: comment || null })
+      setReview(res.data)
+      onReviewed && onReviewed(txn.id, res.data)
+    } catch (err) {
+      setReviewError(err.response?.data?.error || 'Failed to submit review')
+    } finally { setReviewLoading(false) }
+  }
 
   const qty = txn.quantity || 1
   const totalPrice = txn.price
@@ -24,22 +43,22 @@ function TxnDetailModal({ txn, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '1.5rem' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1.5rem', overflow: 'hidden' }}
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="txn-detail-modal" style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)', border: '1px solid var(--border)', borderRadius: '24px', padding: '2.5rem', maxWidth: '520px', width: '100%', position: 'relative', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }}
+        className="txn-detail-modal" style={{ background: 'var(--glass-bg-modal)', backdropFilter: 'blur(24px)', border: '1px solid var(--glass-border)', borderRadius: '24px', padding: '2.5rem', maxWidth: '520px', width: '100%', position: 'relative', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', maxHeight: '88vh', scrollbarWidth: 'none' }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
 
         {/* Close button */}
         <button onClick={onClose}
           style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', width: '30px', height: '30px', borderRadius: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-muted)' }}
         >&times;</button>
 
         {/* Category badge */}
@@ -145,7 +164,7 @@ function TxnDetailModal({ txn, onClose }) {
           )}
         </div>
 
-        <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
+        <div style={{ height: '1px', background: 'var(--glass-divider)', marginBottom: '1.5rem' }} />
 
         {/* Info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '1.5rem' }}>
@@ -156,8 +175,8 @@ function TxnDetailModal({ txn, onClose }) {
             { label: 'Quantity', value: `${qty} unit${qty > 1 ? 's' : ''}` },
             { label: 'Date', value: txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—', fullWidth: true },
           ].map(({ label, value, isRole, fullWidth }) => (
-            <div key={label} style={{ gridColumn: fullWidth ? '1 / -1' : 'auto', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)' }} />
+            <div key={label} style={{ gridColumn: fullWidth ? '1 / -1' : 'auto', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
               <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', marginBottom: '0.35rem', fontWeight: '700' }}>{label}</div>
               {isRole ? (
                 <span style={{ fontSize: '0.8rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>
@@ -180,16 +199,64 @@ function TxnDetailModal({ txn, onClose }) {
             You removed this listing after the sale
           </div>
         )}
+
+        {/* Review section — only for buyers */}
+        {isBuyer && (
+          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+            {review ? (
+              <div>
+                <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.6rem' }}>Your Review</div>
+                <div style={{ display: 'flex', gap: '0.2rem', marginBottom: '0.5rem' }}>
+                  {[1,2,3,4,5].map(s => (
+                    <svg key={s} width="18" height="18" viewBox="0 0 24 24" fill={s <= review.rating ? 'var(--accent)' : 'none'} stroke={s <= review.rating ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  ))}
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '0.4rem', alignSelf: 'center' }}>{['','Terrible','Bad','Okay','Good','Excellent'][review.rating]}</span>
+                </div>
+                {review.comment && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6', fontStyle: 'italic' }}>"{review.comment}"</div>}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.6rem' }}>Leave a Review</div>
+                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem', alignItems: 'center' }}>
+                  {[1,2,3,4,5].map(star => (
+                    <button key={star} type="button"
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', transition: 'transform 0.15s', transform: (hoverRating || rating) >= star ? 'scale(1.2)' : 'scale(1)' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill={(hoverRating || rating) >= star ? 'var(--accent)' : 'none'} stroke={(hoverRating || rating) >= star ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    </button>
+                  ))}
+                  {rating > 0 && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{['','Terrible','Bad','Okay','Good','Excellent'][rating]}</span>}
+                </div>
+                <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Share your experience (optional)..." rows={2}
+                  style={{ width: '100%', padding: '0.6rem 0.875rem', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-body)', marginBottom: '0.75rem', transition: 'border 0.2s' }}
+                  onFocus={e => e.target.style.borderColor = 'rgba(var(--accent-rgb),0.35)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+                {reviewError && <div style={{ fontSize: '0.75rem', color: '#ef4444', marginBottom: '0.5rem' }}>{reviewError}</div>}
+                <button onClick={handleSubmitReview} disabled={reviewLoading || rating === 0}
+                  style={{ width: '100%', padding: '0.65rem', background: rating === 0 || reviewLoading ? 'var(--bg-card-hover)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: rating === 0 || reviewLoading ? 'var(--text-muted)' : 'white', border: 'none', borderRadius: '10px', cursor: rating === 0 || reviewLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '700', fontFamily: 'var(--font-body)', boxShadow: rating > 0 && !reviewLoading ? 'var(--shadow-accent)' : 'none' }}>
+                  {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
-  )
+  , document.body)
 }
 
 // ── Transaction Row ───────────────────────────────────────────
 function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen }) {
   const [hovered, setHovered] = useState(false)
   const [trashHovered, setTrashHovered] = useState(false)
-
+  const review = txn.review || null
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isBuyer = txn.buyer_id === user.id
   const role = isBuyer ? 'Bought' : 'Sold'
@@ -214,17 +281,17 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
         background: selected
           ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)'
           : hovered
-          ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)'
-          : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+          ? 'var(--bg-card-hover)'
+          : 'var(--bg-surface)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         border: selected ? '1px solid rgba(var(--accent-rgb),0.3)' : hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)',
         borderRadius: '16px', padding: '1.25rem 1.5rem',
         transition: 'all 0.2s ease', cursor: 'pointer',
         position: 'relative', overflow: 'hidden',
-        boxShadow: selected ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : hovered ? '0 8px 24px rgba(0,0,0,0.18)' : '0 4px 15px rgba(0,0,0,0.08)',
+        boxShadow: selected ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : hovered ? 'var(--shadow-card)' : '0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)',
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
 
       {/* Checkbox */}
       <div
@@ -232,7 +299,7 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
         style={{
           width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
           border: selected ? 'none' : '1.5px solid var(--border-hover)',
-          background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'rgba(255,255,255,0.04)',
+          background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-input)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.2s ease',
           boxShadow: selected ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none',
@@ -262,9 +329,9 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
           <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
             &#8377;{Number(txn.price).toLocaleString('en-IN')}
           </span>
-          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border-hover)', flexShrink: 0 }} />
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{otherParty}</span>
-          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border-hover)', flexShrink: 0 }} />
           <span style={{ fontSize: '0.7rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>{role}</span>
           {txn.created_at && (
             <span style={{ fontSize: '0.7rem', color: 'var(--text-ghost)' }}>
@@ -301,7 +368,7 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
 function ConfirmModal({ count, onConfirm, onCancel }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }} onClick={onCancel}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, rgba(22,20,30,0.99) 0%, rgba(14,12,20,0.99) 100%)', border: '1px solid rgba(255,107,107,0.2)', borderRadius: '20px', padding: '2rem 2.25rem', maxWidth: '340px', width: '90%', textAlign: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--glass-bg-modal)', border: '1px solid var(--bd-danger)', borderRadius: '20px', padding: '2rem 2.25rem', maxWidth: '340px', width: '90%', textAlign: 'center' }}>
         <div style={{ width: '48px', height: '48px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
           <svg width="20" height="21" viewBox="0 0 16 17" fill="none">
             <path d="M2 4h12" stroke="#ff4d4d" strokeWidth="1.6" strokeLinecap="round"/>
@@ -310,7 +377,7 @@ function ConfirmModal({ count, onConfirm, onCancel }) {
             <path d="M6.5 7.5v4M9.5 7.5v4" stroke="rgba(255,77,77,0.7)" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
         </div>
-        <h3 style={{ color: 'white', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.4rem' }}>Delete {count > 1 ? `${count} transactions` : 'this transaction'}?</h3>
+        <h3 style={{ color: 'var(--text-primary)', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.4rem' }}>Delete {count > 1 ? `${count} transactions` : 'this transaction'}?</h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '1.5rem' }}>This action cannot be undone.</p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
           <button onClick={onCancel} style={{ padding: '0.6rem 1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }}>Cancel</button>
@@ -499,7 +566,7 @@ function Transactions() {
         }
       `}</style>
 
-      {openTxn && <TxnDetailModal txn={openTxn} onClose={() => setOpenTxn(null)} />}
+      {openTxn && <TxnDetailModal txn={openTxn} onClose={() => setOpenTxn(null)} onReviewed={(txnId, r) => setTransactions(prev => prev.map(t => t.id === txnId ? { ...t, review: r } : t))} />}
 
       {confirmIds && (
         <ConfirmModal
@@ -527,16 +594,16 @@ function Transactions() {
 
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2.2" strokeLinecap="round" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-30%)', pointerEvents: 'none' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-ghost)" strokeWidth="2.2" strokeLinecap="round" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-30%)', pointerEvents: 'none' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by item, buyer, or seller..."
-          style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 1rem 0.65rem 2.75rem', background: 'var(--bg-card-hover)', border: search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', transition: 'border 0.2s ease, box-shadow 0.2s ease', boxShadow: '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)' }}
-          onFocus={e => { e.target.style.border = '1px solid rgba(var(--accent-rgb),0.4)'; e.target.style.boxShadow = '0 2px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)' }}
-          onBlur={e => { e.target.style.border = search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid rgba(255,255,255,0.12)'; e.target.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 1rem 0.65rem 2.75rem', background: 'var(--bg-card-hover)', border: search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', transition: 'border 0.2s ease, box-shadow 0.2s ease', boxShadow: 'none' }}
+          onFocus={e => { e.target.style.border = '1px solid rgba(var(--accent-rgb),0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(var(--accent-rgb),0.12)' }}
+          onBlur={e => { e.target.style.border = search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--border)'; e.target.style.boxShadow = 'none' }}
         />
         {search && (
           <div onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1 }}>&times;</div>
@@ -547,7 +614,7 @@ function Transactions() {
       <div className="txn-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '0.75rem' }}>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {['All', 'Bought', 'Sold'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease', border: filter === f ? '1px solid transparent' : '1px solid var(--border)', background: filter === f ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)', color: filter === f ? 'white' : 'var(--text-secondary)', boxShadow: filter === f ? 'var(--shadow-accent)' : '0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}>{f}</button>
+            <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease', border: filter === f ? '1px solid transparent' : '1px solid var(--border)', background: filter === f ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)', color: filter === f ? 'white' : 'var(--text-secondary)', boxShadow: filter === f ? 'var(--shadow-accent)' : 'none' }}>{f}</button>
           ))}
         </div>
         {filtered.length > 0 && (
@@ -563,14 +630,15 @@ function Transactions() {
       {/* Select toolbar */}
       {selectMode && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)', border: '1px solid rgba(var(--accent-rgb),0.18)', borderRadius: '14px', padding: '0.75rem 1.25rem', marginBottom: '1rem', animation: 'fadeSlideIn 0.2s ease' }}>
-          <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
+          <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }
+        .txn-detail-modal::-webkit-scrollbar { display: none; }`}</style>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
             <button
               onClick={() => { if (selected.size === filtered.length) { setSelected(new Set()); setSelectMode(false) } else setSelected(new Set(filtered.map(t => t.id))) }}
               style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', transition: 'all 0.2s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-card-hover)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'var(--bg-card)' }}
             >{selected.size === filtered.length ? 'Deselect All' : 'Select All'}</button>
           </div>
           <button
@@ -594,22 +662,22 @@ function Transactions() {
           { label: 'Sold',   value: transactions.filter(t => t.seller_id === user.id).length },
           { label: 'Total',  value: transactions.length },
         ].map(stat => (
-          <div key={stat.label} style={{ background: 'var(--glass-bg-row)', backdropFilter: 'blur(12px)', border: '1px solid var(--border-hover)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '80px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)' }} />
+          <div key={stat.label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '80px', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
             <div style={{ fontSize: '0.55rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.25rem' }}>{stat.label}</div>
             <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-secondary)', letterSpacing: '-0.5px' }}>{stat.value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ height: '1px', background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))', marginBottom: '1.5rem' }} />
+      <div style={{ height: '1px', background: 'var(--glass-divider)', marginBottom: '1.5rem' }} />
       <p style={{ color: 'var(--text-ghost)', fontSize: '0.7rem', marginBottom: '1rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
         {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
       </p>
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.08)', borderTop: '3px solid #e87722', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading transactions...</p>
         </div>
@@ -620,7 +688,7 @@ function Transactions() {
         </div>
       )}
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid var(--border-hover)', boxShadow: '0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid var(--border-hover)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }}>&#8709;</div>
           <p style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--text-muted)' }}>No transactions yet.</p>
         </div>

@@ -161,7 +161,10 @@ export const checkout = async (req, res) => {
     })
 
     ops.push(prisma.cartItem.deleteMany({ where: { userId } }))
-    await prisma.$transaction(ops)
+    const results = await prisma.$transaction(ops)
+
+    // First N results are transactions (one per available item)
+    const transactions = results.slice(0, available.length).map(t => ({ id: t.id, itemId: t.itemId }))
 
     // Socket emit to each seller
     const onlineUsers = io?._onlineUsers
@@ -183,6 +186,7 @@ export const checkout = async (req, res) => {
     res.json({
       message: `Successfully purchased ${available.length} item(s).`,
       purchased: available.length,
+      transactions,
     })
   } catch (err) {
     console.error(err)

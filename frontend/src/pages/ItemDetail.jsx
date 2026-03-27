@@ -659,7 +659,7 @@ function ItemDetail() {
   else if (item.imageUrl) imageList = [item.imageUrl]
 
   const infoGrid = [
-    { label:'Seller',    value:`${item.seller?.firstName||''} ${item.seller?.lastName||''}`.trim()||'Unknown' },
+    { label:'Seller',    value:`${item.seller?.firstName||''} ${item.seller?.lastName||''}`.trim()||'Unknown', isSeller:true, sellerId: item.seller?.id },
     { label:'Condition', value:item.condition },
     { label:'Category',  value:item.category },
     { label:'Status',    value:status, isStatus:true },
@@ -914,12 +914,14 @@ function ItemDetail() {
           <div className="divider" />
 
           <div className="id-info-grid">
-            {infoGrid.map(({ label, value, isStatus }) => (
+            {infoGrid.map(({ label, value, isStatus, isSeller, sellerId }) => (
               <div key={label} className="glass-infobox" style={{ padding:'0.85rem 1rem' }}>
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'var(--glass-shimmer)' }} />
                 <div className="label-micro">{label}</div>
                 {isStatus
                   ? <span className={`status-pill status-${status}`} style={{ marginTop:'0.1rem' }}>{value}</span>
+                  : isSeller
+                  ? <div onClick={() => sellerId && navigate(`/users/${sellerId}`)} style={{ fontWeight:'600', color:'var(--accent)', fontSize:'0.9rem', cursor:'pointer', textDecoration:'underline', textDecorationColor:'transparent', transition:'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor='var(--accent)'} onMouseLeave={e => e.currentTarget.style.textDecorationColor='transparent'}>{value}</div>
                   : <div style={{ fontWeight:'600', color:'var(--text-primary)', fontSize:'0.9rem', textTransform:'capitalize' }}>{value}</div>}
               </div>
             ))}

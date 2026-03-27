@@ -81,6 +81,7 @@ export const getMyTransactions = async (req, res) => {
         buyer:  { select: { id: true, firstName: true, lastName: true, email: true } },
         seller: { select: { id: true, firstName: true, lastName: true, email: true } },
         item:   { select: { images: true, condition: true, description: true } },
+        review: { select: { id: true, rating: true, comment: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -101,6 +102,7 @@ export const getMyTransactions = async (req, res) => {
       images:       t.item?.images      ?? [],
       condition:    t.item?.condition   ?? null,
       description:  t.item?.description ?? null,
+      review:       t.review ?? null,
     }))
 
     res.json(result)

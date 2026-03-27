@@ -181,7 +181,8 @@ function FindSellers() {
       if (t && t !== 'all') params.set('type', t)
       if (peopleQ) params.set('q', peopleQ)
       const res = await API.get(`/users/search-by-item?${params.toString()}`)
-      setSellers(res.data || [])
+      const me = JSON.parse(localStorage.getItem('user') || '{}')
+      setSellers((res.data || []).filter(u => u.id !== me.id))
     } catch { setSellers([]) }
     finally { setLoading(false) }
   }
@@ -193,7 +194,8 @@ function FindSellers() {
       if (q) params.set('q', q)
       if (t && t !== 'all') params.set('type', t)
       const res = await API.get(`/users/search?${params.toString()}`)
-      setSellers(res.data || [])
+      const me = JSON.parse(localStorage.getItem('user') || '{}')
+      setSellers((res.data || []).filter(u => u.id !== me.id))
     } catch { setSellers([]) }
     finally { setLoading(false) }
   }

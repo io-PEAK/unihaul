@@ -15,10 +15,10 @@ function GoogleButton({ onClick, loading }) {
       style={{
         width: '100%', padding: '0.75rem',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.65rem',
-        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
-        border: hovered ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.08)',
+        background: hovered ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+        border: hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)',
         borderRadius: '12px', cursor: loading ? 'not-allowed' : 'pointer',
-        transition: 'all 0.2s ease', color: 'white', fontSize: '0.88rem', fontWeight: '600',
+        transition: 'all 0.2s ease', color: 'var(--text-primary)', fontSize: '0.88rem', fontWeight: '600',
       }}
     >
       <svg width="18" height="18" viewBox="0 0 48 48">
@@ -167,29 +167,29 @@ function Login() {
           onClick={() => navigate(-1)}
           onMouseDown={onBackMouseDown}
           onTouchStart={onBackTouchStart}
-          style={{ borderRadius: '50%', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-body)', transition: 'all 0.15s', width:'34px', height:'34px', flexShrink:0 }}
+          style={{ borderRadius: '50%', background: 'var(--bg-card-hover)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s', width:'34px', height:'34px', flexShrink:0 }}
           onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.boxShadow = 'none' }}>
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = 'none' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
 
       <div className="login-card" style={{
         width: '100%',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
+        background: 'var(--glass-bg)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '2.75rem',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+        border: '1px solid var(--glass-border)', borderRadius: '24px', padding: '2.75rem',
+        boxShadow: 'var(--shadow-card), var(--shadow-inset)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
+          background: 'var(--glass-shimmer)',
         }} />
 
         <div style={{ marginBottom: '2.25rem' }}>
           <h1 className="login-heading" style={{
             fontWeight: '900', letterSpacing: '-1.5px',
-            lineHeight: '1.05', marginBottom: '0.6rem', color: 'white',
+            lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)',
           }}>
             Welcome<br />
             <span style={{
@@ -197,7 +197,7 @@ function Login() {
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>Back.</span>
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', fontWeight: '400' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '400' }}>
             Sign in to your Student Shop account
           </p>
           {fromMessage && (
@@ -214,9 +214,9 @@ function Login() {
         <GoogleButton onClick={googleLogin} loading={googleLoading} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', fontWeight: '600', letterSpacing: '1px' }}>OR</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-ghost)', fontWeight: '600', letterSpacing: '1px' }}>OR</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -225,7 +225,7 @@ function Login() {
               <label style={{
                 display: 'block', fontSize: '0.65rem', letterSpacing: '1.5px',
                 textTransform: 'uppercase',
-                color: focusedField === field.name ? 'var(--accent)' : 'rgba(255,255,255,0.35)',
+                color: focusedField === field.name ? 'var(--accent)' : 'var(--text-muted)',
                 fontWeight: '700', marginBottom: '0.45rem', transition: 'color 0.3s ease',
               }}>{field.label}</label>
               <input
@@ -236,9 +236,9 @@ function Login() {
                 placeholder={field.placeholder}
                 style={{
                   width: '100%', padding: '0.7rem 1rem',
-                  background: focusedField === field.name ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
-                  border: focusedField === field.name ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '12px', color: 'white', fontSize: '0.9rem',
+                  background: focusedField === field.name ? 'var(--bg-input-focus)' : 'var(--bg-input)',
+                  border: focusedField === field.name ? '1px solid var(--accent-border)' : '1px solid var(--border)',
+                  borderRadius: '12px', color: 'var(--text-primary)', fontSize: '0.9rem',
                   outline: 'none', transition: 'all 0.3s ease', boxSizing: 'border-box',
                 }}
               />
@@ -247,7 +247,7 @@ function Login() {
 
           <div style={{
             height: '1px',
-            background: 'linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+            background: 'var(--glass-divider)',
             margin: '1.25rem 0',
           }} />
 
@@ -265,10 +265,10 @@ function Login() {
             onMouseLeave={() => setBtnHovered(false)}
             style={{
               width: '100%', padding: '0.8rem',
-              background: loading ? 'rgba(255,255,255,0.08)'
+              background: loading ? 'var(--bg-card-hover)'
                 : btnHovered ? 'linear-gradient(135deg, var(--accent-alt), var(--accent))'
                 : 'linear-gradient(135deg, var(--accent), var(--accent-alt))',
-              color: loading ? 'rgba(255,255,255,0.3)' : 'white',
+              color: loading ? 'var(--text-muted)' : 'var(--text-inverse)',
               border: 'none', borderRadius: '12px', fontSize: '0.85rem',
               fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer',
               letterSpacing: '1px', textTransform: 'uppercase',
@@ -281,7 +281,7 @@ function Login() {
 
         <p style={{
           textAlign: 'center', marginTop: '1.75rem',
-          color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem',
+          color: 'var(--text-muted)', fontSize: '0.85rem',
         }}>
           No account yet?{' '}
           <Link to="/register" style={{

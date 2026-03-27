@@ -49,7 +49,23 @@ function EmptyCartState({ onBrowse }) {
 // ── Order Success Screen ──────────────────────────────────────
 function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransactions }) {
   const [show, setShow] = useState(false)
+  const [ratings, setRatings] = useState({})
+  const [hoverRatings, setHoverRatings] = useState({})
+  const [submitted, setSubmitted] = useState({})
+  const [submitting, setSubmitting] = useState({})
+
   useEffect(() => { setTimeout(() => setShow(true), 80) }, [])
+
+  async function submitReview(item) {
+    const rating = ratings[item.itemId]
+    if (!rating || !item.transactionId) return
+    setSubmitting(p => ({ ...p, [item.itemId]: true }))
+    try {
+      await API.post('/reviews', { transactionId: item.transactionId, rating })
+      setSubmitted(p => ({ ...p, [item.itemId]: rating }))
+    } catch {}
+    finally { setSubmitting(p => ({ ...p, [item.itemId]: false })) }
+  }
 
   const orderId = `ORD-${Date.now().toString(36).toUpperCase().slice(-8)}`
   const now = new Date()
@@ -113,6 +129,36 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#51cf66', boxShadow: '0 0 8px rgba(81,207,102,0.6)', flexShrink: 0, animation: 'ringPulse 2s ease infinite' }} />
         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '500' }}>Payment confirmed · Check your transaction history for details</span>
       </div>
+
+      {purchasedItems.some(i => i.transactionId) && (
+        <div style={{ marginBottom: '1.25rem', animation: show ? 'fadeUp 0.4s ease 0.7s both' : 'none' }}>
+          <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>Rate your purchases</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {purchasedItems.filter(i => i.transactionId).map(item => (
+              <div key={item.itemId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', gap: '1rem' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-secondary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                {submitted[item.itemId] ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                    {[1,2,3,4,5].map(s => <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill={s <= submitted[item.itemId] ? 'var(--accent)' : 'none'} stroke={s <= submitted[item.itemId] ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                    {[1,2,3,4,5].map(s => (
+                      <button key={s} type="button"
+                        onClick={async () => { setRatings(p => ({ ...p, [item.itemId]: s })); setSubmitting(p => ({ ...p, [item.itemId]: true })); try { await API.post('/reviews', { transactionId: item.transactionId, rating: s }); setSubmitted(p => ({ ...p, [item.itemId]: s })) } catch {} finally { setSubmitting(p => ({ ...p, [item.itemId]: false })) } }}
+                        onMouseEnter={() => setHoverRatings(p => ({ ...p, [item.itemId]: s }))}
+                        onMouseLeave={() => setHoverRatings(p => ({ ...p, [item.itemId]: 0 }))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', transition: 'transform 0.1s', transform: (hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'scale(1.2)' : 'scale(1)' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'none'} stroke={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.75rem', animation: show ? 'fadeUp 0.4s ease 0.75s both' : 'none' }}>
         <button onClick={onBrowse} style={{ flex: 1, padding: '0.8rem', background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-hover)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
@@ -381,9 +427,15 @@ function Cart() {
         title: c.item?.title,
         price: (c.item?.price * (c.quantity || 1)).toFixed(2),
         category: c.item?.category,
+        itemId: c.item?.id,
       }))
-      await API.post('/cart/checkout')
-      setPurchasedItems(snapshot)
+      const checkoutRes = await API.post('/cart/checkout')
+      const txns = checkoutRes.data?.transactions || []
+      const enriched = snapshot.map(s => {
+        const match = txns.find(t => t.itemId === s.itemId)
+        return { ...s, transactionId: match?.id || null }
+      })
+      setPurchasedItems(enriched)
       setTotalPaid(totalPrice)
       setCheckedOut(true)
       setCartItems([])
