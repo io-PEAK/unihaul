@@ -74,6 +74,7 @@ function SellerProfile() {
   const [requestStatus, setRequestStatus] = useState(null)
   const [requestLoading, setRequestLoading] = useState(false)
   const [requestMessage, setRequestMessage] = useState('')
+  const [requestError, setRequestError] = useState('')
   const [showRequestModal, setShowRequestModal] = useState(false)
 
   const currentUser = JSON.parse(localStorage.getItem('user') || 'null')
@@ -165,7 +166,6 @@ function SellerProfile() {
     startBackDrag(e.touches[0].clientX, e.touches[0].clientY)
   }, [draggable, startBackDrag])
 
-  // Close popup on Escape
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setActiveTab(null) }
     window.addEventListener('keydown', onKey)
@@ -178,12 +178,24 @@ function SellerProfile() {
       try {
         const res = await API.get(`/users/${id}/profile`)
         setData(res.data)
+        
         if (isLoggedIn && !isOwnProfile) {
           try {
-            const reqRes = await API.get('/chat-requests')
-            const sent = reqRes.data.sent || []
-            const existing = sent.find(r => r.receiverId === parseInt(id))
-            if (existing) setRequestStatus(existing.status)
+            // Check if we are ALREADY trusted (any accepted chat request)
+            const convosRes = await API.get('/messages/conversations')
+            const hasAccepted = convosRes.data.some(
+              c => c.other_user_id === parseInt(id) && c.chat_request_status === 'accepted'
+            )
+
+            if (hasAccepted) {
+              setRequestStatus('accepted')
+            } else {
+              // Otherwise check if a pending profile request exists
+              const reqRes = await API.get('/chat-requests')
+              const sent = reqRes.data.sent || []
+              const existing = sent.find(r => r.receiverId === parseInt(id) && r.itemId === null)
+              if (existing) setRequestStatus(existing.status)
+            }
           } catch {}
         }
       } catch {
@@ -195,20 +207,55 @@ function SellerProfile() {
     load()
   }, [id])
 
+  useEffect(() => {
+    if (!isLoggedIn || isOwnProfile || !currentUser?.id) return
+    let cleanup = () => {}
+    import('../socket').then(({ connectSocket }) => {
+      const socket = connectSocket(currentUser.id)
+      const onAccepted = () => setRequestStatus(s => s === 'pending' ? 'accepted' : s)
+      const onDeclined = () => setRequestStatus(s => s === 'pending' ? 'declined' : s)
+      socket.on('request-accepted', onAccepted)
+      socket.on('request-declined', onDeclined)
+      cleanup = () => {
+        socket.off('request-accepted', onAccepted)
+        socket.off('request-declined', onDeclined)
+      }
+    }).catch(() => {})
+    return () => cleanup()
+  }, [isLoggedIn, isOwnProfile, currentUser?.id])
+
   async function handleSendRequest() {
     if (!isLoggedIn) { navigate('/login'); return }
     setRequestLoading(true)
+    setRequestError('')
     try {
-      await API.post('/chat-requests', {
+      const res = await API.post('/chat-requests', {
         receiverId: parseInt(id),
         message: requestMessage || null,
+        itemId: null, 
       })
-      setRequestStatus('pending')
+      
+      // The backend will return 'accepted' if a trusted connection already existed
+      setRequestStatus(res.data.status || 'pending')
       setShowRequestModal(false)
       setRequestMessage('')
+
+      if (res.data.status === 'accepted') {
+        navigate('/messages') // Head straight to chat!
+      }
     } catch (err) {
-      const status = err.response?.data?.status
-      if (status) setRequestStatus(status)
+      if (err.response?.data?.cooldown) {
+        const h = err.response.data.hoursLeft
+        setRequestError(`Request was declined. You can try again in ${h} hour${h !== 1 ? 's' : ''}.`)
+      } else {
+        const status = err.response?.data?.status
+        if (status) {
+          setRequestStatus(status)
+          setShowRequestModal(false)
+        } else {
+          setRequestError(err.response?.data?.error || 'Could not send request. Please try again.')
+        }
+      }
     } finally {
       setRequestLoading(false)
     }
@@ -255,8 +302,6 @@ function SellerProfile() {
       `}</style>
 
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-
-        {/* Header with back button */}
         <div style={{ position: 'relative', marginBottom: '2.5rem' }}>
           <button
             ref={backRef}
@@ -287,7 +332,6 @@ function SellerProfile() {
           </p>
         </div>
 
-        {/* Profile card */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
@@ -300,7 +344,6 @@ function SellerProfile() {
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', flexWrap: 'wrap' }}>
-            {/* Avatar */}
             <div style={{
               width: '80px', height: '80px', borderRadius: '50%', flexShrink: 0,
               background: user.avatar ? 'transparent' : 'var(--accent-soft)',
@@ -317,7 +360,6 @@ function SellerProfile() {
               }
             </div>
 
-            {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
@@ -357,7 +399,6 @@ function SellerProfile() {
               </div>
             </div>
 
-            {/* Request Chat button */}
             {!isOwnProfile && (
               <div style={{ flexShrink: 0 }}>
                 {requestStatus === 'pending' ? (
@@ -371,9 +412,14 @@ function SellerProfile() {
                     Open Chat
                   </button>
                 ) : requestStatus === 'declined' ? (
-                  <div style={{ padding: '0.6rem 1.25rem', borderRadius: '12px', background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.2)', fontSize: '0.82rem', color: '#ff4d4d', fontWeight: '600' }}>
-                    Request Declined
-                  </div>
+                  <button
+                    onClick={() => { setShowRequestModal(true); setRequestError('') }}
+                    style={{ padding: '0.6rem 1.25rem', borderRadius: '12px', background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.2)', fontSize: '0.82rem', color: '#ff4d4d', fontWeight: '600', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,77,0.15)'; e.currentTarget.style.borderColor = 'rgba(255,77,77,0.4)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,77,77,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,77,77,0.2)' }}
+                  >
+                    Request Again
+                  </button>
                 ) : (
                   <button
                     onClick={() => isLoggedIn ? setShowRequestModal(true) : navigate('/login')}
@@ -390,7 +436,6 @@ function SellerProfile() {
           </div>
         </div>
 
-        {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.5rem', animation: 'fadeUp 0.4s ease 0.1s both' }}>
           {tabs.map(tab => (
             <div
@@ -422,7 +467,6 @@ function SellerProfile() {
         </div>
       </div>
 
-      {/* ── Popup Panel ── */}
       {activeTab && (
         <div
           onClick={() => setActiveTab(null)}
@@ -449,12 +493,10 @@ function SellerProfile() {
               animation: 'panelSlideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             }}
           >
-            {/* Drag handle */}
             <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '0.75rem', paddingBottom: '0.25rem', flexShrink: 0 }}>
               <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.15)' }} />
             </div>
 
-            {/* Panel header */}
             <div style={{
               padding: '0.75rem 1.5rem 1rem',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -470,7 +512,6 @@ function SellerProfile() {
                 </div>
               </div>
 
-              {/* Tab switcher inside panel */}
               <div style={{ display: 'flex', gap: '0.4rem' }}>
                 {tabs.map(t => (
                   <button
@@ -499,9 +540,7 @@ function SellerProfile() {
               </div>
             </div>
 
-            {/* Scrollable content */}
             <div className="popup-scroll" style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.5rem' }}>
-
               {activeTab === 'listings' && (
                 listings.length === 0
                   ? <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,0.2)' }}>
@@ -572,9 +611,11 @@ function SellerProfile() {
         </div>
       )}
 
-      {/* Request Chat Modal */}
       {showRequestModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowRequestModal(false)}>
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={() => { setShowRequestModal(false); setRequestError('') }}
+        >
           <div
             style={{ width: '100%', maxWidth: '420px', padding: '2rem', background: 'var(--glass-bg-modal)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid var(--glass-border)', borderRadius: '24px', boxShadow: '0 40px 80px rgba(0,0,0,0.6)', position: 'relative', overflow: 'hidden', animation: 'fadeUp 0.3s cubic-bezier(0.175,0.885,0.32,1.275)' }}
             onClick={e => e.stopPropagation()}
@@ -584,7 +625,7 @@ function SellerProfile() {
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
               Send a chat request to {user.firstName}. They can accept or decline.
             </p>
-            <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.45rem' }}>
                 Message (optional)
               </label>
@@ -598,11 +639,36 @@ function SellerProfile() {
                 onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
               />
             </div>
+
+            {requestError && (
+              <div style={{
+                marginBottom: '1rem', padding: '0.65rem 0.9rem',
+                background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.25)',
+                borderRadius: '10px', fontSize: '0.78rem', color: '#ff8787',
+                fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                lineHeight: '1.45',
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {requestError}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={() => setShowRequestModal(false)} style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}>
+              <button
+                onClick={() => { setShowRequestModal(false); setRequestError('') }}
+                style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+              >
                 Cancel
               </button>
-              <button onClick={handleSendRequest} disabled={requestLoading} style={{ flex: 1, padding: '0.75rem', background: requestLoading ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: requestLoading ? 'rgba(255,255,255,0.25)' : 'white', border: 'none', borderRadius: '12px', cursor: requestLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: requestLoading ? 'none' : '0 4px 15px rgba(var(--accent-rgb),0.35)', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}>
+              <button
+                onClick={handleSendRequest}
+                disabled={requestLoading}
+                style={{ flex: 1, padding: '0.75rem', background: requestLoading ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: requestLoading ? 'rgba(255,255,255,0.25)' : 'white', border: 'none', borderRadius: '12px', cursor: requestLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: requestLoading ? 'none' : '0 4px 15px rgba(var(--accent-rgb),0.35)', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}
+              >
                 {requestLoading ? 'Sending...' : 'Send Request'}
               </button>
             </div>
