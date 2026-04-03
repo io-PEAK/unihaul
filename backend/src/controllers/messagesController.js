@@ -5,14 +5,18 @@ import { io } from '../../server.js'
 export const getConversations = async (req, res) => {
   try {
     const userId = req.user.userId
+
     const messages = await prisma.message.findMany({
       where: {
-        OR: [{ senderId: userId }, { receiverId: userId }]
+        OR: [
+          { senderId: userId,   deletedBySender:   false },
+          { receiverId: userId, deletedByReceiver: false },
+        ]
       },
       include: {
-        sender: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        sender:   { select: { id: true, firstName: true, lastName: true, avatar: true } },
         receiver: { select: { id: true, firstName: true, lastName: true, avatar: true } },
-        item: { select: { id: true, title: true, status: true, sellerId: true, images: true } },
+        item:     { select: { id: true, title: true, status: true, sellerId: true, images: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -20,21 +24,25 @@ export const getConversations = async (req, res) => {
     const convoMap = new Map()
     for (const msg of messages) {
       const otherUser = msg.senderId === userId ? msg.receiver : msg.sender
-      const key = `${msg.itemId}-${otherUser.id}`
+      const key = `${msg.itemId ?? 'null'}-${otherUser.id}`
       if (!convoMap.has(key)) {
         convoMap.set(key, {
-          conversation_id: key,
-          item_id: msg.itemId,
-          item_title: msg.item?.title || 'Item',
-          item_status: msg.item?.status || 'available',
-          item_seller_id: msg.item?.sellerId || null,
-          item_image: msg.item?.images?.[0] || null,
-          other_user_id: otherUser.id,
-          other_user_name: `${otherUser.firstName} ${otherUser.lastName}`.trim(),
+          conversation_id:   key,
+          item_id:           msg.itemId,
+          item_title:        msg.item?.title || (msg.itemId ? 'Item' : null),
+          item_status:       msg.item?.status || null,
+          item_seller_id:    msg.item?.sellerId || null,
+          item_image:        msg.item?.images?.[0] || null,
+          other_user_id:     otherUser.id,
+          other_user_name:   `${otherUser.firstName} ${otherUser.lastName}`.trim(),
           other_user_avatar: otherUser.avatar || null,
-          last_message: msg.content,
-          last_message_at: msg.createdAt,
-          unread_count: (!msg.read && msg.receiverId === userId) ? 1 : 0,
+          last_message:      msg.content,
+          last_message_at:   msg.createdAt,
+          unread_count:      (!msg.read && msg.receiverId === userId) ? 1 : 0,
+          chat_request_id:    null,
+          chat_request_status: null,
+          is_request_sender:  false,
+          isNew:             false,
         })
       } else {
         const existing = convoMap.get(key)
@@ -43,6 +51,65 @@ export const getConversations = async (req, res) => {
         }
       }
     }
+
+    const chatRequests = await prisma.chatRequest.findMany({
+      where: {
+        OR: [
+          { senderId: userId, status: 'pending'  },
+          { senderId: userId, status: 'accepted' },
+          { receiverId: userId, status: 'accepted' },
+        ]
+      },
+      include: {
+        sender:   { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        item:     { select: { id: true, title: true, status: true, sellerId: true, images: true } },
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    for (const req of chatRequests) {
+      const isSender = req.senderId === userId
+      const other = isSender ? req.receiver : req.sender
+      const key = `${req.itemId ?? 'null'}-${other.id}`
+      
+      if (convoMap.has(key)) {
+        const existing = convoMap.get(key)
+        existing.chat_request_id = req.id
+        existing.chat_request_status = req.status
+        existing.is_request_sender = isSender
+        
+        if (req.status === 'pending' && isSender) {
+          if (req.message && (!existing.last_message_at || req.createdAt > existing.last_message_at)) {
+            existing.last_message = req.message
+            existing.last_message_at = req.createdAt
+          }
+        }
+        
+        existing.isNew = (req.status === 'accepted' && existing.unread_count === 0 && !existing.last_message)
+        continue
+      }
+
+      convoMap.set(key, {
+        conversation_id:   key,
+        item_id:           req.itemId,
+        item_title:        req.item?.title || null,
+        item_status:       req.item?.status || null,
+        item_seller_id:    req.item?.sellerId || null,
+        item_image:        req.item?.images?.[0] || null,
+        other_user_id:     other.id,
+        other_user_name:   `${other.firstName} ${other.lastName}`.trim(),
+        other_user_avatar: other.avatar || null,
+        last_message:      req.message || null,
+        last_message_at:   req.createdAt,
+        unread_count:      0,
+        chat_request_id:    req.id,
+        chat_request_status: req.status,
+        is_request_sender:  isSender,
+        isNew:             req.status === 'accepted',
+      })
+    }
+
     res.json(Array.from(convoMap.values()))
   } catch (err) {
     console.error(err)
@@ -54,23 +121,37 @@ export const getConversations = async (req, res) => {
 export const getMessages = async (req, res) => {
   try {
     const userId = req.user.userId
-    const itemId = parseInt(req.params.itemId)
+    const rawItemId = req.params.itemId
+    const itemId = rawItemId === 'null' || rawItemId === '0' ? null : parseInt(rawItemId)
     const otherUserId = parseInt(req.query.otherUserId)
 
-    const messages = await prisma.message.findMany({
-      where: {
-        itemId,
-        OR: [
-          { senderId: userId, receiverId: otherUserId },
-          { senderId: otherUserId, receiverId: userId },
-        ]
-      },
-      orderBy: { createdAt: 'asc' },
-    })
+    const [messages, chatReq] = await Promise.all([
+      prisma.message.findMany({
+        where: {
+          itemId: itemId ?? null,
+          OR: [
+            { senderId: userId,      receiverId: otherUserId, deletedBySender:   false },
+            { senderId: otherUserId, receiverId: userId,      deletedByReceiver: false },
+          ]
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.chatRequest.findFirst({
+        where: {
+          itemId: itemId ?? null,
+          status: { in: ['pending', 'accepted'] },
+          OR: [
+            { senderId: userId,      receiverId: otherUserId },
+            { senderId: otherUserId, receiverId: userId },
+          ]
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+    ])
 
     await prisma.message.updateMany({
       where: {
-        itemId,
+        itemId: itemId ?? null,
         senderId: otherUserId,
         receiverId: userId,
         read: false,
@@ -78,7 +159,30 @@ export const getMessages = async (req, res) => {
       data: { read: true }
     })
 
-    res.json(messages)
+    let result = [...messages]
+    if (chatReq?.message) {
+      // Check using strict creation time logic so duplicates never happen once moved to DB
+      const alreadySaved = messages.some(m =>
+        new Date(m.createdAt).getTime() === new Date(chatReq.createdAt).getTime() &&
+        m.senderId === chatReq.senderId
+      )
+      
+      if (!alreadySaved) {
+        result.push({
+          id:         'req-' + chatReq.id,
+          senderId:   chatReq.senderId,
+          receiverId: chatReq.receiverId,
+          itemId:     chatReq.itemId,
+          content:    chatReq.message,
+          read:       true,
+          createdAt:  chatReq.createdAt,
+          _synthetic: true,
+        })
+        result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      }
+    }
+
+    res.json(result)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to get messages' })
@@ -89,39 +193,117 @@ export const getMessages = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, itemId, content } = req.body
-    if (!receiverId || !itemId || !content?.trim()) {
-      return res.status(400).json({ error: 'receiverId, itemId, and content are required' })
+    if (!receiverId || !content?.trim()) {
+      return res.status(400).json({ error: 'receiverId and content are required' })
     }
-    const message = await prisma.message.create({
-      data: {
-        senderId: req.user.userId,
-        receiverId: parseInt(receiverId),
-        itemId: parseInt(itemId),
-        content: content.trim(),
-        read: false,
+    const senderId = req.user.userId
+    const parsedReceiverId = parseInt(receiverId)
+    const parsedItemId = itemId && itemId !== 'null' ? parseInt(itemId) : null
+
+    // Find if an accepted request strictly for this item exists
+    const acceptedRequest = await prisma.chatRequest.findFirst({
+      where: {
+        itemId: parsedItemId,
+        status: 'accepted',
+        OR: [
+          { senderId, receiverId: parsedReceiverId },
+          { senderId: parsedReceiverId, receiverId: senderId },
+        ]
       }
     })
 
-    // ── Enrich payload for Navbar notification (no extra query cost — parallel) ──
-    const [sender, item] = await Promise.all([
-      prisma.user.findUnique({ where: { id: req.user.userId }, select: { firstName: true, lastName: true, avatar: true } }),
-      prisma.item.findUnique({ where: { id: parseInt(itemId) }, select: { title: true } }),
-    ])
-    const richMessage = {
-      ...message,
-      senderName: sender ? `${sender.firstName} ${sender.lastName}`.trim() : '',
-      senderAvatar: sender?.avatar || null,
-      itemTitle: item?.title || '',
+    if (!acceptedRequest) {
+      // Check if ANY accepted request exists between these two users ever.
+      const anyAcceptedRequest = await prisma.chatRequest.findFirst({
+        where: {
+          status: 'accepted',
+          OR: [
+            { senderId, receiverId: parsedReceiverId },
+            { senderId: parsedReceiverId, receiverId: senderId },
+          ]
+        }
+      })
+
+      const existing = await prisma.chatRequest.findFirst({
+        where: { senderId, receiverId: parsedReceiverId, itemId: parsedItemId }
+      })
+      
+      if (existing?.status === 'pending' && !anyAcceptedRequest) {
+        return res.status(409).json({ error: 'Chat request already pending', requestPending: true })
+      }
+      
+      if (existing) await prisma.chatRequest.delete({ where: { id: existing.id } })
+
+      // If trusted, auto-accept this new item thread!
+      const statusToSet = anyAcceptedRequest ? 'accepted' : 'pending'
+
+      const chatReq = await prisma.chatRequest.create({
+        data: { 
+          senderId, 
+          receiverId: parsedReceiverId, 
+          itemId: parsedItemId, 
+          // FIX: Leave message null if auto-accepted so the UI doesn't read duplicates
+          message: statusToSet === 'pending' ? content.trim() : null, 
+          status: statusToSet 
+        },
+        include: {
+          sender: { select: { id: true, firstName: true, lastName: true, avatar: true, institution: true } },
+          item:   { select: { id: true, title: true, images: true } }
+        }
+      })
+
+      const onlineUsers = io?._onlineUsers
+      if (statusToSet === 'pending') {
+        onlineUsers?.get(String(parsedReceiverId))?.forEach(sid => {
+          io.to(sid).emit('new-chat-request', {
+            id:        chatReq.id,
+            sender:    chatReq.sender,
+            message:   chatReq.message,
+            itemId:    parsedItemId,
+            item:      chatReq.item,
+            createdAt: chatReq.createdAt,
+          })
+        })
+        return res.status(202).json({ routedAsRequest: true, requestId: chatReq.id, status: 'pending' })
+      } else {
+        // Ping receiver so their UI fetches the newly created auto-accepted thread
+        onlineUsers?.get(String(parsedReceiverId))?.forEach(sid => {
+          io.to(sid).emit('request-accepted', {
+            requestId: chatReq.id,
+            itemId:    parsedItemId,
+            seller:    chatReq.sender,
+          })
+        })
+      }
     }
 
-    // ── Push new message in real time via socket ───────────
-    const onlineUsers = io?._onlineUsers
-    if (onlineUsers) {
-      const targets = [String(parseInt(receiverId)), String(req.user.userId)]
-      targets.forEach(uid => {
-        onlineUsers.get(uid)?.forEach(sid => io.to(sid).emit('new-message', richMessage))
-      })
+    // Normal message creation...
+    const message = await prisma.message.create({
+      data: {
+        senderId,
+        receiverId: parsedReceiverId,
+        itemId:     parsedItemId,
+        content:    content.trim(),
+        read:       false,
+      }
+    })
+
+    const [sender, item] = await Promise.all([
+      prisma.user.findUnique({ where: { id: senderId }, select: { firstName: true, lastName: true, avatar: true } }),
+      parsedItemId ? prisma.item.findUnique({ where: { id: parsedItemId }, select: { title: true } }) : null,
+    ])
+
+    const richMessage = {
+      ...message,
+      senderName:   sender ? `${sender.firstName} ${sender.lastName}`.trim() : '',
+      senderAvatar: sender?.avatar || null,
+      itemTitle:    item?.title || '',
     }
+
+    const onlineUsers = io?._onlineUsers
+    ;[String(parsedReceiverId), String(senderId)].forEach(uid => {
+      onlineUsers?.get(uid)?.forEach(sid => io.to(sid).emit('new-message', richMessage))
+    })
 
     res.status(201).json(message)
   } catch (err) {
@@ -134,10 +316,7 @@ export const sendMessage = async (req, res) => {
 export const getUnreadCount = async (req, res) => {
   try {
     const count = await prisma.message.count({
-      where: {
-        receiverId: req.user.userId,
-        read: false,
-      }
+      where: { receiverId: req.user.userId, read: false, deletedByReceiver: false }
     })
     res.json({ count })
   } catch (err) {
@@ -151,7 +330,7 @@ export const getUnreadMessages = async (req, res) => {
   try {
     const userId = req.user.userId
     const messages = await prisma.message.findMany({
-      where: { receiverId: userId, read: false },
+      where: { receiverId: userId, read: false, deletedByReceiver: false },
       include: {
         sender: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         item:   { select: { id: true, title: true } },
@@ -159,7 +338,7 @@ export const getUnreadMessages = async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
-    const result = messages.map(msg => ({
+    res.json(messages.map(msg => ({
       id:           msg.id,
       senderId:     msg.sender.id,
       senderName:   `${msg.sender.firstName} ${msg.sender.lastName}`.trim(),
@@ -168,8 +347,7 @@ export const getUnreadMessages = async (req, res) => {
       itemTitle:    msg.item?.title || 'Item',
       content:      msg.content,
       createdAt:    msg.createdAt,
-    }))
-    res.json(result)
+    })))
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to get unread messages' })
@@ -191,21 +369,16 @@ export const markAllRead = async (req, res) => {
 }
 
 // POST /messages/mark-convo-read
-// Marks all messages from otherUser in a specific convo as read
-// Called immediately when a socket message arrives while viewing that convo,
-// so DB stays in sync and fetchUnreadCounts() won't show a stale badge after leaving.
 export const markConvoRead = async (req, res) => {
   try {
     const { itemId, otherUserId } = req.body
-    if (!itemId || !otherUserId) {
-      return res.status(400).json({ error: 'itemId and otherUserId are required' })
-    }
+    if (!otherUserId) return res.status(400).json({ error: 'otherUserId is required' })
     await prisma.message.updateMany({
       where: {
-        itemId: parseInt(itemId),
-        senderId: parseInt(otherUserId),
+        itemId:    (itemId === null || itemId === undefined || itemId === 'null') ? null : parseInt(itemId),
+        senderId:  parseInt(otherUserId),
         receiverId: req.user.userId,
-        read: false,
+        read:      false,
       },
       data: { read: true },
     })
@@ -217,28 +390,45 @@ export const markConvoRead = async (req, res) => {
 }
 
 // DELETE /messages/conversation/:itemId/:otherUserId
-// Deletes all messages between current user and otherUser about a specific item
 export const deleteConversation = async (req, res) => {
   try {
     const userId = req.user.userId
-    const itemId = parseInt(req.params.itemId)
+    const rawItemId = req.params.itemId
+    const itemId = rawItemId === 'null' || rawItemId === '0' ? null : parseInt(rawItemId)
     const otherUserId = parseInt(req.params.otherUserId)
 
-    if (!itemId || !otherUserId) {
-      return res.status(400).json({ error: 'itemId and otherUserId are required' })
-    }
+    if (!otherUserId) return res.status(400).json({ error: 'otherUserId is required' })
 
-    const { count } = await prisma.message.deleteMany({
+    const [bySender, byReceiver] = await Promise.all([
+      prisma.message.updateMany({
+        where: { itemId: itemId ?? null, senderId: userId, receiverId: otherUserId },
+        data: { deletedBySender: true }
+      }),
+      prisma.message.updateMany({
+        where: { itemId: itemId ?? null, senderId: otherUserId, receiverId: userId },
+        data: { deletedByReceiver: true }
+      })
+    ])
+
+    await prisma.chatRequest.deleteMany({
       where: {
-        itemId,
+        itemId: itemId ?? null,
         OR: [
-          { senderId: userId, receiverId: otherUserId },
+          { senderId: userId,      receiverId: otherUserId },
           { senderId: otherUserId, receiverId: userId },
         ]
       }
     })
 
-    res.json({ success: true, deleted: count })
+    const onlineUsers = io?._onlineUsers
+    onlineUsers?.get(String(otherUserId))?.forEach(sid => {
+      io.to(sid).emit('convo-deleted-by-other', {
+        itemId: itemId,
+        otherUserId: userId,
+      })
+    })
+
+    res.json({ success: true, deleted: bySender.count + byReceiver.count })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to delete conversation' })
