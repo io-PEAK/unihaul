@@ -132,14 +132,14 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --bg-input-focus:   rgba(79, 142, 247, 0.09);
   --bg-nav:           rgba(7, 11, 20, 0.92);
 
-  --glass-bg:         linear-gradient(135deg, rgba(79,142,247,0.07) 0%, rgba(79,142,247,0.02) 100%);
-  --glass-bg-hover:   linear-gradient(135deg, rgba(79,142,247,0.13) 0%, rgba(79,142,247,0.05) 100%);
+  --glass-bg:         linear-gradient(135deg, rgba(79,142,247,0.10) 0%, rgba(79,142,247,0.04) 100%);
+  --glass-bg-hover:   linear-gradient(135deg, rgba(79,142,247,0.16) 0%, rgba(79,142,247,0.07) 100%);
   --glass-bg-deep:    linear-gradient(160deg, rgba(12,18,32,0.99) 0%, rgba(7,11,20,0.99) 100%);
   --glass-bg-row:     linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
   --glass-bg-infobox: linear-gradient(135deg, rgba(79,142,247,0.05) 0%, rgba(79,142,247,0.01) 100%);
   --glass-bg-modal:   linear-gradient(135deg, rgba(12,18,32,0.98) 0%, rgba(7,11,20,0.98) 100%);
-  --glass-border:     rgba(79, 142, 247, 0.10);
-  --glass-border-row: rgba(79, 142, 247, 0.08);
+  --glass-border:     rgba(79, 142, 247, 0.16);
+  --glass-border-row: rgba(79, 142, 247, 0.12);
   --glass-shimmer:    linear-gradient(90deg, transparent, rgba(79,142,247,0.15), transparent);
   --glass-divider:    linear-gradient(90deg, rgba(79,142,247,0.02), rgba(79,142,247,0.08), rgba(79,142,247,0.02));
 
@@ -179,7 +179,7 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --font-body:        'Inter', system-ui, sans-serif;
   --font-display:     'Inter', system-ui, sans-serif;
 
-  --shadow-card:      0 0 0 1px rgba(79,142,247,0.08), 0 4px 20px rgba(0,0,0,0.4);
+  --shadow-card:      0 0 0 1px rgba(79,142,247,0.14), 0 4px 20px rgba(0,0,0,0.4);
   --shadow-accent:    0 4px 15px rgba(79, 142, 247, 0.20);
   --shadow-accent-lg: 0 15px 35px rgba(79, 142, 247, 0.30);
   --color-price:      #e2e8f0;
@@ -229,17 +229,17 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
 
   --bg-base:          #ffffff;
   --bg-surface:       #ffffff;
-  --bg-card:          rgba(0, 0, 0, 0.03);
-  --bg-card-hover:    rgba(0, 0, 0, 0.055);
+  --bg-card:          rgba(0, 0, 0, 0.04);
+  --bg-card-hover:    rgba(0, 0, 0, 0.07);
   --bg-input:         rgba(0, 0, 0, 0.04);
   --bg-input-focus:   rgba(79, 70, 229, 0.06);
   --bg-nav:           rgba(255, 255, 255, 0.92);
 
-  --glass-bg:         linear-gradient(135deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.01) 100%);
-  --glass-bg-hover:   linear-gradient(135deg, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.02) 100%);
+  --glass-bg:         #f8f8fb;
+  --glass-bg-hover:   rgba(0, 0, 0, 0.035);
   --glass-bg-deep:    linear-gradient(160deg, rgba(255,255,255,0.99) 0%, rgba(248,248,250,0.99) 100%);
-  --glass-bg-row:     linear-gradient(135deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.008) 100%);
-  --glass-bg-infobox: linear-gradient(135deg, rgba(0,0,0,0.025) 0%, rgba(0,0,0,0.006) 100%);
+  --glass-bg-row:     rgba(0, 0, 0, 0.03);
+  --glass-bg-infobox: rgba(0, 0, 0, 0.025);
   --glass-bg-modal:   linear-gradient(135deg, rgba(255,255,255,0.99) 0%, rgba(250,250,252,0.99) 100%);
   --glass-border:     rgba(0, 0, 0, 0.08);
   --glass-border-row: rgba(0, 0, 0, 0.07);
@@ -282,7 +282,7 @@ html, body, #root { min-height: 100vh; overscroll-behavior: none; }
   --font-body:        'Inter', system-ui, sans-serif;
   --font-display:     'Inter', system-ui, sans-serif;
 
-  --shadow-card:      0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-card:      0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.07);
   --shadow-accent:    0 4px 15px rgba(79, 70, 229, 0.18);
   --shadow-accent-lg: 0 15px 35px rgba(79, 70, 229, 0.28);
   --color-price:      #4f46e5;
@@ -902,4 +902,16 @@ label {
   border-color: var(--accent) !important;
   color: var(--accent) !important;
   box-shadow: 0 0 8px 2px rgba(var(--accent-rgb), 0.35) !important;
+}
+
+/* Back button stronger visibility on dark themes */
+[data-theme="ember"] .back-btn-circle {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+[data-theme="midnight"] .back-btn-circle {
+  border-color: rgba(79, 142, 247, 0.40) !important;
+  color: rgba(79, 142, 247, 0.65) !important;
+  background: rgba(79, 421, 247, 0.10) !important;
 }
