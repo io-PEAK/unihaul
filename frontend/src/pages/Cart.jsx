@@ -51,6 +51,8 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
   const [show, setShow] = useState(false)
   const [ratings, setRatings] = useState({})
   const [hoverRatings, setHoverRatings] = useState({})
+  const [comments, setComments] = useState({})     // comment text per itemId
+  const [expanded, setExpanded] = useState({})     // whether the comment form is open
   const [submitted, setSubmitted] = useState({})
   const [submitting, setSubmitting] = useState({})
 
@@ -61,7 +63,8 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
     if (!rating || !item.transactionId) return
     setSubmitting(p => ({ ...p, [item.itemId]: true }))
     try {
-      await API.post('/reviews', { transactionId: item.transactionId, rating })
+      const comment = comments[item.itemId]?.trim() || null
+      await API.post('/reviews', { transactionId: item.transactionId, rating, comment })
       setSubmitted(p => ({ ...p, [item.itemId]: rating }))
     } catch {}
     finally { setSubmitting(p => ({ ...p, [item.itemId]: false })) }
@@ -135,23 +138,78 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
           <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>Rate your purchases</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {purchasedItems.filter(i => i.transactionId).map(item => (
-              <div key={item.itemId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', gap: '1rem' }}>
+              <div key={item.itemId} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                {/* ── Top row: title + stars ── */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 1rem', gap: '1rem' }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-secondary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
                 {submitted[item.itemId] ? (
+                  /* ── Submitted state ── */
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
                     {[1,2,3,4,5].map(s => <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill={s <= submitted[item.itemId] ? 'var(--accent)' : 'none'} stroke={s <= submitted[item.itemId] ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>)}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: '700', marginLeft: '0.25rem' }}>Reviewed</span>
                   </div>
                 ) : (
+                  /* ── Interactive review form ── */
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
                     {[1,2,3,4,5].map(s => (
                       <button key={s} type="button"
-                        onClick={async () => { setRatings(p => ({ ...p, [item.itemId]: s })); setSubmitting(p => ({ ...p, [item.itemId]: true })); try { await API.post('/reviews', { transactionId: item.transactionId, rating: s }); setSubmitted(p => ({ ...p, [item.itemId]: s })) } catch {} finally { setSubmitting(p => ({ ...p, [item.itemId]: false })) } }}
+                        onClick={() => {
+                          setRatings(p => ({ ...p, [item.itemId]: s }))
+                          setExpanded(p => ({ ...p, [item.itemId]: true }))
+                        }}
                         onMouseEnter={() => setHoverRatings(p => ({ ...p, [item.itemId]: s }))}
                         onMouseLeave={() => setHoverRatings(p => ({ ...p, [item.itemId]: 0 }))}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', transition: 'transform 0.1s', transform: (hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'scale(1.2)' : 'scale(1)' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'none'} stroke={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                       </button>
                     ))}
+                  </div>
+                )}
+                </div>{/* end top row */}
+                {/* ── Expanded comment form ── */}
+                {!submitted[item.itemId] && expanded[item.itemId] && (
+                  <div style={{ padding: '0 1rem 0.85rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                    {/* Rating recap + change stars */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                      {[1,2,3,4,5].map(s => (
+                        <button key={s} type="button"
+                          onClick={() => setRatings(p => ({ ...p, [item.itemId]: s }))}
+                          onMouseEnter={() => setHoverRatings(p => ({ ...p, [item.itemId]: s }))}
+                          onMouseLeave={() => setHoverRatings(p => ({ ...p, [item.itemId]: 0 }))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px', transition: 'transform 0.1s', transform: (hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'scale(1.15)' : 'scale(1)' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'none'} stroke={(hoverRatings[item.itemId] || ratings[item.itemId] || 0) >= s ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </button>
+                      ))}
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>
+                        {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][ratings[item.itemId] || 0]}
+                      </span>
+                    </div>
+                    {/* Comment textarea */}
+                    <textarea
+                      value={comments[item.itemId] || ''}
+                      onChange={e => setComments(p => ({ ...p, [item.itemId]: e.target.value }))}
+                      placeholder="Share your experience with this item... (optional)"
+                      rows={3}
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '0.6rem 0.75rem', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.8rem', fontFamily: 'inherit', resize: 'vertical', outline: 'none', lineHeight: '1.5', transition: 'border 0.2s' }}
+                      onFocus={e => e.target.style.borderColor = 'var(--accent-border)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                    />
+                    {/* Submit + skip */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button
+                        onClick={() => submitReview(item)}
+                        disabled={submitting[item.itemId] || !ratings[item.itemId]}
+                        style={{ flex: 1, padding: '0.55rem 0.75rem', background: ratings[item.itemId] ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)', border: 'none', borderRadius: '8px', color: ratings[item.itemId] ? 'white' : 'var(--text-ghost)', fontSize: '0.78rem', fontWeight: '700', cursor: ratings[item.itemId] && !submitting[item.itemId] ? 'pointer' : 'not-allowed', transition: 'all 0.2s', boxShadow: ratings[item.itemId] ? '0 3px 10px rgba(var(--accent-rgb),0.3)' : 'none', fontFamily: 'inherit', opacity: submitting[item.itemId] ? 0.6 : 1 }}>
+                        {submitting[item.itemId] ? 'Submitting…' : 'Submit Review'}
+                      </button>
+                      <button
+                        onClick={() => setExpanded(p => ({ ...p, [item.itemId]: false }))}
+                        style={{ padding: '0.55rem 0.75rem', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                        Skip
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -162,8 +220,8 @@ function OrderSuccessScreen({ purchasedItems, totalPaid, onBrowse, onViewTransac
 
       <div style={{ display: 'flex', gap: '0.75rem', animation: show ? 'fadeUp 0.4s ease 0.75s both' : 'none' }}>
         <button onClick={onBrowse} style={{ flex: 1, padding: '0.8rem', background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-hover)', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', transition: 'all 0.2s ease' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}>← Continue Shopping</button>
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)' }}>← Continue Shopping</button>
         <button onClick={onViewTransactions} style={{ flex: 1, padding: '0.8rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 4px 15px rgba(var(--accent-rgb),0.35)', transition: 'all 0.2s ease' }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(var(--accent-rgb),0.5)' }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(var(--accent-rgb),0.35)' }}>View Transactions →</button>
@@ -243,7 +301,14 @@ function CartItem({ cartItem, onRemove, onQtyChange }) {
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{item.category}</span>
           {item.subcategory && <><span style={{ color: 'var(--text-ghost)', fontSize: '0.75rem' }}>›</span><span style={{ color: 'var(--accent)', fontSize: '0.75rem', fontWeight: '600', opacity: 0.55 }}>{item.subcategory}</span></>}
-          {`${item.seller?.firstName} ${item.seller?.lastName}`.trim() && <><span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} /><span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>Sold by {item.seller.name}</span></>}
+{item.seller && (item.seller.firstName || item.seller.lastName) && (
+  <>
+    <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
+    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>
+      Sold by {`${item.seller.firstName || ''} ${item.seller.lastName || ''}`.trim()}
+    </span>
+  </>
+)}
         </div>
       </div>
 
