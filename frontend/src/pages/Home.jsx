@@ -424,108 +424,258 @@ function FilterChip({ label, onRemove }) {
   )
 }
 
-function ItemCard({ item, isWatching = false }) {
+// ─── Category emoji map ──────────────────────────────────────────────────────
+const CATEGORY_EMOJI = {
+  'Electronics': '💻', 'Books & Notes': '📚', 'Clothing': '👕',
+  'Furniture': '🪑', 'Food & Drinks': '🍱', 'Sports & Fitness': '⚽',
+  'Stationery': '✏️', 'Appliances': '🔌', 'Games & Hobbies': '🎮',
+  'Services': '🛠️', 'Other': '📦',
+}
+
+// ─── Watching border SVG ─────────────────────────────────────────────────────
+function WatchingBorder({ cw, ch, radius = 16 }) {
+  if (!cw || !ch) return null
+  const cp = 2 * (cw + ch) - (8 - 2 * Math.PI) * radius
+  const cdash = Math.round(cp)
+  const aid = `wg${cw}x${ch}r${radius}`
+  return (
+    <>
+      <style>{`
+        @keyframes ${aid} { 0% { stroke-dashoffset:0 } 100% { stroke-dashoffset:-${Math.round(cp)} } }
+        @keyframes ${aid}-glow { 0% { stroke-dashoffset:0;opacity:0.5 } 50% { opacity:0.85 } 100% { stroke-dashoffset:-${Math.round(cp)};opacity:0.5 } }
+      `}</style>
+      <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', filter:'blur(2.5px)', overflow:'visible' }}>
+        <rect x="1" y="1" width={cw-2} height={ch-2} rx={radius} ry={radius} fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${Math.round(cdash*0.4)} ${Math.round(cp-cdash*0.4)}`} style={{ animation:`${aid}-glow 2s linear infinite` }} />
+      </svg>
+      <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:2, pointerEvents:'none', overflow:'visible' }}>
+        <rect x="1" y="1" width={cw-2} height={ch-2} rx={radius} ry={radius} fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeDasharray={`${Math.round(cdash)} ${Math.round(cp-cdash)}`} style={{ animation:`${aid} 2s linear infinite` }} />
+      </svg>
+    </>
+  )
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+function StatusBadge({ status, small = false }) {
+  const s = status?.toLowerCase()
+  return (
+    <span style={{
+      fontSize: small ? '0.6rem' : '0.68rem', fontWeight: '700', flexShrink: 0,
+      color: s === 'sold' ? 'var(--color-sold)' : s === 'pending' ? 'var(--color-pending)' : 'var(--color-available)',
+      background: s === 'sold' ? 'var(--bg-sold)' : s === 'pending' ? 'var(--bg-pending)' : 'var(--bg-available)',
+      padding: small ? '2px 8px' : '3px 10px', borderRadius: '20px', textTransform: 'capitalize',
+      border: s === 'sold' ? '1px solid var(--bd-sold)' : s === 'pending' ? '1px solid var(--bd-pending)' : '1px solid var(--bd-available)',
+    }}>{s}</span>
+  )
+}
+
+// ─── Item image or emoji placeholder ─────────────────────────────────────────
+function ItemImage({ item, style = {} }) {
+  const [imgError, setImgError] = useState(false)
+  const img = item.images?.[0]
+  const emoji = CATEGORY_EMOJI[item.category] || '📦'
+  if (img && !imgError) {
+    return (
+      <img src={img} alt={item.title}
+        onError={() => setImgError(true)}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }}
+      />
+    )
+  }
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent) 5%, transparent))', ...style }}>
+      <span style={{ fontSize: '2.2rem', opacity: 0.55 }}>{emoji}</span>
+    </div>
+  )
+}
+
+// ─── ItemCard — 3 layouts driven by gridSize ──────────────────────────────────
+function ItemCard({ item, isWatching = false, gridSize = 3 }) {
   const navigate = useNavigate()
   const [hovered, setHovered] = useState(false)
   const status = item.status?.toLowerCase()
-  const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs).slice(0, 2) : []
+  const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs).filter(([,v]) => v).slice(0, 3) : []
   const cardRef = useRef(null)
   const [cw, setCw] = useState(0)
   const [ch, setCh] = useState(0)
   useEffect(() => {
     if (!isWatching || !cardRef.current) return
-    const update = () => {
-      setCw(cardRef.current.offsetWidth)
-      setCh(cardRef.current.offsetHeight)
-    }
+    const update = () => { setCw(cardRef.current.offsetWidth); setCh(cardRef.current.offsetHeight) }
     update()
     const ro = new ResizeObserver(update)
     ro.observe(cardRef.current)
     return () => ro.disconnect()
   }, [isWatching])
 
+  const baseCard = {
+    background: hovered ? 'var(--glass-bg-hover)' : 'var(--glass-bg)',
+    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+    border: hovered ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--glass-border)',
+    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+    transition: 'all 0.3s cubic-bezier(0.175,0.885,0.32,1.275)',
+    boxShadow: hovered
+      ? '0 16px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+      : '0 4px 20px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
+  }
+
+  // ── GRID 1: Polished horizontal list row (non-home pages only) ─────────────
+  if (gridSize === 1) {
+    return (
+      <div ref={cardRef}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={() => navigate(`/items/${item.id}`)}
+        style={{
+          ...baseCard, borderRadius: '16px',
+          display: 'flex', alignItems: 'stretch',
+          transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+          minHeight: '110px',
+        }}
+      >
+        {isWatching && <WatchingBorder cw={cw} ch={ch} radius={16} />}
+
+        {/* Square image */}
+        <div style={{ width: '110px', flexShrink: 0, borderRadius: '15px 0 0 15px', overflow: 'hidden', position: 'relative', background: 'var(--bg-card-hover)' }}>
+          <ItemImage item={item} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(0,0,0,0.08) 0%, transparent 60%)', pointerEvents: 'none' }} />
+        </div>
+
+        {/* Main content */}
+        <div style={{ flex: 1, padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+          {/* Left */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.32rem' }}>
+              <span style={{ fontSize: '0.6rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700' }}>{item.category}</span>
+              {item.subcategory && <>
+                <span style={{ color: 'var(--text-ghost)', fontSize: '0.7rem', lineHeight: 1 }}>›</span>
+                <span style={{ fontSize: '0.57rem', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'rgba(var(--accent-rgb),0.6)', fontWeight: '700' }}>{item.subcategory}</span>
+              </>}
+            </div>
+            <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', lineHeight: '1.3', letterSpacing: '-0.25px', marginBottom: '0.3rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</h3>
+            {specs.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                {specs.slice(0, 3).map(([,v]) => (
+                  <span key={v} style={{ fontSize: '0.62rem', padding: '1px 7px', borderRadius: '5px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: price, status, button */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: '0.5rem', flexShrink: 0, minWidth: '120px' }}>
+            <StatusBadge status={status} small />
+            <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--color-price)', letterSpacing: '-0.6px', fontFamily: 'var(--font-body)', lineHeight: 1 }}>
+              ₹{Number(item.price).toLocaleString('en-IN')}
+            </span>
+            <button onClick={e => { e.stopPropagation(); navigate(`/items/${item.id}`) }}
+              style={{ padding: '0.35rem 1rem', background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)', color: hovered ? 'white' : 'var(--accent)', border: hovered ? '1px solid transparent' : '1px solid var(--border-accent)', borderRadius: '8px', fontSize: '0.75rem', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: '700', boxShadow: hovered ? '0 4px 12px var(--accent-glow)' : 'none', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}>
+              View →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── GRID 2: Compact card with image banner ────────────────────────────────
+  if (gridSize === 2) {
+    return (
+      <div ref={cardRef}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={() => navigate(`/items/${item.id}`)}
+        style={{ ...baseCard, borderRadius: '16px', transform: hovered ? 'translateY(-4px) scale(1.01)' : 'translateY(0) scale(1)' }}
+      >
+        {isWatching && <WatchingBorder cw={cw} ch={ch} radius={16} />}
+        {/* Image banner */}
+        <div style={{ width: '100%', height: '150px', position: 'relative', overflow: 'hidden' }}>
+          <ItemImage item={item} />
+          <div style={{ position: 'absolute', top: '0.6rem', right: '0.6rem', zIndex: 3 }}>
+            <StatusBadge status={status} small />
+          </div>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%', background: 'linear-gradient(to top, var(--bg-surface), transparent)', pointerEvents: 'none' }} />
+        </div>
+        {/* Content */}
+        <div style={{ padding: '0.85rem 1rem 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
+            <span style={{ fontSize: '0.58rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700' }}>{item.category}</span>
+            {item.subcategory && <>
+              <span style={{ color: 'var(--text-ghost)', fontSize: '0.65rem' }}>›</span>
+              <span style={{ fontSize: '0.55rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(var(--accent-rgb),0.55)', fontWeight: '700' }}>{item.subcategory}</span>
+            </>}
+          </div>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)', lineHeight: '1.3', letterSpacing: '-0.2px', marginBottom: '0.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title}</h3>
+          {specs.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+              {specs.map(([,v]) => <span key={v} style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: '5px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>)}
+            </div>
+          )}
+          <div style={{ height: '1px', background: 'var(--glass-divider)', margin: '0.6rem 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--color-price)', letterSpacing: '-0.5px', fontFamily: 'var(--font-body)' }}>
+              ₹{Number(item.price).toLocaleString('en-IN')}
+            </span>
+            <button onClick={e => { e.stopPropagation(); navigate(`/items/${item.id}`) }}
+              style={{ padding: '0.32rem 0.85rem', background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)', color: hovered ? 'white' : 'var(--accent)', border: hovered ? '1px solid transparent' : '1px solid var(--border-accent)', borderRadius: '8px', fontSize: '0.72rem', cursor: 'pointer', transition: 'all 0.25s ease', fontWeight: '700', boxShadow: hovered ? '0 4px 12px var(--accent-glow)' : 'none' }}>
+              View →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── GRID 3 (default): Full ecommerce card with tall image ─────────────────
   return (
-    <div
-      ref={cardRef}
+    <div ref={cardRef}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       onClick={() => navigate(`/items/${item.id}`)}
-      style={{
-        background: hovered ? 'var(--glass-bg-hover)' : 'var(--glass-bg)',
-        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: hovered ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid var(--glass-border)',
-        borderRadius: '20px', padding: '1.75rem', cursor: 'pointer',
-        transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
-        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-        boxShadow: hovered ? '0 25px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)' : '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
-        position: 'relative',
-      }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
-      {isWatching && cw > 0 && (() => {
-        const cr = 19
-        const cp = 2*(cw+ch) - (8 - 2*Math.PI)*cr
-        const cdash = Math.round(cp * 1.0)
-        const aid = `wg${cw}x${ch}`
-        return (<>
-          <style>{`
-            @keyframes ${aid} { 0% { stroke-dashoffset:0 } 100% { stroke-dashoffset:-${Math.round(cp)} } }
-            @keyframes ${aid}-glow { 0% { stroke-dashoffset:0;opacity:0.5 } 50% { opacity:0.85 } 100% { stroke-dashoffset:-${Math.round(cp)};opacity:0.5 } }
-          `}</style>
-          <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', filter:'blur(2.5px)', overflow:'visible' }}>
-            <rect x="1" y="1" width={cw-2} height={ch-2} rx={cr} ry={cr}
-              fill="none" stroke="#ef4444" strokeWidth="4" strokeLinecap="round"
-              strokeDasharray={`${Math.round(cdash*0.4)} ${Math.round(cp-cdash*0.4)}`}
-              style={{ animation:`${aid}-glow 2s linear infinite` }} />
-          </svg>
-          <svg width={cw} height={ch} style={{ position:'absolute', inset:0, zIndex:2, pointerEvents:'none', overflow:'visible' }}>
-            <rect x="1" y="1" width={cw-2} height={ch-2} rx={cr} ry={cr}
-              fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"
-              strokeDasharray={`${Math.round(cdash)} ${Math.round(cp-cdash)}`}
-              style={{ animation:`${aid} 2s linear infinite` }} />
-          </svg>
-        </>)
-      })()}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
-          <span style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.category}</span>
-          {item.subcategory && <>
-            <span style={{ color: 'var(--text-ghost)', fontSize: '0.7rem' }}>›</span>
-            <span style={{ fontSize: '0.58rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(var(--accent-rgb),0.5)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.subcategory}</span>
-          </>}
+      style={{ ...baseCard, borderRadius: '20px', transform: hovered ? 'translateY(-6px) scale(1.015)' : 'translateY(0) scale(1)' }}
+    >
+      {isWatching && <WatchingBorder cw={cw} ch={ch} radius={20} />}
+      {/* Hero image */}
+      <div style={{ width: '100%', height: '180px', position: 'relative', overflow: 'hidden' }}>
+        <ItemImage item={item} />
+        {/* Status badge top-right */}
+        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 3 }}>
+          <StatusBadge status={status} />
         </div>
-        <span style={{
-          fontSize: '0.68rem', fontWeight: '700', flexShrink: 0, marginLeft: '0.5rem',
-          color: status === 'sold' ? 'var(--color-sold)' : status === 'pending' ? 'var(--color-pending)' : 'var(--color-available)',
-          background: status === 'sold' ? 'var(--bg-sold)' : status === 'pending' ? 'var(--bg-pending)' : 'var(--bg-available)',
-          padding: '3px 10px', borderRadius: '20px', textTransform: 'capitalize',
-          border: status === 'sold' ? '1px solid var(--bd-sold)' : status === 'pending' ? '1px solid var(--bd-pending)' : '1px solid var(--bd-available)',
-        }}>{status}</span>
+        {/* Category label bottom-left over image */}
+        <div style={{ position: 'absolute', bottom: '0.65rem', left: '0.75rem', zIndex: 3 }}>
+          <span style={{ fontSize: '0.58rem', letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)', fontWeight: '700', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: '5px' }}>
+            {item.category}{item.subcategory ? ` › ${item.subcategory}` : ''}
+          </span>
+        </div>
+        {/* Gradient fade into card body */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(to top, color-mix(in srgb, var(--bg-surface) 90%, transparent), transparent)', pointerEvents: 'none' }} />
+        {/* Top shimmer */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
       </div>
-      <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: specs.length ? '0.6rem' : '0.4rem', lineHeight: '1.35', letterSpacing: '-0.3px' }}>{item.title}</h3>
-      {specs.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem'}}>
-          {specs.map(([, v]) => (
-            <span key={v} style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '6px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>
-          ))}
+      {/* Content */}
+      <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', lineHeight: '1.35', letterSpacing: '-0.25px', marginBottom: '0.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title}</h3>
+        {specs.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            {specs.map(([,v]) => (
+              <span key={v} style={{ fontSize: '0.63rem', padding: '2px 8px', borderRadius: '6px', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: '600' }}>{v}</span>
+            ))}
+          </div>
+        )}
+        {item.quantity > 1 && (
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-ghost)', fontWeight: '600', display: 'block', marginBottom: '0.4rem' }}>{item.quantity}x in stock</span>
+        )}
+        <div style={{ height: '1px', background: 'var(--glass-divider)', margin: '0.75rem 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--color-price)', letterSpacing: '-0.5px', fontFamily: 'var(--font-body)' }}>
+            ₹{Number(item.price).toLocaleString('en-IN')}
+          </span>
+          <button onClick={e => { e.stopPropagation(); navigate(`/items/${item.id}`) }}
+            style={{ padding: '0.42rem 1.1rem', background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)', color: hovered ? 'white' : 'var(--accent)', border: hovered ? '1px solid transparent' : '1px solid var(--border-accent)', borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.25s ease', fontWeight: '700', boxShadow: hovered ? '0 4px 15px var(--accent-glow)' : 'none' }}>
+            View →
+          </button>
         </div>
-      )}
-      {item.quantity > 1 && <span style={{ fontSize: '0.67rem', color: 'var(--text-ghost)', fontWeight: '600', display: 'block', marginBottom: '0.3rem' }}>{item.quantity}x in stock</span>}
-      <div style={{ height: '1px', background: 'var(--glass-divider)', margin: '1rem 0' }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="price-text" style={{ fontSize: '1.5rem' }}>₹{Number(item.price).toLocaleString('en-IN')}</span>
-        <button style={{
-          padding: '0.45rem 1.1rem',
-          background: hovered ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--accent-soft)',
-          color: hovered ? 'white' : 'var(--accent)',
-          border: hovered ? '1px solid transparent' : '1px solid var(--border-accent)',
-          borderRadius: '10px', fontSize: '0.8rem', cursor: 'pointer',
-          transition: 'all 0.3s ease', fontWeight: '600',
-          boxShadow: hovered ? '0 4px 15px var(--accent-glow)' : 'none',
-        }}>View →</button>
       </div>
     </div>
   )
 }
+
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
 function Home() {
@@ -533,6 +683,18 @@ function Home() {
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const homeSearchRef = useRef(null)
+  // Grid size — controlled by Navbar ≡ dropdown
+  const [gridSize, setGridSizeState] = useState(() => {
+    try { return parseInt(localStorage.getItem('homeGridSize') || '3', 10) } catch { return 3 }
+  })
+  useEffect(() => {
+    // Register bridge so Navbar can push changes immediately
+    window.__homeGridBridge = { set: (val) => setGridSizeState(val) }
+    function onGridSize(e) { setGridSizeState(e.detail.val) }
+    window.addEventListener('home-grid-size', onGridSize)
+    return () => { window.removeEventListener('home-grid-size', onGridSize) }
+  }, [])
+
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [watchedIds, setWatchedIds] = useState(new Set())
@@ -1127,8 +1289,15 @@ const res = await API.get('/items', { params })
               <button onClick={clearAllFilters} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', background: 'var(--accent-soft)', border: '1px solid var(--border-accent)', borderRadius: '10px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>Clear Filters</button>
             </div>
           ) : (
-            <div className="home-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {filteredItems.map(item => <ItemCard key={item.id} item={item} isWatching={watchedIds.has(item.id)} />)}
+            <div className="home-grid" style={{
+              display: 'grid',
+              gridTemplateColumns:
+                gridSize === 1 ? '1fr'
+                : gridSize === 2 ? 'repeat(2, 1fr)'
+                : 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: gridSize === 1 ? '0.75rem' : '1.25rem',
+            }}>
+              {filteredItems.map(item => <ItemCard key={item.id} item={item} isWatching={watchedIds.has(item.id)} gridSize={gridSize} />)}
             </div>
           )}
         </>
