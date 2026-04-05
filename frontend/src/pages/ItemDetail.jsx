@@ -3,13 +3,47 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import API from '../api/axios'
 
+// All spec keys from PostItem's specFieldsMap — with human-readable labels
 const specLabels = {
+  // Electronics
   brand: 'Brand', ram: 'RAM', storage: 'Storage', processor: 'Processor', display: 'Display',
+  // Clothing
   gender: 'Gender', color: 'Color', type: 'Type',
+  // Books & Notes
   subject: 'Subject', author: 'Author', edition: 'Edition',
+  // Furniture
   material: 'Material', dimensions: 'Dimensions',
-  sport: 'Sport', size: 'Size', capacity: 'Capacity', platform: 'Platform',
-  mode: 'Mode', experience: 'Experience', ingredients: 'Ingredients', allergens: 'Allergens',
+  // Sports & Fitness
+  sport: 'Sport', size: 'Size',
+  // Stationery (type + brand already covered)
+  // Appliances
+  capacity: 'Capacity',
+  // Games & Hobbies
+  platform: 'Platform',
+  // Services
+  mode: 'Mode', experience: 'Experience',
+  // Food & Drinks
+  diet: 'Diet', contains: 'Contains',
+}
+
+// Per-category: ordered list of spec keys to display (matches PostItem specFieldsMap)
+const specKeysByCategory = {
+  'Electronics':      ['brand', 'ram', 'storage', 'processor', 'display'],
+  'Clothing':         ['gender', 'color', 'type'],
+  'Books & Notes':    ['subject', 'author', 'edition'],
+  'Furniture':        ['material', 'color', 'dimensions'],
+  'Sports & Fitness': ['sport', 'brand', 'size'],
+  'Stationery':       ['type', 'brand'],
+  'Appliances':       ['brand', 'capacity', 'color'],
+  'Games & Hobbies':  ['platform', 'type', 'brand'],
+  'Services':         ['mode', 'experience'],
+  'Food & Drinks':    ['diet', 'contains'],
+}
+
+// Subcategory label per category (matches PostItem subcategoryLabel)
+const subcategoryLabel = {
+  'Clothing': 'Size', 'Books & Notes': 'Semester',
+  'Electronics': 'Type', 'Furniture': 'Type', 'Sports & Fitness': 'Sport',
 }
 
 function ZoomModal({ src, onClose }) {
@@ -664,7 +698,7 @@ function ItemDetail() {
     { label:'Category',  value:item.category },
     { label:'Status',    value:status, isStatus:true },
     { label:'Stock',     value:status==='sold'?'0 remaining':`${stockLeft}` },
-    ...(item.subcategory?[{ label:item.category==='Clothing'?'Size':item.category==='Books & Notes'?'Semester':'Subcategory', value:item.subcategory }]:[]),
+    ...(item.subcategory ? [{ label: subcategoryLabel[item.category] || 'Subcategory', value: item.subcategory }] : []),
     ...(item.purchaseYear ? [{ label:'Purchased', value:`${item.purchaseYear} · ${new Date().getFullYear() - item.purchaseYear} yr${new Date().getFullYear() - item.purchaseYear === 1 ? '' : 's'} old` }] : []),
     ...(item.expiryDate   ? [{ label:'Expires',   value: new Date(item.expiryDate).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) }] : []),
     ...(item.madeOn       ? [{ label:'Made On',   value: new Date(item.madeOn).toLocaleDateString('en-IN',     { day:'numeric', month:'short', year:'numeric' }) }] : []),
@@ -927,23 +961,35 @@ function ItemDetail() {
             ))}
           </div>
 
-          {specs.length > 0 && (
-            <div style={{ marginBottom:'1.25rem', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:'var(--radius-lg)', padding:'1.1rem 1.2rem', position:'relative', overflow:'hidden' }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg, transparent, var(--accent-border), transparent)' }} />
-              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.875rem' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" style={{ opacity:0.7 }}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-                <span style={{ fontSize:'0.6rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--accent)', fontWeight:'800', opacity:0.8 }}>Specifications</span>
+          {specs.length > 0 && (() => {
+            // Order specs by the category's defined field order; fall back to raw order
+            const orderedKeys = specKeysByCategory[item.category] || []
+            const orderedSpecs = [
+              ...orderedKeys.map(k => specs.find(([key]) => key === k)).filter(Boolean),
+              ...specs.filter(([key]) => !orderedKeys.includes(key)),
+            ]
+            return (
+              <div style={{ marginBottom:'1.25rem', background:'var(--accent-soft)', border:'1px solid var(--accent-border)', borderRadius:'var(--radius-lg)', padding:'1.1rem 1.2rem', position:'relative', overflow:'hidden' }}>
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg, transparent, var(--accent-border), transparent)' }} />
+                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.875rem' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" style={{ opacity:0.7 }}><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+                  <span style={{ fontSize:'0.6rem', letterSpacing:'1.5px', textTransform:'uppercase', color:'var(--accent)', fontWeight:'800', opacity:0.8 }}>
+                    {item.category} Specifications
+                  </span>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px, 1fr))', gap:'0.55rem' }}>
+                  {orderedSpecs.map(([key, value]) => (
+                    <div key={key} style={{ background:'var(--glass-bg-row)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-sm)', padding:'0.55rem 0.75rem' }}>
+                      <div className="label-micro" style={{ color:'var(--accent)', opacity:0.65, marginBottom:'0.2rem', textTransform:'uppercase', letterSpacing:'0.8px' }}>
+                        {specLabels[key] || key}
+                      </div>
+                      <div style={{ fontWeight:'600', color:'var(--text-primary)', fontSize:'0.84rem' }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:'0.55rem' }}>
-                {specs.map(([key, value]) => (
-                  <div key={key} style={{ background:'var(--glass-bg-row)', border:'1px solid var(--glass-border-row)', borderRadius:'var(--radius-sm)', padding:'0.55rem 0.75rem' }}>
-                    <div className="label-micro" style={{ color:'var(--accent)', opacity:0.6, marginBottom:'0.2rem' }}>{specLabels[key]||key}</div>
-                    <div style={{ fontWeight:'600', color:'var(--text-primary)', fontSize:'0.84rem' }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {item.description && (
             <div className="glass-infobox" style={{ padding:'1.1rem 1.2rem', marginBottom:'1.5rem' }}>
