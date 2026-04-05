@@ -38,15 +38,24 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
   const images = txn.images && txn.images.length > 0 ? txn.images : []
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  // Lock background scroll when modal is open
+  const prev = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+
+  function onKey(e) { if (e.key === 'Escape') onClose() }
+  window.addEventListener('keydown', onKey)
+
+  return () => {
+    // Restore scroll when modal closes
+    document.body.style.overflow = prev
+    window.removeEventListener('keydown', onKey)
+  }
+}, [])
 
   return createPortal(
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1.5rem', overflow: 'hidden' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1.5rem', overflow: 'hidden' }}
     >
       <div
         onClick={e => e.stopPropagation()}
@@ -116,26 +125,41 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
           </div>
         )}
         {/* Zoom modal */}
-        {zoomed && images.length > 0 && (
-          <div onClick={() => setZoomed(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
-            <img src={images[activeImg]} alt="" style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: '10px' }} onClick={e => e.stopPropagation()} />
-            {images.length > 1 && activeImg > 0 && (
-              <button onClick={e => { e.stopPropagation(); setActiveImg(i => i - 1) }} style={{ position: 'absolute', left: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-              </button>
-            )}
-            {images.length > 1 && activeImg < images.length - 1 && (
-              <button onClick={e => { e.stopPropagation(); setActiveImg(i => i + 1) }} style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            )}
-            {images.length > 1 && (
-              <div style={{ position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.5)', padding: '4px 12px', borderRadius: '20px' }}>
-                {activeImg + 1} / {images.length}
-              </div>
-            )}
-          </div>
-        )}
+{zoomed && images.length > 0 && createPortal(
+  <div
+    onClick={() => setZoomed(false)}
+    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+  >
+    {/* Close X button */}
+    <button
+      onClick={() => setZoomed(false)}
+      style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+    >&times;</button>
+
+    <img
+      src={images[activeImg]}
+      alt=""
+      style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: '10px' }}
+      onClick={e => e.stopPropagation()}
+    />
+    {images.length > 1 && activeImg > 0 && (
+      <button onClick={e => { e.stopPropagation(); setActiveImg(i => i - 1) }} style={{ position: 'absolute', left: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    )}
+    {images.length > 1 && activeImg < images.length - 1 && (
+      <button onClick={e => { e.stopPropagation(); setActiveImg(i => i + 1) }} style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    )}
+    {images.length > 1 && (
+      <div style={{ position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.5)', padding: '4px 12px', borderRadius: '20px' }}>
+        {activeImg + 1} / {images.length}
+      </div>
+    )}
+  </div>,
+  document.body
+)}
 
         {/* Price */}
         <div style={{ marginBottom: '1.75rem' }}>

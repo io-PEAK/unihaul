@@ -916,13 +916,13 @@ function PostItem() {
           width: 100%;
           max-height: calc(100vh - 70px - 4rem);
           overflow-y: auto;
-          background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+          background: var(--glass-bg);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.08);
+          border: 1px solid var(--glass-border);
           border-radius: 24px;
           padding: 2.75rem;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+          box-shadow: var(--shadow-card), var(--shadow-inset);
           position: relative;
           overflow: auto;
         }
