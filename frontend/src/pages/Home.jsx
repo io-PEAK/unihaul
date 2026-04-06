@@ -685,11 +685,15 @@ function Home() {
   const homeSearchRef = useRef(null)
   // Grid size — controlled by Navbar ≡ dropdown
   const [gridSize, setGridSizeState] = useState(() => {
-    try { return parseInt(localStorage.getItem('homeGridSize') || '3', 10) } catch { return 3 }
+    try {
+      const v = parseInt(localStorage.getItem('homeGridSize') || '3', 10)
+      return Math.max(2, v)   // home never shows grid 1 — clamp on read
+    } catch { return 3 }
   })
   useEffect(() => {
     // Register bridge so Navbar can push changes immediately
-    window.__homeGridBridge = { set: (val) => setGridSizeState(val) }
+    // Also clamp: if navbar pushes 1, home ignores it and uses 2
+    window.__homeGridBridge = { set: (val) => setGridSizeState(Math.max(2, val)) }
     function onGridSize(e) { setGridSizeState(e.detail.val) }
     window.addEventListener('home-grid-size', onGridSize)
     return () => { window.removeEventListener('home-grid-size', onGridSize) }
@@ -763,20 +767,24 @@ function Home() {
   }, [])
 
   useEffect(() => {
-    // Navbar typed → scroll home to top → focus home search input so user keeps typing
     function onHandoff(e) {
       const val = e.detail?.value ?? ''
       setSearch(val)
-      // Scroll to very top first
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      // Wait for scroll + intersection observer to fire (search bar comes back into view)
-      // then steal focus so user can keep typing without re-clicking
-      setTimeout(() => {
-        homeSearchRef.current?.focus()
-        // Move cursor to end of existing text
+      // Poll until the search input is visible and focusable
+      let attempts = 0
+      const tryFocus = () => {
+        attempts++
         const inp = homeSearchRef.current
-        if (inp) { const len = inp.value.length; inp.setSelectionRange(len, len) }
-      }, 350)
+        if (inp && window.scrollY < 100) {
+          inp.focus()
+          const len = inp.value.length
+          inp.setSelectionRange(len, len)
+        } else if (attempts < 20) {
+          setTimeout(tryFocus, 50)
+        }
+      }
+      setTimeout(tryFocus, 100)
     }
     window.addEventListener('home-navbar-handoff', onHandoff)
     return () => window.removeEventListener('home-navbar-handoff', onHandoff)
@@ -1016,7 +1024,12 @@ const res = await API.get('/items', { params })
 
           {/* Search */}
           <input ref={homeSearchRef} type="text" placeholder="Search items..." value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => {
+              const val = e.target.value
+              setSearch(val)
+              // Keep navbar search in sync so when user scrolls down, navbar shows correct value
+              window.dispatchEvent(new CustomEvent('home-search-changed', { detail: { value: val } }))
+            }}
             onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
             className="home-search-input"
             style={{
