@@ -1034,9 +1034,10 @@ function Navbar({ registerOpenBell }) {
           /* Hide the links pill, show hamburger pill */
           .nav-links-pill { display: none !important; }
           .nav-hamburger-pill { display: flex !important; }
-          .nav-outer { padding: 0.5rem 0.75rem !important; gap: 0.4rem !important; }
-          .nav-logo-pill { width:44px !important; height:44px !important; }
-          .nav-right-pill { height:44px !important; }
+          .nav-outer { padding: 0.5rem 0.75rem !important; gap: 0.5rem !important; }
+          .nav-logo-pill { width:46px !important; height:46px !important; }
+          .nav-hamburger-pill { width:46px !important; height:46px !important; }
+          .nav-right-pill { height:46px !important; }
           .nav-search-pill { display: none !important; }
         }
 
@@ -1088,7 +1089,7 @@ function Navbar({ registerOpenBell }) {
 
         {/* ── Hamburger pill — standalone, only visible <600px via CSS ── */}
         <div className={`nav-pill-base nav-hamburger-pill${scrolled ? ' nav-pill-scrolled' : ''}`}
-          style={{ width: '52px', justifyContent: 'center', padding: 0 }}
+          style={{ width: '46px', height: '46px', justifyContent: 'center', padding: 0, flexShrink: 0 }}
         >
           <button
             ref={hamburgerRef}
