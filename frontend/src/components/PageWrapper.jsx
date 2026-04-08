@@ -1,31 +1,31 @@
-import { useLocation } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 
 // Wraps every page with a fade + slight slide-up animation on route change.
 // Usage: wrap each <Route element={...}> child with <PageWrapper>
 
 function PageWrapper({ children }) {
-  const location = useLocation()
-  const [visible, setVisible] = useState(false)
-  const prevPath = useRef(null)
+  const location = useLocation();
+  const [visible, setVisible] = useState(false);
+  const prevPath = useRef(null);
 
   useEffect(() => {
     // Reset → trigger animation whenever path changes
     if (prevPath.current !== location.pathname) {
-      setVisible(false)
-      prevPath.current = location.pathname
+      setVisible(false);
+      prevPath.current = location.pathname;
       // One RAF to let the browser paint the hidden state first
       const raf = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setVisible(true))
-      })
-      return () => cancelAnimationFrame(raf)
+        requestAnimationFrame(() => setVisible(true));
+      });
+      return () => cancelAnimationFrame(raf);
     }
-  }, [location.pathname])
+  }, [location.pathname]);
 
   // On first mount, show immediately
   useEffect(() => {
-    setVisible(true)
-  }, [])
+    setVisible(true);
+  }, []);
 
   return (
     <>
@@ -48,11 +48,9 @@ function PageWrapper({ children }) {
           transform: translateY(10px);
         }
       `}</style>
-      <div className={visible ? 'page-enter' : 'page-hidden'}>
-        {children}
-      </div>
+      <div className={visible ? "page-enter" : "page-hidden"}>{children}</div>
     </>
-  )
+  );
 }
 
-export default PageWrapper
+export default PageWrapper;

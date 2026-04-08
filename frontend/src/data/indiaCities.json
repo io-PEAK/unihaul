@@ -426,9 +426,7 @@
     "Vaishali",
     "Waris Aliganj"
   ],
-  "Chandigarh": [
-    "Chandigarh"
-  ],
+  "Chandigarh": ["Chandigarh"],
   "Chhattisgarh": [
     "Akaltara",
     "Ambagarh Chauki",
@@ -1538,14 +1536,8 @@
     "Vettur",
     "Wayanad"
   ],
-  "Ladakh": [
-    "Kargil",
-    "Leh"
-  ],
-  "Lakshadweep": [
-    "Kavaratti",
-    "Lakshadweep"
-  ],
+  "Ladakh": ["Kargil", "Leh"],
+  "Lakshadweep": ["Kavaratti", "Lakshadweep"],
   "Madhya Pradesh": [
     "Agar",
     "Ajaigarh",
@@ -2578,12 +2570,7 @@
     "Titlagarh",
     "Udayagiri"
   ],
-  "Puducherry": [
-    "Karaikal",
-    "Mahe",
-    "Puducherry",
-    "Yanam"
-  ],
+  "Puducherry": ["Karaikal", "Mahe", "Puducherry", "Yanam"],
   "Punjab": [
     "Abohar",
     "Adampur",

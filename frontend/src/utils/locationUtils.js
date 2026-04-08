@@ -1,3 +1,3 @@
 export function defaultLocation() {
-  return { mode: 'all', institutions: [], cities: {}, statesOnly: {} }
+  return { mode: "all", institutions: [], cities: {}, statesOnly: {} };
 }

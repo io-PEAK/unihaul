@@ -1,299 +1,1009 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
-import API from '../api/axios'
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import API from "../api/axios";
 
 // ── Transaction Detail Modal ──────────────────────────────────
 function TxnDetailModal({ txn, onClose, onReviewed }) {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const isBuyer = txn.buyer_id === user.id
-  const isDeleted = !txn.item_id
-  const showListingRemoved = isDeleted && !isBuyer
-  const [review, setReview] = useState(txn.review || null)
-  const [rating, setRating] = useState(0)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [comment, setComment] = useState('')
-  const [reviewLoading, setReviewLoading] = useState(false)
-  const [reviewError, setReviewError] = useState('')
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isBuyer = txn.buyer_id === user.id;
+  const isDeleted = !txn.item_id;
+  const showListingRemoved = isDeleted && !isBuyer;
+  const [review, setReview] = useState(txn.review || null);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   async function handleSubmitReview() {
-    if (rating === 0) { setReviewError('Please select a rating'); return }
-    setReviewLoading(true); setReviewError('')
+    if (rating === 0) {
+      setReviewError("Please select a rating");
+      return;
+    }
+    setReviewLoading(true);
+    setReviewError("");
     try {
-      const res = await API.post('/reviews', { transactionId: txn.id, rating, comment: comment || null })
-      setReview(res.data)
-      onReviewed && onReviewed(txn.id, res.data)
+      const res = await API.post("/reviews", {
+        transactionId: txn.id,
+        rating,
+        comment: comment || null,
+      });
+      setReview(res.data);
+      onReviewed && onReviewed(txn.id, res.data);
     } catch (err) {
-      setReviewError(err.response?.data?.error || 'Failed to submit review')
-    } finally { setReviewLoading(false) }
+      setReviewError(err.response?.data?.error || "Failed to submit review");
+    } finally {
+      setReviewLoading(false);
+    }
   }
 
-  const qty = txn.quantity || 1
-  const totalPrice = txn.price
-  const unitPrice = qty > 1 ? Math.round(totalPrice / qty) : totalPrice
+  const qty = txn.quantity || 1;
+  const totalPrice = txn.price;
+  const unitPrice = qty > 1 ? Math.round(totalPrice / qty) : totalPrice;
 
-  const [activeImg, setActiveImg] = useState(0)
-  const [zoomed, setZoomed] = useState(false)
+  const [activeImg, setActiveImg] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
 
-  const images = txn.images && txn.images.length > 0 ? txn.images : []
+  const images = txn.images && txn.images.length > 0 ? txn.images : [];
 
   useEffect(() => {
-  // Lock background scroll when modal is open
-  const prev = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
+    // Lock background scroll when modal is open
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-  function onKey(e) { if (e.key === 'Escape') onClose() }
-  window.addEventListener('keydown', onKey)
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
 
-  return () => {
-    // Restore scroll when modal closes
-    document.body.style.overflow = prev
-    window.removeEventListener('keydown', onKey)
-  }
-}, [])
+    return () => {
+      // Restore scroll when modal closes
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return createPortal(
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '1.5rem', overflow: 'hidden' }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 99999,
+        padding: "1.5rem",
+        overflow: "hidden",
+      }}
     >
       <div
-        onClick={e => e.stopPropagation()}
-        className="txn-detail-modal" style={{ background: 'var(--glass-bg-modal)', backdropFilter: 'blur(24px)', border: '1px solid var(--glass-border)', borderRadius: '24px', padding: '2.5rem', maxWidth: '520px', width: '100%', position: 'relative', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)', maxHeight: '88vh', scrollbarWidth: 'none' }}
+        onClick={(e) => e.stopPropagation()}
+        className="txn-detail-modal"
+        style={{
+          background: "var(--glass-bg-modal)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid var(--glass-border)",
+          borderRadius: "24px",
+          padding: "2.5rem",
+          maxWidth: "520px",
+          width: "100%",
+          position: "relative",
+          overflowY: "auto",
+          overflowX: "hidden",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+          maxHeight: "88vh",
+          scrollbarWidth: "none",
+        }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "1px",
+            background: "var(--glass-shimmer)",
+          }}
+        />
 
         {/* Close button */}
-        <button onClick={onClose}
-          style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', width: '30px', height: '30px', borderRadius: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-        >&times;</button>
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "1.25rem",
+            right: "1.25rem",
+            width: "30px",
+            height: "30px",
+            borderRadius: "8px",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: "1rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-card-hover)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--bg-card)";
+            e.currentTarget.style.color = "var(--text-muted)";
+          }}
+        >
+          &times;
+        </button>
 
         {/* Category badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+            marginBottom: "0.6rem",
+          }}
+        >
           {txn.category && (
-            <span style={{ fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700' }}>{txn.category}</span>
+            <span
+              style={{
+                fontSize: "0.6rem",
+                letterSpacing: "2px",
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
+                fontWeight: "700",
+              }}
+            >
+              {txn.category}
+            </span>
           )}
           {showListingRemoved && (
-            <span style={{ fontSize: '0.6rem', letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(255,107,107,0.7)', fontWeight: '700', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.15)', padding: '2px 8px', borderRadius: '20px' }}>Listing Removed</span>
+            <span
+              style={{
+                fontSize: "0.6rem",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+                color: "rgba(255,107,107,0.7)",
+                fontWeight: "700",
+                background: "rgba(255,107,107,0.08)",
+                border: "1px solid rgba(255,107,107,0.15)",
+                padding: "2px 8px",
+                borderRadius: "20px",
+              }}
+            >
+              Listing Removed
+            </span>
           )}
         </div>
 
         {/* Title */}
-        <h2 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-1px', color: 'var(--text-primary)', margin: '0 0 1.5rem 0', lineHeight: 1.1 }}>
-          {txn.item_title || 'Deleted Item'}
+        <h2
+          style={{
+            fontSize: "2rem",
+            fontWeight: "900",
+            letterSpacing: "-1px",
+            color: "var(--text-primary)",
+            margin: "0 0 1.5rem 0",
+            lineHeight: 1.1,
+          }}
+        >
+          {txn.item_title || "Deleted Item"}
         </h2>
 
         {/* Images — slide animation, arrows, zoom */}
         {images.length > 0 && (
-          <div style={{ marginBottom: '1.5rem', position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)', background: 'rgba(0,0,0,0.3)', height: '200px', cursor: 'zoom-in' }}
+          <div
+            style={{
+              marginBottom: "1.5rem",
+              position: "relative",
+              borderRadius: "14px",
+              overflow: "hidden",
+              border: "1px solid var(--border)",
+              background: "rgba(0,0,0,0.3)",
+              height: "200px",
+              cursor: "zoom-in",
+            }}
             onClick={() => setZoomed(true)}
           >
             {/* Sliding track */}
-            <div style={{
-              display: 'flex', width: '100%', height: '100%',
-              transform: `translateX(-${activeImg * 100}%)`,
-              transition: 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            }}>
+            <div
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "100%",
+                transform: `translateX(-${activeImg * 100}%)`,
+                transition:
+                  "transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+              }}
+            >
               {images.map((img, i) => (
-                <div key={i} style={{ minWidth: '100%', height: '100%', flexShrink: 0 }}>
-                  <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                <div
+                  key={i}
+                  style={{ minWidth: "100%", height: "100%", flexShrink: 0 }}
+                >
+                  <img
+                    src={img}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      pointerEvents: "none",
+                    }}
+                  />
                 </div>
               ))}
             </div>
             {images.length > 1 && activeImg > 0 && (
-              <button onClick={e => { e.stopPropagation(); setActiveImg(i => i - 1) }}
-                style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: '1px solid var(--border-hover)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)', zIndex: 2 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImg((i) => i - 1);
+                }}
+                style={{
+                  position: "absolute",
+                  left: "0.5rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.55)",
+                  border: "1px solid var(--border-hover)",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(6px)",
+                  zIndex: 2,
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
               </button>
             )}
             {images.length > 1 && activeImg < images.length - 1 && (
-              <button onClick={e => { e.stopPropagation(); setActiveImg(i => i + 1) }}
-                style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: '1px solid var(--border-hover)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)', zIndex: 2 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImg((i) => i + 1);
+                }}
+                style={{
+                  position: "absolute",
+                  right: "0.5rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "rgba(0,0,0,0.55)",
+                  border: "1px solid var(--border-hover)",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backdropFilter: "blur(6px)",
+                  zIndex: 2,
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </button>
             )}
             {images.length > 1 && (
-              <div style={{ position: 'absolute', bottom: '0.5rem', right: '0.6rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: '20px', backdropFilter: 'blur(6px)', zIndex: 2 }}>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "0.5rem",
+                  right: "0.6rem",
+                  fontSize: "0.65rem",
+                  fontWeight: "700",
+                  color: "var(--text-secondary)",
+                  background: "rgba(0,0,0,0.5)",
+                  padding: "2px 8px",
+                  borderRadius: "20px",
+                  backdropFilter: "blur(6px)",
+                  zIndex: 2,
+                }}
+              >
                 {activeImg + 1} / {images.length}
               </div>
             )}
-            <div style={{ position: 'absolute', bottom: '0.5rem', left: '0.6rem', display: 'flex', alignItems: 'center', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.5)', padding: '2px 7px', borderRadius: '20px', backdropFilter: 'blur(6px)', zIndex: 2 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <div
+              style={{
+                position: "absolute",
+                bottom: "0.5rem",
+                left: "0.6rem",
+                display: "flex",
+                alignItems: "center",
+                color: "var(--text-muted)",
+                background: "rgba(0,0,0,0.5)",
+                padding: "2px 7px",
+                borderRadius: "20px",
+                backdropFilter: "blur(6px)",
+                zIndex: 2,
+              }}
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="11" y1="8" x2="11" y2="14" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
             </div>
           </div>
         )}
         {/* Zoom modal */}
-{zoomed && images.length > 0 && createPortal(
-  <div
-    onClick={() => setZoomed(false)}
-    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
-  >
-    {/* Close X button */}
-    <button
-      onClick={() => setZoomed(false)}
-      style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
-    >&times;</button>
+        {zoomed &&
+          images.length > 0 &&
+          createPortal(
+            <div
+              onClick={() => setZoomed(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.92)",
+                zIndex: 999999,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "zoom-out",
+              }}
+            >
+              {/* Close X button */}
+              <button
+                onClick={() => setZoomed(false)}
+                style={{
+                  position: "absolute",
+                  top: "1.25rem",
+                  right: "1.25rem",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2,
+                }}
+              >
+                &times;
+              </button>
 
-    <img
-      src={images[activeImg]}
-      alt=""
-      style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: '10px' }}
-      onClick={e => e.stopPropagation()}
-    />
-    {images.length > 1 && activeImg > 0 && (
-      <button onClick={e => { e.stopPropagation(); setActiveImg(i => i - 1) }} style={{ position: 'absolute', left: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-    )}
-    {images.length > 1 && activeImg < images.length - 1 && (
-      <button onClick={e => { e.stopPropagation(); setActiveImg(i => i + 1) }} style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    )}
-    {images.length > 1 && (
-      <div style={{ position: 'absolute', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.5)', padding: '4px 12px', borderRadius: '20px' }}>
-        {activeImg + 1} / {images.length}
-      </div>
-    )}
-  </div>,
-  document.body
-)}
+              <img
+                src={images[activeImg]}
+                alt=""
+                style={{
+                  maxWidth: "92vw",
+                  maxHeight: "88vh",
+                  objectFit: "contain",
+                  borderRadius: "10px",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              {images.length > 1 && activeImg > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImg((i) => i - 1);
+                  }}
+                  style={{
+                    position: "absolute",
+                    left: "1.5rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "white",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+              {images.length > 1 && activeImg < images.length - 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImg((i) => i + 1);
+                  }}
+                  style={{
+                    position: "absolute",
+                    right: "1.5rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "white",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+              {images.length > 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "1.5rem",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    color: "rgba(255,255,255,0.7)",
+                    background: "rgba(0,0,0,0.5)",
+                    padding: "4px 12px",
+                    borderRadius: "20px",
+                  }}
+                >
+                  {activeImg + 1} / {images.length}
+                </div>
+              )}
+            </div>,
+            document.body,
+          )}
 
         {/* Price */}
-        <div style={{ marginBottom: '1.75rem' }}>
+        <div style={{ marginBottom: "1.75rem" }}>
           {qty > 1 ? (
             <div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', display: 'inline-block' }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: "0.6rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "2.5rem",
+                    fontWeight: "900",
+                    letterSpacing: "-1px",
+                    background:
+                      "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    display: "inline-block",
+                  }}
+                >
                   &#8377;{unitPrice}
                 </div>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>per unit</span>
+                <span
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "var(--text-muted)",
+                    fontWeight: "600",
+                  }}
+                >
+                  per unit
+                </span>
               </div>
-              <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+              <div
+                style={{
+                  marginTop: "0.4rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "0.82rem",
+                    color: "var(--text-muted)",
+                    fontWeight: "500",
+                  }}
+                >
                   &#8377;{unitPrice} &times; {qty} units
                 </span>
-                <span style={{ color: 'var(--text-ghost)', fontSize: '0.7rem' }}>=</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  &#8377;{Number(totalPrice).toLocaleString('en-IN')} total
+                <span
+                  style={{ color: "var(--text-ghost)", fontSize: "0.7rem" }}
+                >
+                  =
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.9rem",
+                    fontWeight: "800",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  &#8377;{Number(totalPrice).toLocaleString("en-IN")} total
                 </span>
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', display: 'inline-block' }}>
-              &#8377;{Number(totalPrice).toLocaleString('en-IN')}
+            <div
+              style={{
+                fontSize: "2.5rem",
+                fontWeight: "900",
+                letterSpacing: "-1px",
+                background:
+                  "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                display: "inline-block",
+              }}
+            >
+              &#8377;{Number(totalPrice).toLocaleString("en-IN")}
             </div>
           )}
         </div>
 
-        <div style={{ height: '1px', background: 'var(--glass-divider)', marginBottom: '1.5rem' }} />
+        <div
+          style={{
+            height: "1px",
+            background: "var(--glass-divider)",
+            marginBottom: "1.5rem",
+          }}
+        />
 
         {/* Info grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '1.5rem' }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.65rem",
+            marginBottom: "1.5rem",
+          }}
+        >
           {[
-            { label: isBuyer ? 'Seller' : 'Buyer', value: isBuyer ? txn.seller_name : txn.buyer_name },
-            { label: 'Category', value: txn.category || '—' },
-            { label: 'Role', value: isBuyer ? 'Bought' : 'Sold', isRole: true },
-            { label: 'Quantity', value: `${qty} unit${qty > 1 ? 's' : ''}` },
-            { label: 'Date', value: txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—', fullWidth: true },
+            {
+              label: isBuyer ? "Seller" : "Buyer",
+              value: isBuyer ? txn.seller_name : txn.buyer_name,
+            },
+            { label: "Category", value: txn.category || "—" },
+            { label: "Role", value: isBuyer ? "Bought" : "Sold", isRole: true },
+            { label: "Quantity", value: `${qty} unit${qty > 1 ? "s" : ""}` },
+            {
+              label: "Date",
+              value: txn.created_at
+                ? new Date(txn.created_at).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—",
+              fullWidth: true,
+            },
           ].map(({ label, value, isRole, fullWidth }) => (
-            <div key={label} style={{ gridColumn: fullWidth ? '1 / -1' : 'auto', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
-              <div style={{ fontSize: '0.58rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-ghost)', marginBottom: '0.35rem', fontWeight: '700' }}>{label}</div>
+            <div
+              key={label}
+              style={{
+                gridColumn: fullWidth ? "1 / -1" : "auto",
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                padding: "0.85rem 1rem",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "1px",
+                  background: "var(--glass-shimmer)",
+                }}
+              />
+              <div
+                style={{
+                  fontSize: "0.58rem",
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  color: "var(--text-ghost)",
+                  marginBottom: "0.35rem",
+                  fontWeight: "700",
+                }}
+              >
+                {label}
+              </div>
               {isRole ? (
-                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>
+                <span
+                  style={{
+                    fontSize: "0.8rem",
+                    fontWeight: "700",
+                    color: isBuyer ? "#74b9ff" : "#51cf66",
+                    background: isBuyer
+                      ? "rgba(116,185,255,0.1)"
+                      : "rgba(81,207,102,0.1)",
+                    padding: "2px 10px",
+                    borderRadius: "20px",
+                    border: isBuyer
+                      ? "1px solid rgba(116,185,255,0.15)"
+                      : "1px solid rgba(81,207,102,0.15)",
+                  }}
+                >
                   {value}
                 </span>
               ) : (
-                <div style={{ fontWeight: '600', color: 'var(--text-secondary)', fontSize: '0.9rem', letterSpacing: '-0.2px' }}>{value}</div>
+                <div
+                  style={{
+                    fontWeight: "600",
+                    color: "var(--text-secondary)",
+                    fontSize: "0.9rem",
+                    letterSpacing: "-0.2px",
+                  }}
+                >
+                  {value}
+                </div>
               )}
             </div>
           ))}
         </div>
 
         {/* Status bar */}
-        <div style={{ textAlign: 'center', padding: '0.75rem', borderRadius: '12px', fontSize: '0.82rem', fontWeight: '600', letterSpacing: '0.3px', background: isBuyer ? 'rgba(116,185,255,0.06)' : 'rgba(81,207,102,0.06)', border: isBuyer ? '1px solid rgba(116,185,255,0.1)' : '1px solid rgba(81,207,102,0.1)', color: isBuyer ? 'rgba(116,185,255,0.6)' : 'rgba(81,207,102,0.6)' }}>
-          {isBuyer ? 'Purchase completed' : 'Sale completed'}
+        <div
+          style={{
+            textAlign: "center",
+            padding: "0.75rem",
+            borderRadius: "12px",
+            fontSize: "0.82rem",
+            fontWeight: "600",
+            letterSpacing: "0.3px",
+            background: isBuyer
+              ? "rgba(116,185,255,0.06)"
+              : "rgba(81,207,102,0.06)",
+            border: isBuyer
+              ? "1px solid rgba(116,185,255,0.1)"
+              : "1px solid rgba(81,207,102,0.1)",
+            color: isBuyer ? "rgba(116,185,255,0.6)" : "rgba(81,207,102,0.6)",
+          }}
+        >
+          {isBuyer ? "Purchase completed" : "Sale completed"}
         </div>
 
         {showListingRemoved && (
-          <div style={{ marginTop: '0.65rem', textAlign: 'center', padding: '0.6rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '500', color: 'rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.04)', border: '1px solid rgba(255,107,107,0.08)' }}>
+          <div
+            style={{
+              marginTop: "0.65rem",
+              textAlign: "center",
+              padding: "0.6rem",
+              borderRadius: "10px",
+              fontSize: "0.75rem",
+              fontWeight: "500",
+              color: "rgba(255,107,107,0.45)",
+              background: "rgba(255,107,107,0.04)",
+              border: "1px solid rgba(255,107,107,0.08)",
+            }}
+          >
             You removed this listing after the sale
           </div>
         )}
 
         {/* Review section — only for buyers */}
         {isBuyer && (
-          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+          <div
+            style={{
+              marginTop: "1rem",
+              borderTop: "1px solid var(--border)",
+              paddingTop: "1rem",
+            }}
+          >
             {review ? (
               <div>
-                <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.6rem' }}>Your Review</div>
-                <div style={{ display: 'flex', gap: '0.2rem', marginBottom: '0.5rem' }}>
-                  {[1,2,3,4,5].map(s => (
-                    <svg key={s} width="18" height="18" viewBox="0 0 24 24" fill={s <= review.rating ? 'var(--accent)' : 'none'} stroke={s <= review.rating ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                <div
+                  style={{
+                    fontSize: "0.62rem",
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "var(--text-muted)",
+                    fontWeight: "700",
+                    marginBottom: "0.6rem",
+                  }}
+                >
+                  Your Review
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.2rem",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <svg
+                      key={s}
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill={s <= review.rating ? "var(--accent)" : "none"}
+                      stroke={
+                        s <= review.rating
+                          ? "var(--accent)"
+                          : "var(--text-ghost)"
+                      }
+                      strokeWidth="1.5"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ))}
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '0.4rem', alignSelf: 'center' }}>{['','Terrible','Bad','Okay','Good','Excellent'][review.rating]}</span>
+                  <span
+                    style={{
+                      fontSize: "0.78rem",
+                      color: "var(--text-muted)",
+                      marginLeft: "0.4rem",
+                      alignSelf: "center",
+                    }}
+                  >
+                    {
+                      ["", "Terrible", "Bad", "Okay", "Good", "Excellent"][
+                        review.rating
+                      ]
+                    }
+                  </span>
                 </div>
-                {review.comment && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6', fontStyle: 'italic' }}>"{review.comment}"</div>}
+                {review.comment && (
+                  <div
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--text-secondary)",
+                      lineHeight: "1.6",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    "{review.comment}"
+                  </div>
+                )}
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: '0.62rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.6rem' }}>Leave a Review</div>
-                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem', alignItems: 'center' }}>
-                  {[1,2,3,4,5].map(star => (
-                    <button key={star} type="button"
+                <div
+                  style={{
+                    fontSize: "0.62rem",
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "var(--text-muted)",
+                    fontWeight: "700",
+                    marginBottom: "0.6rem",
+                  }}
+                >
+                  Leave a Review
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.4rem",
+                    marginBottom: "0.875rem",
+                    alignItems: "center",
+                  }}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
                       onClick={() => setRating(star)}
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(0)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', transition: 'transform 0.15s', transform: (hoverRating || rating) >= star ? 'scale(1.2)' : 'scale(1)' }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill={(hoverRating || rating) >= star ? 'var(--accent)' : 'none'} stroke={(hoverRating || rating) >= star ? 'var(--accent)' : 'var(--text-ghost)'} strokeWidth="1.5">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "0.2rem",
+                        transition: "transform 0.15s",
+                        transform:
+                          (hoverRating || rating) >= star
+                            ? "scale(1.2)"
+                            : "scale(1)",
+                      }}
+                    >
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill={
+                          (hoverRating || rating) >= star
+                            ? "var(--accent)"
+                            : "none"
+                        }
+                        stroke={
+                          (hoverRating || rating) >= star
+                            ? "var(--accent)"
+                            : "var(--text-ghost)"
+                        }
+                        strokeWidth="1.5"
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                     </button>
                   ))}
-                  {rating > 0 && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{['','Terrible','Bad','Okay','Good','Excellent'][rating]}</span>}
+                  {rating > 0 && (
+                    <span
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "var(--text-muted)",
+                        marginLeft: "0.25rem",
+                      }}
+                    >
+                      {
+                        ["", "Terrible", "Bad", "Okay", "Good", "Excellent"][
+                          rating
+                        ]
+                      }
+                    </span>
+                  )}
                 </div>
-                <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Share your experience (optional)..." rows={2}
-                  style={{ width: '100%', padding: '0.6rem 0.875rem', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-body)', marginBottom: '0.75rem', transition: 'border 0.2s' }}
-                  onFocus={e => e.target.style.borderColor = 'rgba(var(--accent-rgb),0.35)'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Share your experience (optional)..."
+                  rows={2}
+                  style={{
+                    width: "100%",
+                    padding: "0.6rem 0.875rem",
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "10px",
+                    color: "var(--text-primary)",
+                    fontSize: "0.85rem",
+                    outline: "none",
+                    resize: "none",
+                    boxSizing: "border-box",
+                    fontFamily: "var(--font-body)",
+                    marginBottom: "0.75rem",
+                    transition: "border 0.2s",
+                  }}
+                  onFocus={(e) =>
+                    (e.target.style.borderColor =
+                      "rgba(var(--accent-rgb),0.35)")
+                  }
+                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
                 />
-                {reviewError && <div style={{ fontSize: '0.75rem', color: '#ef4444', marginBottom: '0.5rem' }}>{reviewError}</div>}
-                <button onClick={handleSubmitReview} disabled={reviewLoading || rating === 0}
-                  style={{ width: '100%', padding: '0.65rem', background: rating === 0 || reviewLoading ? 'var(--bg-card-hover)' : 'linear-gradient(135deg, var(--accent), var(--accent-alt))', color: rating === 0 || reviewLoading ? 'var(--text-muted)' : 'white', border: 'none', borderRadius: '10px', cursor: rating === 0 || reviewLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: '700', fontFamily: 'var(--font-body)', boxShadow: rating > 0 && !reviewLoading ? 'var(--shadow-accent)' : 'none' }}>
-                  {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                {reviewError && (
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#ef4444",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    {reviewError}
+                  </div>
+                )}
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={reviewLoading || rating === 0}
+                  style={{
+                    width: "100%",
+                    padding: "0.65rem",
+                    background:
+                      rating === 0 || reviewLoading
+                        ? "var(--bg-card-hover)"
+                        : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                    color:
+                      rating === 0 || reviewLoading
+                        ? "var(--text-muted)"
+                        : "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    cursor:
+                      rating === 0 || reviewLoading ? "not-allowed" : "pointer",
+                    fontSize: "0.85rem",
+                    fontWeight: "700",
+                    fontFamily: "var(--font-body)",
+                    boxShadow:
+                      rating > 0 && !reviewLoading
+                        ? "var(--shadow-accent)"
+                        : "none",
+                  }}
+                >
+                  {reviewLoading ? "Submitting..." : "Submit Review"}
                 </button>
               </div>
             )}
           </div>
         )}
       </div>
-    </div>
-  , document.body)
+    </div>,
+    document.body,
+  );
 }
 
 // ── Transaction Row ───────────────────────────────────────────
-function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen }) {
-  const [hovered, setHovered] = useState(false)
-  const [trashHovered, setTrashHovered] = useState(false)
-  const review = txn.review || null
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const isBuyer = txn.buyer_id === user.id
-  const role = isBuyer ? 'Bought' : 'Sold'
-  const otherParty = isBuyer ? (txn.seller_name || 'Seller') : (txn.buyer_name || 'Buyer')
-  const qty = txn.quantity || 1
+function TransactionRow({
+  txn,
+  selectMode,
+  selected,
+  onToggle,
+  onDelete,
+  onOpen,
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [trashHovered, setTrashHovered] = useState(false);
+  const review = txn.review || null;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isBuyer = txn.buyer_id === user.id;
+  const role = isBuyer ? "Bought" : "Sold";
+  const otherParty = isBuyer
+    ? txn.seller_name || "Seller"
+    : txn.buyer_name || "Buyer";
+  const qty = txn.quantity || 1;
 
   function handleClick() {
-    if (selectMode) { onToggle(); return }
-    onOpen()
+    if (selectMode) {
+      onToggle();
+      return;
+    }
+    onOpen();
   }
 
-  const showCheckbox = hovered || selectMode
-  const showTrash = selected
+  const showCheckbox = hovered || selectMode;
+  const showTrash = selected;
 
   return (
     <div
@@ -301,64 +1011,189 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
       onMouseLeave={() => setHovered(false)}
       onClick={handleClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: '1rem',
+        display: "flex",
+        alignItems: "center",
+        gap: "1rem",
         background: selected
-          ? 'linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)'
+          ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)"
           : hovered
-          ? 'var(--bg-card-hover)'
-          : 'var(--bg-surface)',
-        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: selected ? '1px solid rgba(var(--accent-rgb),0.3)' : hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)',
-        borderRadius: '16px', padding: '1.25rem 1.5rem',
-        transition: 'all 0.2s ease', cursor: 'pointer',
-        position: 'relative', overflow: 'hidden',
-        boxShadow: selected ? '0 4px 20px rgba(var(--accent-rgb),0.1)' : hovered ? 'var(--shadow-card)' : '0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)',
+            ? "var(--bg-card-hover)"
+            : "var(--bg-surface)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: selected
+          ? "1px solid rgba(var(--accent-rgb),0.3)"
+          : hovered
+            ? "1px solid var(--border-hover)"
+            : "1px solid var(--border)",
+        borderRadius: "16px",
+        padding: "1.25rem 1.5rem",
+        transition: "all 0.2s ease",
+        cursor: "pointer",
+        position: "relative",
+        overflow: "hidden",
+        boxShadow: selected
+          ? "0 4px 20px rgba(var(--accent-rgb),0.1)"
+          : hovered
+            ? "var(--shadow-card)"
+            : "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)",
       }}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "1px",
+          background: "var(--glass-shimmer)",
+        }}
+      />
 
       {/* Checkbox */}
       <div
-        onClick={e => { e.stopPropagation(); onToggle() }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
         style={{
-          width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
-          border: selected ? 'none' : '1.5px solid var(--border-hover)',
-          background: selected ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-input)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.2s ease',
-          boxShadow: selected ? '0 2px 10px rgba(var(--accent-rgb),0.45)' : 'none',
+          width: "20px",
+          height: "20px",
+          borderRadius: "6px",
+          flexShrink: 0,
+          border: selected ? "none" : "1.5px solid var(--border-hover)",
+          background: selected
+            ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
+            : "var(--bg-input)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "all 0.2s ease",
+          boxShadow: selected
+            ? "0 2px 10px rgba(var(--accent-rgb),0.45)"
+            : "none",
           opacity: showCheckbox ? 1 : 0,
-          transform: showCheckbox ? 'scale(1)' : 'scale(0.7)',
-          pointerEvents: showCheckbox ? 'auto' : 'none',
-        }}>
+          transform: showCheckbox ? "scale(1)" : "scale(0.7)",
+          pointerEvents: showCheckbox ? "auto" : "none",
+        }}
+      >
         {selected && (
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-            <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <polyline
+              points="2,6 5,9 10,3"
+              stroke="white"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         )}
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {txn.item_title || 'Deleted Item'}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "1.05rem",
+              fontWeight: "700",
+              color: "var(--text-primary)",
+              letterSpacing: "-0.3px",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {txn.item_title || "Deleted Item"}
           </h3>
           {qty > 1 && (
-            <span style={{ fontSize: '0.65rem', fontWeight: '800', letterSpacing: '0.5px', background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb),0.3)', padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>&times;{qty}</span>
+            <span
+              style={{
+                fontSize: "0.65rem",
+                fontWeight: "800",
+                letterSpacing: "0.5px",
+                background: "rgba(var(--accent-rgb),0.15)",
+                color: "var(--accent)",
+                border: "1px solid rgba(var(--accent-rgb),0.3)",
+                padding: "2px 8px",
+                borderRadius: "20px",
+                flexShrink: 0,
+              }}
+            >
+              &times;{qty}
+            </span>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: '800', fontSize: '0.95rem', background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            &#8377;{Number(txn.price).toLocaleString('en-IN')}
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            marginTop: "0.45rem",
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              fontWeight: "800",
+              fontSize: "0.95rem",
+              background:
+                "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            &#8377;{Number(txn.price).toLocaleString("en-IN")}
           </span>
-          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border-hover)', flexShrink: 0 }} />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>{otherParty}</span>
-          <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--border-hover)', flexShrink: 0 }} />
-          <span style={{ fontSize: '0.7rem', fontWeight: '700', color: isBuyer ? '#74b9ff' : '#51cf66', background: isBuyer ? 'rgba(116,185,255,0.1)' : 'rgba(81,207,102,0.1)', padding: '2px 10px', borderRadius: '20px', border: isBuyer ? '1px solid rgba(116,185,255,0.15)' : '1px solid rgba(81,207,102,0.15)' }}>{role}</span>
+          <span
+            style={{
+              width: "3px",
+              height: "3px",
+              borderRadius: "50%",
+              background: "var(--border-hover)",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              color: "var(--text-muted)",
+              fontSize: "0.75rem",
+              fontWeight: "600",
+            }}
+          >
+            {otherParty}
+          </span>
+          <span
+            style={{
+              width: "3px",
+              height: "3px",
+              borderRadius: "50%",
+              background: "var(--border-hover)",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontSize: "0.7rem",
+              fontWeight: "700",
+              color: isBuyer ? "#74b9ff" : "#51cf66",
+              background: isBuyer
+                ? "rgba(116,185,255,0.1)"
+                : "rgba(81,207,102,0.1)",
+              padding: "2px 10px",
+              borderRadius: "20px",
+              border: isBuyer
+                ? "1px solid rgba(116,185,255,0.15)"
+                : "1px solid rgba(81,207,102,0.15)",
+            }}
+          >
+            {role}
+          </span>
           {txn.created_at && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-ghost)' }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--text-ghost)" }}>
               {new Date(txn.created_at).toLocaleDateString()}
             </span>
           )}
@@ -366,200 +1201,408 @@ function TransactionRow({ txn, selectMode, selected, onToggle, onDelete, onOpen 
       </div>
 
       {/* Right — trash or arrow */}
-      <div style={{ flexShrink: 0, width: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          flexShrink: 0,
+          width: "32px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         {showTrash ? (
           <div
-            onClick={e => { e.stopPropagation(); onDelete() }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             onMouseEnter={() => setTrashHovered(true)}
             onMouseLeave={() => setTrashHovered(false)}
-            style={{ width: '32px', height: '32px', borderRadius: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: trashHovered ? 'rgba(255,77,77,0.18)' : 'rgba(255,107,107,0.08)', border: trashHovered ? '1px solid rgba(255,77,77,0.35)' : '1px solid rgba(255,107,107,0.12)', transition: 'all 0.2s ease', boxShadow: trashHovered ? '0 0 14px rgba(255,77,77,0.25)' : 'none', transform: trashHovered ? 'scale(1.1)' : 'scale(1)' }}>
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "9px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: trashHovered
+                ? "rgba(255,77,77,0.18)"
+                : "rgba(255,107,107,0.08)",
+              border: trashHovered
+                ? "1px solid rgba(255,77,77,0.35)"
+                : "1px solid rgba(255,107,107,0.12)",
+              transition: "all 0.2s ease",
+              boxShadow: trashHovered
+                ? "0 0 14px rgba(255,77,77,0.25)"
+                : "none",
+              transform: trashHovered ? "scale(1.1)" : "scale(1)",
+            }}
+          >
             <svg width="14" height="15" viewBox="0 0 16 17" fill="none">
-              <path d="M2 4h12" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.7)'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M6.5 7.5v4M9.5 7.5v4" stroke={trashHovered ? '#ff4d4d' : 'rgba(255,107,107,0.5)'} strokeWidth="1.4" strokeLinecap="round"/>
+              <path
+                d="M2 4h12"
+                stroke={trashHovered ? "#ff4d4d" : "rgba(255,107,107,0.7)"}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <path
+                d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
+                stroke={trashHovered ? "#ff4d4d" : "rgba(255,107,107,0.7)"}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <path
+                d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
+                stroke={trashHovered ? "#ff4d4d" : "rgba(255,107,107,0.7)"}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6.5 7.5v4M9.5 7.5v4"
+                stroke={trashHovered ? "#ff4d4d" : "rgba(255,107,107,0.5)"}
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
             </svg>
           </div>
         ) : (
-          <span style={{ color: hovered ? 'var(--text-muted)' : 'var(--text-ghost)', transition: 'color 0.2s ease', fontSize: '1rem' }}>&#8594;</span>
+          <span
+            style={{
+              color: hovered ? "var(--text-muted)" : "var(--text-ghost)",
+              transition: "color 0.2s ease",
+              fontSize: "1rem",
+            }}
+          >
+            &#8594;
+          </span>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 // ── Confirm Modal ─────────────────────────────────────────────
 function ConfirmModal({ count, onConfirm, onCancel }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }} onClick={onCancel}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--glass-bg-modal)', border: '1px solid var(--bd-danger)', borderRadius: '20px', padding: '2rem 2.25rem', maxWidth: '340px', width: '90%', textAlign: 'center' }}>
-        <div style={{ width: '48px', height: '48px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9000,
+      }}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--glass-bg-modal)",
+          border: "1px solid var(--bd-danger)",
+          borderRadius: "20px",
+          padding: "2rem 2.25rem",
+          maxWidth: "340px",
+          width: "90%",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            background: "rgba(255,77,77,0.1)",
+            border: "1px solid rgba(255,77,77,0.2)",
+            borderRadius: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 1rem",
+          }}
+        >
           <svg width="20" height="21" viewBox="0 0 16 17" fill="none">
-            <path d="M2 4h12" stroke="#ff4d4d" strokeWidth="1.6" strokeLinecap="round"/>
-            <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke="#ff4d4d" strokeWidth="1.6" strokeLinecap="round"/>
-            <path d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5" stroke="#ff4d4d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M6.5 7.5v4M9.5 7.5v4" stroke="rgba(255,77,77,0.7)" strokeWidth="1.4" strokeLinecap="round"/>
+            <path
+              d="M2 4h12"
+              stroke="#ff4d4d"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <path
+              d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
+              stroke="#ff4d4d"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <path
+              d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
+              stroke="#ff4d4d"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6.5 7.5v4M9.5 7.5v4"
+              stroke="rgba(255,77,77,0.7)"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
           </svg>
         </div>
-        <h3 style={{ color: 'var(--text-primary)', fontWeight: '800', fontSize: '1.1rem', marginBottom: '0.4rem' }}>Delete {count > 1 ? `${count} transactions` : 'this transaction'}?</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '1.5rem' }}>This action cannot be undone.</p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-          <button onClick={onCancel} style={{ padding: '0.6rem 1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem' }}>Cancel</button>
-          <button onClick={onConfirm} style={{ padding: '0.6rem 1.5rem', background: 'linear-gradient(135deg, #ff4d4d, #e03030)', border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '0.82rem', boxShadow: '0 4px 15px rgba(255,77,77,0.3)' }}>Delete</button>
+        <h3
+          style={{
+            color: "var(--text-primary)",
+            fontWeight: "800",
+            fontSize: "1.1rem",
+            marginBottom: "0.4rem",
+          }}
+        >
+          Delete {count > 1 ? `${count} transactions` : "this transaction"}?
+        </h3>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.82rem",
+            marginBottom: "1.5rem",
+          }}
+        >
+          This action cannot be undone.
+        </p>
+        <div
+          style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}
+        >
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "0.6rem 1.5rem",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              borderRadius: "10px",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              fontWeight: "600",
+              fontSize: "0.82rem",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: "0.6rem 1.5rem",
+              background: "linear-gradient(135deg, #ff4d4d, #e03030)",
+              border: "none",
+              borderRadius: "10px",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: "700",
+              fontSize: "0.82rem",
+              boxShadow: "0 4px 15px rgba(255,77,77,0.3)",
+            }}
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // ── Main ──────────────────────────────────────────────────────
 function Transactions() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   // ── Draggable back button ──────────────────────────────────
   const [draggable, setDraggable] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
-  })
+    try {
+      return JSON.parse(localStorage.getItem("floatingDraggable") ?? "false");
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
     const sync = () => {
-      try { setDraggable(JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false')) } catch {}
-    }
-    window.addEventListener('floatingDraggableChanged', sync)
-    return () => window.removeEventListener('floatingDraggableChanged', sync)
-  }, [])
-  const backRef = useRef(null)
+      try {
+        setDraggable(
+          JSON.parse(localStorage.getItem("floatingDraggable") ?? "false"),
+        );
+      } catch {}
+    };
+    window.addEventListener("floatingDraggableChanged", sync);
+    return () => window.removeEventListener("floatingDraggableChanged", sync);
+  }, []);
+  const backRef = useRef(null);
   useEffect(() => {
-    if (!backRef.current) return
+    if (!backRef.current) return;
     if (!draggable) {
-      backRef.current.style.transform = ''
-      backRef.current.style.transition = ''
-      backRef.current.style.zIndex = ''
-      backRef.current.style.cursor = ''
-      localStorage.removeItem('drag_backbtn_txn')
+      backRef.current.style.transform = "";
+      backRef.current.style.transition = "";
+      backRef.current.style.zIndex = "";
+      backRef.current.style.cursor = "";
+      localStorage.removeItem("drag_backbtn_txn");
     } else {
       try {
-        const saved = JSON.parse(localStorage.getItem('drag_backbtn_txn'))
-        if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+        const saved = JSON.parse(localStorage.getItem("drag_backbtn_txn"));
+        if (saved)
+          backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`;
       } catch {}
     }
-  }, [draggable])
+  }, [draggable]);
   useEffect(() => {
-    if (!draggable || !backRef.current) return
+    if (!draggable || !backRef.current) return;
     try {
-      const saved = JSON.parse(localStorage.getItem('drag_backbtn_txn'))
-      if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`
+      const saved = JSON.parse(localStorage.getItem("drag_backbtn_txn"));
+      if (saved)
+        backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`;
     } catch {}
-  }, [])
-  const startBackDrag = useCallback((clientX, clientY) => {
-    if (!draggable || !backRef.current) return
-    const el = backRef.current
-    const match = el.style.transform.match(/translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/)
-    const baseDx = match ? parseFloat(match[1]) : 0
-    const baseDy = match ? parseFloat(match[2]) : 0
-    let dx = baseDx, dy = baseDy
-    let hasDragged = false
-    let rafId = null
-    el.style.transition = 'none'
-    el.style.zIndex = '9999'
-    el.style.cursor = 'grabbing'
-    const onMove = (cx, cy) => {
-      dx = baseDx + (cx - clientX)
-      dy = baseDy + (cy - clientY)
-      if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4) hasDragged = true
-      if (rafId) cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(() => {
-        el.style.transform = `translate(${dx}px, ${dy}px)`
-      })
-    }
-    const onUp = () => {
-      if (rafId) cancelAnimationFrame(rafId)
-      el.style.cursor = 'grab'
-      el.style.transition = ''
-      el.style.zIndex = ''
-      if (hasDragged) {
-        localStorage.setItem('drag_backbtn_txn', JSON.stringify({ dx, dy }))
-        const kill = (ce) => { ce.stopPropagation(); ce.preventDefault(); window.removeEventListener('click', kill, true) }
-        window.addEventListener('click', kill, true)
+  }, []);
+  const startBackDrag = useCallback(
+    (clientX, clientY) => {
+      if (!draggable || !backRef.current) return;
+      const el = backRef.current;
+      const match = el.style.transform.match(
+        /translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/,
+      );
+      const baseDx = match ? parseFloat(match[1]) : 0;
+      const baseDy = match ? parseFloat(match[2]) : 0;
+      let dx = baseDx,
+        dy = baseDy;
+      let hasDragged = false;
+      let rafId = null;
+      el.style.transition = "none";
+      el.style.zIndex = "9999";
+      el.style.cursor = "grabbing";
+      const onMove = (cx, cy) => {
+        dx = baseDx + (cx - clientX);
+        dy = baseDy + (cy - clientY);
+        if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4)
+          hasDragged = true;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+        });
+      };
+      const onUp = () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        el.style.cursor = "grab";
+        el.style.transition = "";
+        el.style.zIndex = "";
+        if (hasDragged) {
+          localStorage.setItem("drag_backbtn_txn", JSON.stringify({ dx, dy }));
+          const kill = (ce) => {
+            ce.stopPropagation();
+            ce.preventDefault();
+            window.removeEventListener("click", kill, true);
+          };
+          window.addEventListener("click", kill, true);
+        }
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("touchmove", onTouchMove);
+        window.removeEventListener("touchend", onUp);
+      };
+      const onMouseMove = (e) => onMove(e.clientX, e.clientY);
+      const onTouchMove = (e) => {
+        e.preventDefault();
+        onMove(e.touches[0].clientX, e.touches[0].clientY);
+      };
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onUp);
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onUp);
+    },
+    [draggable],
+  );
+  const onBackMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      startBackDrag(e.clientX, e.clientY);
+    },
+    [startBackDrag],
+  );
+  const onBackTouchStart = useCallback(
+    (e) => {
+      startBackDrag(e.touches[0].clientX, e.touches[0].clientY);
+    },
+    [startBackDrag],
+  );
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("All");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [confirmIds, setConfirmIds] = useState(null);
+  const [search, setSearch] = useState("");
+  const [openTxn, setOpenTxn] = useState(null);
+
+  useEffect(() => {
+    API.get("/transactions")
+      .then((r) => setTransactions(r.data))
+      .catch(() => setError("Failed to load transactions."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") {
+        setSelectMode(false);
+        setSelected(new Set());
       }
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onUp)
-      window.removeEventListener('touchmove', onTouchMove)
-      window.removeEventListener('touchend', onUp)
     }
-    const onMouseMove = (e) => onMove(e.clientX, e.clientY)
-    const onTouchMove = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY) }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onUp)
-    window.addEventListener('touchmove', onTouchMove, { passive: false })
-    window.addEventListener('touchend', onUp)
-  }, [draggable])
-  const onBackMouseDown = useCallback((e) => { e.preventDefault(); startBackDrag(e.clientX, e.clientY) }, [startBackDrag])
-  const onBackTouchStart = useCallback((e) => { startBackDrag(e.touches[0].clientX, e.touches[0].clientY) }, [startBackDrag])
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('All')
-  const [selectMode, setSelectMode] = useState(false)
-  const [selected, setSelected] = useState(new Set())
-  const [confirmIds, setConfirmIds] = useState(null)
-  const [search, setSearch] = useState('')
-  const [openTxn, setOpenTxn] = useState(null)
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
-  useEffect(() => {
-    API.get('/transactions')
-      .then(r => setTransactions(r.data))
-      .catch(() => setError('Failed to load transactions.'))
-      .finally(() => setLoading(false))
-  }, [])
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { setSelectMode(false); setSelected(new Set()) } }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-
-  const baseFiltered = filter === 'All'
-    ? transactions
-    : filter === 'Bought'
-    ? transactions.filter(t => t.buyer_id === user.id)
-    : transactions.filter(t => t.seller_id === user.id)
+  const baseFiltered =
+    filter === "All"
+      ? transactions
+      : filter === "Bought"
+        ? transactions.filter((t) => t.buyer_id === user.id)
+        : transactions.filter((t) => t.seller_id === user.id);
 
   const filtered = search.trim()
-    ? baseFiltered.filter(t => {
-        const q = search.toLowerCase()
+    ? baseFiltered.filter((t) => {
+        const q = search.toLowerCase();
         return (
-          (t.item_title || '').toLowerCase().includes(q) ||
-          (t.buyer_name || '').toLowerCase().includes(q) ||
-          (t.seller_name || '').toLowerCase().includes(q)
-        )
+          (t.item_title || "").toLowerCase().includes(q) ||
+          (t.buyer_name || "").toLowerCase().includes(q) ||
+          (t.seller_name || "").toLowerCase().includes(q)
+        );
       })
-    : baseFiltered
+    : baseFiltered;
 
   function toggleSelect(id) {
-    if (!selectMode) setSelectMode(true)
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      if (next.size === 0) setSelectMode(false)
-      return next
-    })
+    if (!selectMode) setSelectMode(true);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.size === 0) setSelectMode(false);
+      return next;
+    });
   }
 
   async function confirmDelete(ids) {
-    setConfirmIds(null)
+    setConfirmIds(null);
     for (const id of ids) {
       try {
-        await API.delete(`/transactions/${id}`)
-        setTransactions(prev => prev.filter(t => t.id !== id))
+        await API.delete(`/transactions/${id}`);
+        setTransactions((prev) => prev.filter((t) => t.id !== id));
       } catch {}
     }
-    setSelectMode(false)
-    setSelected(new Set())
+    setSelectMode(false);
+    setSelected(new Set());
   }
 
   return (
-    <div className="txn-page" style={{ padding: '5rem 4rem 3rem', maxWidth: '900px', margin: '0 auto' }}>
+    <div
+      className="txn-page"
+      style={{ padding: "5rem 4rem 3rem", maxWidth: "900px", margin: "0 auto" }}
+    >
       <style>{`
         /* ── Tablet: 769px – 1024px ── */
         @media (min-width: 769px) and (max-width: 1024px) {
@@ -590,7 +1633,17 @@ function Transactions() {
         }
       `}</style>
 
-      {openTxn && <TxnDetailModal txn={openTxn} onClose={() => setOpenTxn(null)} onReviewed={(txnId, r) => setTransactions(prev => prev.map(t => t.id === txnId ? { ...t, review: r } : t))} />}
+      {openTxn && (
+        <TxnDetailModal
+          txn={openTxn}
+          onClose={() => setOpenTxn(null)}
+          onReviewed={(txnId, r) =>
+            setTransactions((prev) =>
+              prev.map((t) => (t.id === txnId ? { ...t, review: r } : t)),
+            )
+          }
+        />
+      )}
 
       {confirmIds && (
         <ConfirmModal
@@ -601,125 +1654,505 @@ function Transactions() {
       )}
 
       {/* Header */}
-      <div className="txn-header" style={{ marginBottom: '2.5rem', position: 'relative' }}>
+      <div
+        className="txn-header"
+        style={{ marginBottom: "2.5rem", position: "relative" }}
+      >
         <button
-          ref={backRef} onClick={() => navigate(-1)} onMouseDown={onBackMouseDown} onTouchStart={onBackTouchStart}
-          className="txn-back-btn back-btn-circle" style={{ position: 'absolute', left: '-50px', top: '6px', width: '34px', height: '34px', borderRadius: '50%', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draggable ? 'grab' : 'pointer', flexShrink: 0, color: 'var(--text-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; e.currentTarget.style.boxShadow='0 0 8px 2px rgba(var(--accent-rgb),0.35)' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = 'none' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          ref={backRef}
+          onClick={() => navigate(-1)}
+          onMouseDown={onBackMouseDown}
+          onTouchStart={onBackTouchStart}
+          className="txn-back-btn back-btn-circle"
+          style={{
+            position: "absolute",
+            left: "-50px",
+            top: "6px",
+            width: "34px",
+            height: "34px",
+            borderRadius: "50%",
+            background: "var(--bg-surface)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: draggable ? "grab" : "pointer",
+            flexShrink: 0,
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-body)",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--accent)";
+            e.currentTarget.style.color = "var(--accent)";
+            e.currentTarget.style.boxShadow =
+              "0 0 8px 2px rgba(var(--accent-rgb),0.35)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.color = "var(--text-muted)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
         </button>
-        <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '-2px', lineHeight: '1.05', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
-          My<br />
-          <span style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-alt))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Transactions.</span>
+        <h1
+          style={{
+            fontSize: "3rem",
+            fontWeight: "900",
+            letterSpacing: "-2px",
+            lineHeight: "1.05",
+            marginBottom: "0.6rem",
+            color: "var(--text-primary)",
+          }}
+        >
+          My
+          <br />
+          <span
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            Transactions.
+          </span>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '400' }}>All your purchases and sales in one place.</p>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.85rem",
+            fontWeight: "400",
+          }}
+        >
+          All your purchases and sales in one place.
+        </p>
       </div>
 
       {/* Search */}
-      <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-ghost)" strokeWidth="2.2" strokeLinecap="round" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-30%)', pointerEvents: 'none' }}>
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      <div style={{ position: "relative", marginBottom: "1.25rem" }}>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--text-ghost)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          style={{
+            position: "absolute",
+            left: "1rem",
+            top: "50%",
+            transform: "translateY(-30%)",
+            pointerEvents: "none",
+          }}
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by item, buyer, or seller..."
-          style={{ width: '100%', boxSizing: 'border-box', padding: '0.65rem 1rem 0.65rem 2.75rem', background: 'var(--bg-card-hover)', border: search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', transition: 'border 0.2s ease, box-shadow 0.2s ease', boxShadow: 'none' }}
-          onFocus={e => { e.target.style.border = '1px solid rgba(var(--accent-rgb),0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(var(--accent-rgb),0.12)' }}
-          onBlur={e => { e.target.style.border = search ? '1px solid rgba(var(--accent-rgb),0.35)' : '1px solid var(--border)'; e.target.style.boxShadow = 'none' }}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "0.65rem 1rem 0.65rem 2.75rem",
+            background: "var(--bg-card-hover)",
+            border: search
+              ? "1px solid rgba(var(--accent-rgb),0.35)"
+              : "1px solid var(--border)",
+            borderRadius: "12px",
+            color: "var(--text-primary)",
+            fontSize: "0.85rem",
+            outline: "none",
+            fontFamily: "inherit",
+            transition: "border 0.2s ease, box-shadow 0.2s ease",
+            boxShadow: "none",
+          }}
+          onFocus={(e) => {
+            e.target.style.border = "1px solid rgba(var(--accent-rgb),0.4)";
+            e.target.style.boxShadow = "0 0 0 3px rgba(var(--accent-rgb),0.12)";
+          }}
+          onBlur={(e) => {
+            e.target.style.border = search
+              ? "1px solid rgba(var(--accent-rgb),0.35)"
+              : "1px solid var(--border)";
+            e.target.style.boxShadow = "none";
+          }}
         />
         {search && (
-          <div onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1 }}>&times;</div>
+          <div
+            onClick={() => setSearch("")}
+            style={{
+              position: "absolute",
+              right: "0.85rem",
+              top: "50%",
+              transform: "translateY(-50%)",
+              cursor: "pointer",
+              color: "var(--text-muted)",
+              fontSize: "1rem",
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </div>
         )}
       </div>
 
       {/* Filter + Select row */}
-      <div className="txn-filter-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {['All', 'Bought', 'Sold'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease', border: filter === f ? '1px solid transparent' : '1px solid var(--border)', background: filter === f ? 'linear-gradient(135deg, var(--accent), var(--accent-alt))' : 'var(--bg-card-hover)', color: filter === f ? 'white' : 'var(--text-secondary)', boxShadow: filter === f ? 'var(--shadow-accent)' : 'none' }}>{f}</button>
+      <div
+        className="txn-filter-row"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          gap: "0.75rem",
+        }}
+      >
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {["All", "Bought", "Sold"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: "0.4rem 1rem",
+                borderRadius: "10px",
+                fontSize: "0.8rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                border:
+                  filter === f
+                    ? "1px solid transparent"
+                    : "1px solid var(--border)",
+                background:
+                  filter === f
+                    ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
+                    : "var(--bg-card-hover)",
+                color: filter === f ? "white" : "var(--text-secondary)",
+                boxShadow: filter === f ? "var(--shadow-accent)" : "none",
+              }}
+            >
+              {f}
+            </button>
           ))}
         </div>
         {filtered.length > 0 && (
-          <button onClick={() => { setSelectMode(v => !v); setSelected(new Set()) }} style={{ padding: '0.4rem 1rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', background: selectMode ? 'rgba(var(--accent-rgb),0.1)' : 'var(--bg-card)', border: selectMode ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid var(--border)', color: selectMode ? 'var(--accent)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          <button
+            onClick={() => {
+              setSelectMode((v) => !v);
+              setSelected(new Set());
+            }}
+            style={{
+              padding: "0.4rem 1rem",
+              borderRadius: "10px",
+              fontSize: "0.78rem",
+              fontWeight: "600",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              background: selectMode
+                ? "rgba(var(--accent-rgb),0.1)"
+                : "var(--bg-card)",
+              border: selectMode
+                ? "1px solid rgba(var(--accent-rgb),0.3)"
+                : "1px solid var(--border)",
+              color: selectMode ? "var(--accent)" : "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+            }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
             </svg>
-            {selectMode ? 'Cancel' : 'Select'}
+            {selectMode ? "Cancel" : "Select"}
           </button>
         )}
       </div>
 
       {/* Select toolbar */}
       {selectMode && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)', border: '1px solid rgba(var(--accent-rgb),0.18)', borderRadius: '14px', padding: '0.75rem 1.25rem', marginBottom: '1rem', animation: 'fadeSlideIn 0.2s ease' }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background:
+              "linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)",
+            border: "1px solid rgba(var(--accent-rgb),0.18)",
+            borderRadius: "14px",
+            padding: "0.75rem 1.25rem",
+            marginBottom: "1rem",
+            animation: "fadeSlideIn 0.2s ease",
+          }}
+        >
           <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }
         .txn-detail-modal::-webkit-scrollbar { display: none; }`}</style>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>{selected.size} selected</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <span
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "0.8rem",
+                fontWeight: "600",
+              }}
+            >
+              {selected.size} selected
+            </span>
             <button
-              onClick={() => { if (selected.size === filtered.length) { setSelected(new Set()); setSelectMode(false) } else setSelected(new Set(filtered.map(t => t.id))) }}
-              style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', transition: 'all 0.2s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-card-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'var(--bg-card)' }}
-            >{selected.size === filtered.length ? 'Deselect All' : 'Select All'}</button>
+              onClick={() => {
+                if (selected.size === filtered.length) {
+                  setSelected(new Set());
+                  setSelectMode(false);
+                } else setSelected(new Set(filtered.map((t) => t.id)));
+              }}
+              style={{
+                padding: "0.3rem 0.8rem",
+                borderRadius: "8px",
+                fontSize: "0.75rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+                color: "var(--text-muted)",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--text-primary)";
+                e.currentTarget.style.background = "var(--bg-card-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.background = "var(--bg-card)";
+              }}
+            >
+              {selected.size === filtered.length
+                ? "Deselect All"
+                : "Select All"}
+            </button>
           </div>
           <button
             disabled={selected.size === 0}
             onClick={() => selected.size > 0 && setConfirmIds([...selected])}
-            style={{ padding: '0.35rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: selected.size === 0 ? 'not-allowed' : 'pointer', background: selected.size > 0 ? 'rgba(255,77,77,0.1)' : 'rgba(255,255,255,0.03)', border: selected.size > 0 ? '1px solid rgba(255,77,77,0.22)' : '1px solid var(--border)', color: selected.size > 0 ? '#ff6b6b' : 'var(--text-ghost)', display: 'flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s ease' }}>
+            style={{
+              padding: "0.35rem 1rem",
+              borderRadius: "8px",
+              fontSize: "0.78rem",
+              fontWeight: "700",
+              cursor: selected.size === 0 ? "not-allowed" : "pointer",
+              background:
+                selected.size > 0
+                  ? "rgba(255,77,77,0.1)"
+                  : "rgba(255,255,255,0.03)",
+              border:
+                selected.size > 0
+                  ? "1px solid rgba(255,77,77,0.22)"
+                  : "1px solid var(--border)",
+              color: selected.size > 0 ? "#ff6b6b" : "var(--text-ghost)",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              transition: "all 0.2s ease",
+            }}
+          >
             <svg width="12" height="12" viewBox="0 0 16 17" fill="none">
-              <path d="M2 4h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-              <path d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path
+                d="M2 4h12"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <path
+                d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <path
+                d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
-            Delete{selected.size > 0 ? ` (${selected.size})` : ''}
+            Delete{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
         </div>
       )}
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem" }}>
         {[
-          { label: 'Bought', value: transactions.filter(t => t.buyer_id === user.id).length },
-          { label: 'Sold',   value: transactions.filter(t => t.seller_id === user.id).length },
-          { label: 'Total',  value: transactions.length },
-        ].map(stat => (
-          <div key={stat.label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '0.85rem 1.25rem', minWidth: '80px', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'var(--glass-shimmer)' }} />
-            <div style={{ fontSize: '0.55rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.25rem' }}>{stat.label}</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-secondary)', letterSpacing: '-0.5px' }}>{stat.value}</div>
+          {
+            label: "Bought",
+            value: transactions.filter((t) => t.buyer_id === user.id).length,
+          },
+          {
+            label: "Sold",
+            value: transactions.filter((t) => t.seller_id === user.id).length,
+          },
+          { label: "Total", value: transactions.length },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            style={{
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "14px",
+              padding: "0.85rem 1.25rem",
+              minWidth: "80px",
+              position: "relative",
+              overflow: "hidden",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "1px",
+                background: "var(--glass-shimmer)",
+              }}
+            />
+            <div
+              style={{
+                fontSize: "0.55rem",
+                letterSpacing: "1.5px",
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
+                fontWeight: "700",
+                marginBottom: "0.25rem",
+              }}
+            >
+              {stat.label}
+            </div>
+            <div
+              style={{
+                fontSize: "1.4rem",
+                fontWeight: "800",
+                color: "var(--text-secondary)",
+                letterSpacing: "-0.5px",
+              }}
+            >
+              {stat.value}
+            </div>
           </div>
         ))}
       </div>
 
-      <div style={{ height: '1px', background: 'var(--glass-divider)', marginBottom: '1.5rem' }} />
-      <p style={{ color: 'var(--text-ghost)', fontSize: '0.7rem', marginBottom: '1rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-        {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
+      <div
+        style={{
+          height: "1px",
+          background: "var(--glass-divider)",
+          marginBottom: "1.5rem",
+        }}
+      />
+      <p
+        style={{
+          color: "var(--text-ghost)",
+          fontSize: "0.7rem",
+          marginBottom: "1rem",
+          fontWeight: "700",
+          letterSpacing: "1.5px",
+          textTransform: "uppercase",
+        }}
+      >
+        {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
       </p>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              border: "3px solid var(--border)",
+              borderTop: "3px solid var(--accent)",
+              borderRadius: "50%",
+              margin: "0 auto 1rem",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading transactions...</p>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+            Loading transactions...
+          </p>
         </div>
       )}
       {!loading && error && (
-        <div style={{ textAlign: 'center', padding: '3rem 2rem', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.15)', borderRadius: '20px', color: '#ff6b6b' }}>
-          <p style={{ fontSize: '0.95rem', fontWeight: '500' }}>{error}</p>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "3rem 2rem",
+            background: "rgba(255,107,107,0.08)",
+            border: "1px solid rgba(255,107,107,0.15)",
+            borderRadius: "20px",
+            color: "#ff6b6b",
+          }}
+        >
+          <p style={{ fontSize: "0.95rem", fontWeight: "500" }}>{error}</p>
         </div>
       )}
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', borderRadius: '20px', border: '1px solid var(--border-hover)', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }}>&#8709;</div>
-          <p style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--text-muted)' }}>No transactions yet.</p>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "4rem 2rem",
+            background: "var(--glass-bg)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "20px",
+            border: "1px solid var(--border-hover)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div
+            style={{ fontSize: "2.5rem", marginBottom: "1rem", opacity: 0.4 }}
+          >
+            &#8709;
+          </div>
+          <p
+            style={{
+              fontSize: "1rem",
+              fontWeight: "500",
+              color: "var(--text-muted)",
+            }}
+          >
+            No transactions yet.
+          </p>
         </div>
       )}
       {!loading && !error && filtered.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filtered.map(txn => (
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        >
+          {filtered.map((txn) => (
             <TransactionRow
               key={txn.id}
               txn={txn}
@@ -733,7 +2166,7 @@ function Transactions() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default Transactions
+export default Transactions;

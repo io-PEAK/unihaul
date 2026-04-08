@@ -3,7 +3,7 @@ import { useTheme, THEMES } from '../ThemeContext'
 import { useDraggable } from './useDraggable'
 
 function ThemeToggle() {
-  const { theme, toggle } = useTheme()
+  const { theme, toggleWithRay } = useTheme()   // ← was: toggle
   const [hovered, setHovered] = useState(false)
   const [draggable, setDraggable] = useState(() => {
     try { return JSON.parse(localStorage.getItem('floatingDraggable') ?? 'false') } catch { return false }
@@ -17,8 +17,8 @@ function ThemeToggle() {
     return () => window.removeEventListener('floatingDraggableChanged', sync)
   }, [])
 
-  const current = THEMES.find(t => t.id === theme) || THEMES[0]
-  const next    = THEMES[(THEMES.findIndex(t => t.id === theme) + 1) % THEMES.length]
+  const current   = THEMES.find(t => t.id === theme) || THEMES[0]
+  const nextTheme = THEMES[(THEMES.findIndex(t => t.id === theme) + 1) % THEMES.length]
 
   const { nodeRef, pos, dragHandlers } = useDraggable(
     'drag_themetoggle',
@@ -26,6 +26,10 @@ function ThemeToggle() {
     draggable
   )
   const { onMouseDown, onTouchStart } = dragHandlers
+
+  function handleClick() {
+    toggleWithRay(nextTheme.id)
+  }
 
   return (
     <>
@@ -35,13 +39,13 @@ function ThemeToggle() {
       <button
         ref={nodeRef}
         className="theme-toggle-btn"
-        onClick={toggle}
+        onClick={handleClick}
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        aria-label={`Switch to ${next.label} theme`}
-        title={draggable ? `Drag to move · ${current.label}` : `${current.label} → ${next.label}`}
+        aria-label={`Switch to ${nextTheme.label} theme`}
+        title={draggable ? `Drag to move · ${current.label}` : `${current.label} → ${nextTheme.label}`}
         style={{
           position: 'fixed',
           ...pos,
