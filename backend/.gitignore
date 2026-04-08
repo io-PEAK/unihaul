@@ -1,2 +1,6 @@
 node_modules
 .env
+database/.env
+backend/database/node_modules/
+database/package-lock.json
+database/prisma/seed.ts
