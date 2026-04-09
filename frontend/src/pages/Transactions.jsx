@@ -1285,106 +1285,139 @@ function TransactionRow({
 
 // ── Confirm Modal ─────────────────────────────────────────────
 function ConfirmModal({ count, onConfirm, onCancel }) {
-  return (
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onConfirm, onCancel]);
+
+  return createPortal(
     <div
+      onClick={onCancel}
       style={{
         position: "fixed",
         inset: 0,
+        zIndex: 9999,
         background: "rgba(0,0,0,0.65)",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 9000,
+        animation: "cdFadeIn 0.18s ease",
       }}
-      onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--glass-bg-modal)",
-          border: "1px solid var(--bd-danger)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid var(--border-hover)",
           borderRadius: "20px",
-          padding: "2rem 2.25rem",
-          maxWidth: "340px",
-          width: "90%",
-          textAlign: "center",
+          padding: "2rem",
+          width: "380px",
+          maxWidth: "90vw",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.35)",
+          position: "relative",
+          overflow: "hidden",
+          animation: "cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)",
         }}
       >
+        {/* Red shimmer line at top */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "1px",
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)",
+          }}
+        />
+
+        {/* Icon */}
         <div
           style={{
             width: "48px",
             height: "48px",
-            background: "rgba(255,77,77,0.1)",
-            border: "1px solid rgba(255,77,77,0.2)",
             borderRadius: "14px",
+            margin: "0 auto 1.25rem",
+            background: "rgba(255,107,107,0.1)",
+            border: "1px solid rgba(255,107,107,0.2)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            margin: "0 auto 1rem",
           }}
         >
-          <svg width="20" height="21" viewBox="0 0 16 17" fill="none">
-            <path
-              d="M2 4h12"
-              stroke="#ff4d4d"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-            <path
-              d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
-              stroke="#ff4d4d"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-            <path
-              d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
-              stroke="#ff4d4d"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6.5 7.5v4M9.5 7.5v4"
-              stroke="rgba(255,77,77,0.7)"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ff6b6b"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
           </svg>
         </div>
-        <h3
-          style={{
-            color: "var(--text-primary)",
-            fontWeight: "800",
-            fontSize: "1.1rem",
-            marginBottom: "0.4rem",
-          }}
-        >
-          Delete {count > 1 ? `${count} transactions` : "this transaction"}?
-        </h3>
-        <p
-          style={{
-            color: "var(--text-muted)",
-            fontSize: "0.82rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          This action cannot be undone.
-        </p>
-        <div
-          style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}
-        >
+
+        {/* Text */}
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <div
+            style={{
+              fontSize: "1rem",
+              fontWeight: "800",
+              color: "var(--text-primary)",
+              marginBottom: "0.5rem",
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Delete {count > 1 ? `${count} transactions` : "this transaction"}?
+          </div>
+          <div
+            style={{
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+              lineHeight: "1.5",
+            }}
+          >
+            This action cannot be undone.
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: "0.65rem" }}>
           <button
             onClick={onCancel}
             style={{
-              padding: "0.6rem 1.5rem",
+              flex: 1,
+              padding: "0.75rem",
               background: "var(--bg-card)",
               border: "1px solid var(--border)",
-              borderRadius: "10px",
-              color: "var(--text-muted)",
+              borderRadius: "12px",
               cursor: "pointer",
-              fontWeight: "600",
-              fontSize: "0.82rem",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              color: "var(--text-muted)",
+              transition: "all 0.2s ease",
+              fontFamily: "var(--font-body)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-card-hover)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--bg-card)";
+              e.currentTarget.style.color = "var(--text-muted)";
             }}
           >
             Cancel
@@ -1392,22 +1425,42 @@ function ConfirmModal({ count, onConfirm, onCancel }) {
           <button
             onClick={onConfirm}
             style={{
-              padding: "0.6rem 1.5rem",
-              background: "linear-gradient(135deg, #ff4d4d, #e03030)",
+              flex: 1,
+              padding: "0.75rem",
+              background:
+                "linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))",
               border: "none",
-              borderRadius: "10px",
-              color: "white",
+              borderRadius: "12px",
               cursor: "pointer",
+              fontSize: "0.85rem",
               fontWeight: "700",
-              fontSize: "0.82rem",
-              boxShadow: "0 4px 15px rgba(255,77,77,0.3)",
+              color: "white",
+              transition: "all 0.2s ease",
+              boxShadow: "0 4px 15px rgba(255,107,107,0.25)",
+              fontFamily: "var(--font-body)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow =
+                "0 8px 20px rgba(255,107,107,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow =
+                "0 4px 15px rgba(255,107,107,0.25)";
             }}
           >
             Delete
           </button>
         </div>
+
+        <style>{`
+          @keyframes cdFadeIn  { from{opacity:0} to{opacity:1} }
+          @keyframes cdSlideUp { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        `}</style>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

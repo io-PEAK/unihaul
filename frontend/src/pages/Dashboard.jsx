@@ -655,15 +655,14 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background:
-            "linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)",
+          background: "var(--glass-bg-modal)",
           backdropFilter: "blur(24px)",
           border: "1px solid var(--border-hover)",
           borderRadius: "20px",
           padding: "2rem",
           width: "380px",
           maxWidth: "90vw",
-          boxShadow: "0 40px 80px rgba(0,0,0,0.6)",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.35)",
           position: "relative",
           overflow: "hidden",
           animation: "cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)",
@@ -755,8 +754,8 @@ function ConfirmDeleteModal({ title, onConfirm, onCancel }) {
               fontFamily: "var(--font-body)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-              e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+              e.currentTarget.style.background = "var(--bg-card-hover)";
+              e.currentTarget.style.color = "var(--text-primary)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "var(--bg-card)";

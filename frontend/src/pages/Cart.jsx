@@ -5,78 +5,210 @@ import API from "../api/axios";
 // ──  Empty Cart Illustration ─────────────────────
 function EmptyCartIllustration() {
   return (
-    <svg
-      width="110"
-      height="95"
-      viewBox="0 0 110 95"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <ellipse cx="55" cy="87" rx="34" ry="5" fill="rgba(232,119,34,0.07)" />
-      <path
-        d="M26 26H84L78 62H32L26 26Z"
-        fill="rgba(255,255,255,0.03)"
-        stroke="rgba(255,255,255,0.14)"
-        strokeWidth="2.2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M32 62H78"
-        stroke="rgba(var(--accent-rgb),0.35)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M16 16H24L26 26"
-        stroke="rgba(255,255,255,0.18)"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle
-        cx="40"
-        cy="73"
-        r="5"
-        fill="none"
-        stroke="rgba(255,255,255,0.16)"
-        strokeWidth="2"
-      />
-      <circle cx="40" cy="73" r="1.5" fill="rgba(255,255,255,0.18)" />
-      <circle
-        cx="70"
-        cy="73"
-        r="5"
-        fill="none"
-        stroke="rgba(255,255,255,0.16)"
-        strokeWidth="2"
-      />
-      <circle cx="70" cy="73" r="1.5" fill="rgba(255,255,255,0.18)" />
-      <line
-        x1="42"
-        y1="40"
-        x2="68"
-        y2="40"
-        stroke="rgba(255,255,255,0.07)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeDasharray="4 3"
-      />
-      <line
-        x1="44"
-        y1="50"
-        x2="66"
-        y2="50"
-        stroke="rgba(255,255,255,0.05)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeDasharray="4 3"
-      />
-      <circle cx="92" cy="20" r="1.8" fill="rgba(232,119,34,0.45)" />
-      <circle cx="98" cy="33" r="1.1" fill="rgba(var(--accent-rgb),0.28)" />
-      <circle cx="16" cy="42" r="1.1" fill="rgba(232,119,34,0.22)" />
-      <circle cx="10" cy="27" r="1.6" fill="rgba(var(--accent-rgb),0.35)" />
-      <circle cx="88" cy="52" r="0.9" fill="rgba(232,119,34,0.2)" />
-    </svg>
+    <>
+      <style>{`
+        @keyframes cartFloat {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-10px); }
+        }
+        @keyframes cartGlow {
+          0%, 100% { opacity: 0.5; transform: scaleX(1); }
+          50%       { opacity: 1;   transform: scaleX(1.18); }
+        }
+        @keyframes wheelSpin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes dashDrift {
+          from { stroke-dashoffset: 0; }
+          to   { stroke-dashoffset: -24; }
+        }
+        @keyframes orbitA {
+          from { transform: rotate(0deg)   translateX(52px) rotate(0deg); }
+          to   { transform: rotate(360deg) translateX(52px) rotate(-360deg); }
+        }
+        @keyframes orbitB {
+          from { transform: rotate(180deg) translateX(40px) rotate(-180deg); }
+          to   { transform: rotate(540deg) translateX(40px) rotate(-540deg); }
+        }
+        @keyframes orbitC {
+          from { transform: rotate(90deg)  translateX(62px) rotate(-90deg); }
+          to   { transform: rotate(450deg) translateX(62px) rotate(-450deg); }
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.7); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes handleWiggle {
+          0%,100% { transform: rotate(0deg); }
+          20%  { transform: rotate(-8deg); }
+          40%  { transform: rotate(6deg); }
+          60%  { transform: rotate(-4deg); }
+          80%  { transform: rotate(2deg); }
+        }
+      `}</style>
+
+      {/* Outer wrapper — entrance fade */}
+      <div style={{
+        position: "relative",
+        width: "160px",
+        height: "160px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        animation: "fadeInScale 0.6s cubic-bezier(0.175,0.885,0.32,1.275) both",
+      }}>
+
+        {/* Orbit particle A */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "orbitA 5s linear infinite",
+          animationDelay: "0s",
+        }}>
+          <div style={{
+            width: "8px", height: "8px", borderRadius: "50%",
+            background: "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+            boxShadow: "0 0 8px rgba(var(--accent-rgb),0.7)",
+          }} />
+        </div>
+
+        {/* Orbit particle B — smaller, slower */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "orbitB 7s linear infinite",
+        }}>
+          <div style={{
+            width: "5px", height: "5px", borderRadius: "50%",
+            background: "rgba(var(--accent-rgb),0.55)",
+            boxShadow: "0 0 5px rgba(var(--accent-rgb),0.4)",
+          }} />
+        </div>
+
+        {/* Orbit particle C — tiny, fastest */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "orbitC 3.5s linear infinite",
+        }}>
+          <div style={{
+            width: "4px", height: "4px", borderRadius: "50%",
+            background: "rgba(var(--accent-rgb),0.35)",
+          }} />
+        </div>
+
+        {/* Floating cart group */}
+        <div style={{ animation: "cartFloat 3s ease-in-out infinite" }}>
+
+          {/* Glow shadow underneath */}
+          <div style={{
+            width: "72px", height: "10px", borderRadius: "50%",
+            background: "rgba(var(--accent-rgb),0.25)",
+            filter: "blur(8px)",
+            margin: "0 auto",
+            animation: "cartGlow 3s ease-in-out infinite",
+            position: "relative", top: "4px",
+          }} />
+
+          <svg
+            width="88"
+            height="80"
+            viewBox="0 0 88 80"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* Handle with wiggle */}
+            <g style={{
+              transformOrigin: "56px 6px",
+              animation: "handleWiggle 4s ease-in-out infinite",
+            }}>
+              <path
+                d="M12 6H22L24 16"
+                stroke="rgba(var(--accent-rgb),0.55)"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            {/* Cart body */}
+            <path
+              d="M24 16H68L62 52H30L24 16Z"
+              fill="rgba(var(--accent-rgb),0.06)"
+              stroke="rgba(var(--accent-rgb),0.5)"
+              strokeWidth="2.2"
+              strokeLinejoin="round"
+            />
+
+            {/* Bottom rail */}
+            <path
+              d="M30 52H62"
+              stroke="rgba(var(--accent-rgb),0.6)"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+
+            {/* Animated dashed empty lines inside cart */}
+            <line
+              x1="32" y1="28" x2="56" y2="28"
+              stroke="rgba(var(--accent-rgb),0.22)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeDasharray="5 4"
+              style={{ animation: "dashDrift 1.8s linear infinite" }}
+            />
+            <line
+              x1="33" y1="38" x2="54" y2="38"
+              stroke="rgba(var(--accent-rgb),0.14)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeDasharray="5 4"
+              style={{ animation: "dashDrift 1.8s linear infinite", animationDelay: "0.4s" }}
+            />
+
+            {/* Left wheel */}
+            <g style={{
+              transformOrigin: "34px 62px",
+              animation: "wheelSpin 3s linear infinite",
+            }}>
+              <circle cx="34" cy="62" r="6"
+                fill="rgba(var(--accent-rgb),0.08)"
+                stroke="rgba(var(--accent-rgb),0.55)"
+                strokeWidth="2"
+              />
+              <line x1="34" y1="58" x2="34" y2="66"
+                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+              <line x1="30" y1="62" x2="38" y2="62"
+                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+            </g>
+
+            {/* Right wheel */}
+            <g style={{
+              transformOrigin: "58px 62px",
+              animation: "wheelSpin 3s linear infinite",
+              animationDirection: "reverse",
+            }}>
+              <circle cx="58" cy="62" r="6"
+                fill="rgba(var(--accent-rgb),0.08)"
+                stroke="rgba(var(--accent-rgb),0.55)"
+                strokeWidth="2"
+              />
+              <line x1="58" y1="58" x2="58" y2="66"
+                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+              <line x1="54" y1="62" x2="62" y2="62"
+                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+            </g>
+
+            {/* Sparkle top-right */}
+            <g style={{ animation: "handleWiggle 3s ease-in-out infinite", transformOrigin: "75px 10px" }}>
+              <line x1="75" y1="7"  x2="75" y2="13" stroke="rgba(var(--accent-rgb),0.55)" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="72" y1="10" x2="78" y2="10" stroke="rgba(var(--accent-rgb),0.55)" strokeWidth="1.5" strokeLinecap="round" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -106,17 +238,18 @@ function EmptyCartState({ onBrowse }) {
           right: 0,
           height: "1px",
           background:
-            "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+            "linear-gradient(90deg, transparent, rgba(var(--accent-rgb),0.2), transparent)",
         }}
       />
       <EmptyCartIllustration />
       <h3
         style={{
-          margin: "1.25rem 0 0.35rem",
+          margin: "0.5rem 0 0.35rem",
           fontSize: "1.05rem",
           fontWeight: "700",
           color: "var(--text-muted)",
           letterSpacing: "-0.3px",
+          animation: "fadeInScale 0.5s ease 0.3s both",
         }}
       >
         Your cart is empty
@@ -127,6 +260,7 @@ function EmptyCartState({ onBrowse }) {
           fontSize: "0.8rem",
           color: "var(--text-ghost)",
           fontWeight: "500",
+          animation: "fadeInScale 0.5s ease 0.45s both",
         }}
       >
         Find something you like and add it here
@@ -146,14 +280,15 @@ function EmptyCartState({ onBrowse }) {
           letterSpacing: "0.5px",
           boxShadow: "0 4px 16px rgba(var(--accent-rgb),0.28)",
           transition: "all 0.25s ease",
+          animation: "fadeInScale 0.5s ease 0.6s both",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.transform = "translateY(-2px) scale(1.03)";
           e.currentTarget.style.boxShadow =
-            "0 6px 20px rgba(var(--accent-rgb),0.4)";
+            "0 8px 24px rgba(var(--accent-rgb),0.45)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.transform = "translateY(0) scale(1)";
           e.currentTarget.style.boxShadow =
             "0 4px 16px rgba(var(--accent-rgb),0.28)";
         }}
