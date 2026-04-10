@@ -466,6 +466,78 @@ function MsgNotifRow({ msg, onClick }) {
   );
 }
 
+// ─── WatchingIcon ──────────────────────────────────────────────────────────────
+function WatchingIcon({ isLoggedIn }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [hovered, setHovered] = useState(false);
+  const [count, setCount] = useState(0);
+  const isActive = location.pathname === "/watching";
+  useEffect(() => {
+    if (isLoggedIn) fetchWatching();
+  }, [isLoggedIn]);
+  useEffect(() => {
+    function sync() {
+      fetchWatching();
+    }
+    window.addEventListener("watching-updated", sync);
+    return () => window.removeEventListener("watching-updated", sync);
+  }, []);
+  async function fetchWatching() {
+    try {
+      const res = await API.get("/items/watched");
+      setCount(res.data?.length || 0);
+    } catch {
+      setCount(0);
+    }
+  }
+  if (!isLoggedIn) return null;
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => {
+          if (isActive) navigate(-1);
+          else navigate("/watching");
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        title="Watching"
+        style={{
+          position: "relative",
+          width: "36px",
+          height: "36px",
+          borderRadius: "var(--radius-sm)",
+          background: isActive
+            ? "var(--bg-hover)"
+            : hovered
+              ? "var(--bg-hover)"
+              : "transparent",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "all 0.2s ease",
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill={isActive ? "var(--accent)" : "none"}
+          stroke={isActive ? "var(--accent)" : "var(--text-secondary)"}
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transition: "all 0.2s ease" }}
+        >
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ─── Bell ─────────────────────────────────────────────────────────────────────
 
 function BellIcon({ isLoggedIn, registerOpenBell }) {
@@ -2143,16 +2215,32 @@ function Navbar({ registerOpenBell }) {
   const [navSearchFocused, setNavSearchFocused] = useState(false);
   const navSearchRef = useRef(null);
 
+  const getGridKey = (path) => {
+    if (path === "/" || path === "/home") return "homeGridSize";
+    if (path === "/transactions") return "gridSize_transactions";
+    if (path === "/watching") return "gridSize_watching";
+    if (path === "/find-sellers" || path === "/sellers")
+      return "gridSize_find-sellers";
+    if (path === "/dashboard") return "gridSize_dashboard";
+    return "mgmtGridSize";
+  };
+
   const [gridSize, setGridSizeState] = useState(() => {
     try {
-      return parseInt(localStorage.getItem("homeGridSize") || "3", 10);
+      const key = getGridKey(window.location.pathname);
+      const defaultValue =
+        key === "homeGridSize" || key === "gridSize_find-sellers" ? "3" : "1";
+      return parseInt(localStorage.getItem(key) || defaultValue, 10);
     } catch {
       return 3;
     }
   });
+
   function setGridSize(val) {
     setGridSizeState(val);
-    localStorage.setItem("homeGridSize", String(val));
+    const key = getGridKey(location.pathname);
+    localStorage.setItem(key, String(val));
+
     if (window.__homeGridBridge) window.__homeGridBridge.set(val);
     else
       window.dispatchEvent(
@@ -2164,6 +2252,17 @@ function Navbar({ registerOpenBell }) {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const isLoggedIn = !!token;
   const isHomePath = location.pathname === "/" || location.pathname === "/home";
+
+  // When route changes, sync the internal gridSize state from the correct storage key
+  useEffect(() => {
+    try {
+      const key = getGridKey(location.pathname);
+      const isHome = key === "homeGridSize";
+      const defaultValue = (isHome || key === "gridSize_find-sellers") ? "3" : "1";
+      const saved = parseInt(localStorage.getItem(key) || defaultValue, 10);
+      setGridSizeState(isHome ? Math.max(2, saved) : saved);
+    } catch {}
+  }, [location.pathname]);
 
   // When navigating TO home, clamp gridSize to min 2 (home doesn't support grid 1)
   useEffect(() => {
@@ -2472,8 +2571,17 @@ function Navbar({ registerOpenBell }) {
         [data-theme="ember"] .nav-pill-base,
         [data-theme="ember"] .nav-pill-scrolled { border-color: rgba(232,119,34,0.22) !important; }
         [data-theme="chalk"] .nav-pill-base {
-          background: rgba(255,255,255,0.96) !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 8px 28px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.06) !important;
+          background: rgba(255,255,255,0.55) !important;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 8px 28px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.07) !important;
+          backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important;
+          border-color: rgba(0,0,0,0.08) !important;
+        }
+        [data-theme="chalk"] .nav-pill-scrolled {
+          background: rgba(255,255,255,0.32) !important;
+          backdrop-filter: blur(48px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(48px) saturate(180%) !important;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.06) !important;
+          border-color: rgba(0,0,0,0.06) !important;
         }
 
         /* ── Logo pill ── */
@@ -2859,6 +2967,9 @@ function Navbar({ registerOpenBell }) {
               </div>
             )}
           </IconBtn>
+
+          {/* Watching heart */}
+          <WatchingIcon isLoggedIn={isLoggedIn} />
 
           {/* Bell */}
           <BellIcon
