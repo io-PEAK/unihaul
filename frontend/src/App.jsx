@@ -21,6 +21,7 @@ import Navbar from "./components/Navbar";
 import FindSellers from "./pages/FindSellers";
 import SellerProfile from "./pages/SellerProfile";
 import MessageButton from "./components/MessageButton";
+import Watching from "./pages/Watching";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PageWrapper from "./components/PageWrapper";
 import ToastNotification from "./components/ToastNotification";
@@ -171,6 +172,14 @@ function AppInner() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/watching"
+            element={
+              <ProtectedRoute>
+                <Watching />
               </ProtectedRoute>
             }
           />
