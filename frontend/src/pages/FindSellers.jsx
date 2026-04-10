@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/axios";
 
-function SellerCard({ user, matchedItems, onClick }) {
+function SellerCard({ user, matchedItems, onClick, gridSize = 1 }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -11,6 +11,8 @@ function SellerCard({ user, matchedItems, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        display: "flex",
+        flexDirection: "column",
         background: hovered ? "var(--glass-bg-hover)" : "var(--glass-bg)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
@@ -18,7 +20,7 @@ function SellerCard({ user, matchedItems, onClick }) {
           ? "1px solid rgba(var(--accent-rgb),0.4)"
           : "1px solid var(--glass-border)",
         borderRadius: "20px",
-        padding: "1.5rem",
+        padding: gridSize === 1 ? "1.25rem 1.5rem" : "1.5rem",
         cursor: "pointer",
         transform: hovered
           ? "translateY(-6px) scale(1.01)"
@@ -350,6 +352,28 @@ function FindSellers() {
   const [type, setType] = useState("all");
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Grid Size state
+  const [gridSize, setGridSizeState] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem("gridSize_find-sellers") || "3", 10);
+    } catch {
+      return 3;
+    }
+  });
+  useEffect(() => {
+    window.__homeGridBridge = {
+      set: (val) => setGridSizeState(val),
+    };
+    function onGridSize(e) {
+      setGridSizeState(e.detail.val);
+    }
+    window.addEventListener("home-grid-size", onGridSize);
+    return () => {
+      window.removeEventListener("home-grid-size", onGridSize);
+      window.__homeGridBridge = null;
+    };
+  }, []);
   const debounceRef = useRef(null);
   const searchRowRef = useRef(null);
   const itemInputRef = useRef(null);
@@ -976,23 +1000,40 @@ function FindSellers() {
       )}
 
       {!loading && sellers.length > 0 && (
-        <div
-          className="sellers-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "1.25rem",
-          }}
-        >
-          {sellers.map((user) => (
-            <SellerCard
-              key={user.id}
-              user={user}
-              matchedItems={user.matchedItems}
-              onClick={() => navigate(`/users/${user.id}`)}
-            />
-          ))}
-        </div>
+        <>
+          <style>{`
+            @keyframes gridSwitchScale {
+              0% { opacity: 0; transform: scale(0.98) translateY(10px); }
+              100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+          `}</style>
+          <div
+            key={gridSize}
+            className="sellers-grid"
+            style={{
+              display: "grid",
+              animation:
+                "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+              gridTemplateColumns:
+                gridSize === 1
+                  ? "1fr"
+                  : gridSize === 2
+                    ? "repeat(auto-fill, minmax(350px, 1fr))"
+                    : "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: gridSize === 1 ? "0.85rem" : "1.5rem",
+            }}
+          >
+            {sellers.map((user) => (
+              <SellerCard
+                key={user.id}
+                user={user}
+                matchedItems={user.matchedItems}
+                onClick={() => navigate(`/users/${user.id}`)}
+                gridSize={gridSize}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

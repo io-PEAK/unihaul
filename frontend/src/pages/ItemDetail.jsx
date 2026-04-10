@@ -1087,6 +1087,7 @@ function ItemDetail() {
         await API.post(`/items/${item.id}/watch`);
         setWatching(true);
       }
+      window.dispatchEvent(new CustomEvent("watching-updated"));
     } catch {}
     setWatchLoading(false);
   }

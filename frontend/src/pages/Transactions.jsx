@@ -324,13 +324,16 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
                   bottom: "0.5rem",
                   right: "0.6rem",
                   fontSize: "0.65rem",
-                  fontWeight: "700",
-                  color: "var(--text-secondary)",
-                  background: "rgba(0,0,0,0.5)",
-                  padding: "2px 8px",
+                  fontWeight: "800",
+                  color: "white",
+                  background: "rgba(0,0,0,0.65)",
+                  padding: "3px 10px",
                   borderRadius: "20px",
-                  backdropFilter: "blur(6px)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
                   zIndex: 2,
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
                 }}
               >
                 {activeImg + 1} / {images.length}
@@ -343,21 +346,24 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
                 left: "0.6rem",
                 display: "flex",
                 alignItems: "center",
-                color: "var(--text-muted)",
-                background: "rgba(0,0,0,0.5)",
-                padding: "2px 7px",
+                color: "white",
+                background: "rgba(var(--accent-rgb),0.75)",
+                padding: "4px 8px",
                 borderRadius: "20px",
-                backdropFilter: "blur(6px)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.25)",
                 zIndex: 2,
+                boxShadow: "0 2px 10px rgba(var(--accent-rgb),0.3)",
               }}
             >
               <svg
-                width="11"
-                height="11"
+                width="12"
+                height="12"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.5"
+                strokeWidth="3"
                 strokeLinecap="round"
               >
                 <circle cx="11" cy="11" r="8" />
@@ -982,6 +988,7 @@ function TransactionRow({
   onToggle,
   onDelete,
   onOpen,
+  gridSize = 1,
 }) {
   const [hovered, setHovered] = useState(false);
   const [trashHovered, setTrashHovered] = useState(false);
@@ -1012,8 +1019,9 @@ function TransactionRow({
       onClick={handleClick}
       style={{
         display: "flex",
-        alignItems: "center",
-        gap: "1rem",
+        flexDirection: gridSize === 1 ? "row" : "column",
+        alignItems: gridSize === 1 ? "center" : "stretch",
+        gap: gridSize === 1 ? "1rem" : "0",
         background: selected
           ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)"
           : hovered
@@ -1027,8 +1035,8 @@ function TransactionRow({
             ? "1px solid var(--border-hover)"
             : "1px solid var(--border)",
         borderRadius: "16px",
-        padding: "1.25rem 1.5rem",
-        transition: "all 0.2s ease",
+        padding: gridSize === 1 ? "1.25rem 1.5rem" : "0",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         cursor: "pointer",
         position: "relative",
         overflow: "hidden",
@@ -1037,6 +1045,7 @@ function TransactionRow({
           : hovered
             ? "var(--shadow-card)"
             : "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border)",
+        transform: hovered && gridSize > 1 ? "translateY(-4px)" : "none",
       }}
     >
       <div
@@ -1075,6 +1084,10 @@ function TransactionRow({
           opacity: showCheckbox ? 1 : 0,
           transform: showCheckbox ? "scale(1)" : "scale(0.7)",
           pointerEvents: showCheckbox ? "auto" : "none",
+          position: gridSize === 1 ? "static" : "absolute",
+          top: gridSize === 1 ? "auto" : "0.75rem",
+          left: gridSize === 1 ? "auto" : "0.75rem",
+          zIndex: 10,
         }}
       >
         {selected && (
@@ -1090,8 +1103,62 @@ function TransactionRow({
         )}
       </div>
 
+      {/* Image Preview */}
+      <div
+        style={{
+          width: gridSize === 1 ? "48px" : "100%",
+          height: gridSize === 1 ? "48px" : gridSize === 2 ? "180px" : "160px",
+          borderRadius: gridSize === 1 ? "10px" : "0",
+          overflow: "hidden",
+          flexShrink: 0,
+          background: "var(--bg-surface)",
+          border: gridSize === 1 ? "1px solid var(--border)" : "none",
+          borderBottom: gridSize > 1 ? "1px solid var(--border)" : "none",
+          position: "relative",
+        }}
+      >
+        {txn.images?.[0] ? (
+          <img
+            src={txn.images[0]}
+            alt=""
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transition: "transform 0.5s ease",
+              transform: hovered ? "scale(1.1)" : "scale(1)",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--text-ghost)",
+              opacity: 0.3,
+            }}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+        )}
+      </div>
+
       {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, padding: gridSize === 1 ? "0" : "1.25rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <h3
             style={{
@@ -1267,7 +1334,7 @@ function TransactionRow({
               />
             </svg>
           </div>
-        ) : (
+        ) : gridSize === 1 ? (
           <span
             style={{
               color: hovered ? "var(--text-muted)" : "var(--text-ghost)",
@@ -1277,7 +1344,7 @@ function TransactionRow({
           >
             &#8594;
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -1583,6 +1650,29 @@ function Transactions() {
   );
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Grid Size state
+  const [gridSize, setGridSizeState] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem("gridSize_transactions") || "1", 10);
+    } catch {
+      return 1;
+    }
+  });
+  useEffect(() => {
+    window.__homeGridBridge = {
+      set: (val) => setGridSizeState(val),
+    };
+    function onGridSize(e) {
+      setGridSizeState(e.detail.val);
+    }
+    window.addEventListener("home-grid-size", onGridSize);
+    return () => {
+      window.removeEventListener("home-grid-size", onGridSize);
+      window.__homeGridBridge = null;
+    };
+  }, []);
+
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("All");
   const [selectMode, setSelectMode] = useState(false);
@@ -1654,7 +1744,12 @@ function Transactions() {
   return (
     <div
       className="txn-page"
-      style={{ padding: "5rem 4rem 3rem", maxWidth: "900px", margin: "0 auto" }}
+      style={{ 
+        padding: "5rem 4rem 3rem", 
+        maxWidth: gridSize === 1 ? "900px" : gridSize === 2 ? "1100px" : "1300px", 
+        margin: "0 auto",
+        transition: "max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+      }}
     >
       <style>{`
         /* ── Tablet: 769px – 1024px ── */
@@ -2202,21 +2297,41 @@ function Transactions() {
         </div>
       )}
       {!loading && !error && filtered.length > 0 && (
-        <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
-        >
-          {filtered.map((txn) => (
-            <TransactionRow
-              key={txn.id}
-              txn={txn}
-              selectMode={selectMode}
-              selected={selected.has(txn.id)}
-              onToggle={() => toggleSelect(txn.id)}
-              onDelete={() => setConfirmIds([txn.id])}
-              onOpen={() => setOpenTxn(txn)}
-            />
-          ))}
-        </div>
+        <>
+          <style>{`
+            @keyframes gridSwitchScale {
+              0% { opacity: 0; transform: scale(0.98) translateY(10px); }
+              100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+          `}</style>
+          <div
+            key={gridSize}
+            style={{
+              display: "grid",
+              animation: "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+              gridTemplateColumns:
+                gridSize === 1
+                  ? "1fr"
+                  : gridSize === 2
+                    ? "repeat(auto-fill, minmax(360px, 1fr))"
+                    : "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: gridSize === 1 ? "0.75rem" : "1.5rem",
+            }}
+          >
+            {filtered.map((txn) => (
+              <TransactionRow
+                key={txn.id}
+                txn={txn}
+                selectMode={selectMode}
+                selected={selected.has(txn.id)}
+                onToggle={() => toggleSelect(txn.id)}
+                onDelete={() => setConfirmIds([txn.id])}
+                onOpen={() => setOpenTxn(txn)}
+                gridSize={gridSize}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

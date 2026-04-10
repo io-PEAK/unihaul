@@ -79,7 +79,6 @@ const FILTERS = [
   { key: "active", label: "Active" },
   { key: "pending", label: "Pending" },
   { key: "sold", label: "Sold" },
-  { key: "watching", label: "Watching" },
 ];
 
 // ── Spec Validators (mirrored from PostItem) ──────────────────
@@ -817,6 +816,7 @@ function SoldGroupRow({
   selectMode,
   selected,
   onToggle,
+  gridSize = 1,
 }) {
   const navigate = useNavigate();
   const rowRef = useRef(null);
@@ -942,7 +942,14 @@ function SoldGroupRow({
           }}
         />
 
-        <div className="sold-row-inner">
+        <div
+          className="sold-row-inner"
+          style={{
+            flexDirection: gridSize === 1 ? "row" : "column",
+            alignItems: gridSize === 1 ? "center" : "flex-start",
+            gap: gridSize === 1 ? "1.25rem" : "1rem",
+          }}
+        >
           {/* Checkbox */}
           <div
             onClick={(e) => {
@@ -954,10 +961,12 @@ function SoldGroupRow({
               height: "20px",
               borderRadius: "6px",
               flexShrink: 0,
-              border: selected ? "none" : "1.5px solid rgba(255,255,255,0.18)",
+              border: selected
+                ? "none"
+                : "1.5px solid var(--border-hover)",
               background: selected
                 ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                : "rgba(255,255,255,0.04)",
+                : "var(--bg-surface)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -983,7 +992,26 @@ function SoldGroupRow({
               </svg>
             )}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {item?.images?.[0] && (
+            <div
+              style={{
+                width: gridSize === 1 ? "50px" : "100%",
+                height: gridSize === 1 ? "50px" : "150px",
+                borderRadius: "12px",
+                overflow: "hidden",
+                flexShrink: 0,
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+              }}
+            >
+              <img
+                src={item.images[0]}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0, width: gridSize === 1 ? "auto" : "100%" }}>
             <div
               style={{
                 display: "flex",
@@ -996,10 +1024,12 @@ function SoldGroupRow({
               <h3
                 style={{
                   margin: 0,
-                  fontSize: "1.05rem",
+                  fontSize: gridSize === 1 ? "1.05rem" : "1.1rem",
                   fontWeight: "700",
                   color: "var(--text-primary)",
                   letterSpacing: "-0.3px",
+                  wordBreak: "break-word",
+                  lineHeight: "1.3",
                 }}
               >
                 {displayTitle}
@@ -1149,7 +1179,16 @@ function SoldGroupRow({
             </div>
           </div>
 
-          <div className="sold-row-actions">
+          <div
+            className="sold-row-actions"
+            style={{
+              width: gridSize === 1 ? "auto" : "100%",
+              justifyContent: gridSize === 1 ? "flex-end" : "space-between",
+              marginTop: gridSize === 1 ? "0" : "0.5rem",
+              gap: "0.5rem",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={() => setExpanded((e) => !e)}
               style={{
@@ -1754,6 +1793,7 @@ function ListingRow({
   selectMode,
   selected,
   onToggle,
+  gridSize = 1,
 }) {
   const [hovered, setHovered] = useState(false);
   const [editHovered, setEditHovered] = useState(false);
@@ -2130,7 +2170,14 @@ function ListingRow({
         )}
 
         {!editing && (
-          <div className="listing-row-view">
+          <div
+            className="listing-row-view"
+            style={{
+              flexDirection: gridSize === 1 ? "row" : "column",
+              alignItems: gridSize === 1 ? "center" : "flex-start",
+              gap: gridSize === 1 ? "1.25rem" : "1rem",
+            }}
+          >
             {/* Checkbox */}
             <div
               onClick={(e) => {
@@ -2144,10 +2191,10 @@ function ListingRow({
                 flexShrink: 0,
                 border: selected
                   ? "none"
-                  : "1.5px solid rgba(255,255,255,0.18)",
+                  : "1.5px solid var(--border-hover)",
                 background: selected
                   ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                  : "rgba(255,255,255,0.04)",
+                  : "var(--bg-surface)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -2173,14 +2220,35 @@ function ListingRow({
                 </svg>
               )}
             </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
+            {item.images?.[0] && (
+              <div
+                style={{
+                  width: gridSize === 1 ? "50px" : "100%",
+                  height: gridSize === 1 ? "50px" : "150px",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-card)",
+                }}
+              >
+                <img
+                  src={item.images[0]}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            )}
+            <div style={{ minWidth: 0, flex: 1, width: gridSize === 1 ? "auto" : "100%" }}>
               <h3
                 style={{
                   margin: 0,
-                  fontSize: "1.05rem",
+                  fontSize: gridSize === 1 ? "1.05rem" : "1.1rem",
                   fontWeight: "700",
                   color: "var(--text-primary)",
                   letterSpacing: "-0.3px",
+                  wordBreak: "break-word",
+                  lineHeight: "1.3",
                 }}
               >
                 {item.title}
@@ -2264,7 +2332,14 @@ function ListingRow({
                 </span>
               </div>
             </div>
-            <div className="listing-row-btns">
+            <div
+              className="listing-row-btns"
+              style={{
+                width: gridSize === 1 ? "auto" : "100%",
+                justifyContent: gridSize === 1 ? "flex-end" : "space-between",
+                marginTop: gridSize === 1 ? "0" : "0.5rem",
+              }}
+            >
               {!selectMode && (
                 <button
                   onClick={(e) => {
@@ -3330,7 +3405,6 @@ function Dashboard() {
 
   const [items, setItems] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [watchedItems, setWatchedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [postBtnHovered, setPostBtnHovered] = useState(false);
@@ -3340,27 +3414,38 @@ function Dashboard() {
   const highlightItemId = searchParams.get("item")
     ? parseInt(searchParams.get("item"))
     : null;
+
+  // Grid Size state
+  const [gridSize, setGridSizeState] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem("gridSize_dashboard") || "1", 10);
+    } catch {
+      return 1;
+    }
+  });
+
+  useEffect(() => {
+    window.__homeGridBridge = {
+      set: (val) => setGridSizeState(val),
+    };
+    function onGridSize(e) {
+      setGridSizeState(e.detail.val);
+    }
+    window.addEventListener("home-grid-size", onGridSize);
+    return () => {
+      window.removeEventListener("home-grid-size", onGridSize);
+      window.__homeGridBridge = null;
+    };
+  }, []);
   const [activeFilter, setActiveFilter] = useState(tabParam || "active");
 
   useEffect(() => {
     if (tabParam) setActiveFilter(tabParam);
   }, [tabParam]);
 
-  // When arriving from notification (?tab=watching/sold&item=ID)
+  // When arriving from notification (?tab=sold&item=ID)
   useEffect(() => {
     if (!highlightItemId) return;
-    if (tabParam === "watching") {
-      setActiveFilter("watching");
-      setTimeout(
-        () =>
-          setSearchParams((p) => {
-            p.delete("item");
-            return p;
-          }),
-        2200,
-      );
-      return;
-    }
     if (tabParam === "sold") {
       setActiveFilter("sold");
       setTimeout(
@@ -3399,14 +3484,12 @@ function Dashboard() {
         setLoading(true);
         setError(null);
       }
-      const [itemsRes, txnRes, watchedRes] = await Promise.all([
+      const [itemsRes, txnRes] = await Promise.all([
         API.get("/items/mine"),
         API.get("/transactions"),
-        API.get("/items/watched"),
       ]);
       setItems(itemsRes.data);
       setTransactions(txnRes.data);
-      setWatchedItems(watchedRes.data || []);
       try {
         const notifRes = await API.get("/notifications");
         const unseenNotifs = notifRes.data;
@@ -3462,7 +3545,6 @@ function Dashboard() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(null); // { action, ids }
-  const [hoveredWatchId, setHoveredWatchId] = useState(null);
 
   useEffect(() => {
     function onKey(e) {
@@ -3532,15 +3614,7 @@ function Dashboard() {
           );
         } catch {}
       }
-    } else if (action === "unwatch") {
-      // ids here are item IDs
-      for (const itemId of ids) {
-        try {
-          await API.delete(`/items/${itemId}/watch`);
-          setWatchedItems((prev) => prev.filter((w) => w.item.id !== itemId));
-        } catch {}
       }
-    }
     setSelectMode(false);
     setSelected(new Set());
   }
@@ -3627,6 +3701,13 @@ function Dashboard() {
   );
 
   return (
+    <>
+      <style>{`
+        @keyframes gridSwitchScale {
+          0% { opacity: 0; transform: scale(0.98) translateY(10px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
     <div style={{ minHeight: "calc(100vh - 70px)" }}>
       {/* ── Responsive styles injected here ── */}
       <style>{`
@@ -4051,15 +4132,13 @@ function Dashboard() {
             !error &&
             (() => {
               const listLen =
-                activeFilter === "watching"
-                  ? watchedItems.length
-                  : activeFilter === "active"
-                    ? activeItems.length
-                    : activeFilter === "pending"
-                      ? pendingItems.length
-                      : activeFilter === "sold"
-                        ? visibleSoldGroups.length
-                        : allNonSoldItems.length;
+                activeFilter === "active"
+                  ? activeItems.length
+                  : activeFilter === "pending"
+                    ? pendingItems.length
+                    : activeFilter === "sold"
+                      ? visibleSoldGroups.length
+                      : allNonSoldItems.length;
               if (listLen === 0) return null;
               return (
                 <button
@@ -4072,16 +4151,14 @@ function Dashboard() {
                     setSelectMode(true);
                     if (listLen === 1) {
                       const singleId =
-                        activeFilter === "watching"
-                          ? watchedItems[0]?.item?.id
-                          : activeFilter === "active"
-                            ? activeItems[0]?.id
-                            : activeFilter === "pending"
-                              ? pendingItems[0]?.id
-                              : activeFilter === "sold"
-                                ? visibleSoldGroups[0]?.groupKey
-                                : (allNonSoldItems[0]?.id ??
-                                  visibleSoldGroups[0]?.groupKey);
+                        activeFilter === "active"
+                          ? activeItems[0]?.id
+                          : activeFilter === "pending"
+                            ? pendingItems[0]?.id
+                            : activeFilter === "sold"
+                              ? visibleSoldGroups[0]?.groupKey
+                              : (allNonSoldItems[0]?.id ??
+                                visibleSoldGroups[0]?.groupKey);
                       if (singleId != null) setSelected(new Set([singleId]));
                     }
                   }}
@@ -4127,20 +4204,18 @@ function Dashboard() {
         {selectMode &&
           (() => {
             const listIds =
-              activeFilter === "watching"
-                ? watchedItems.map((w) => w.item.id)
-                : activeFilter === "active"
-                  ? activeItems.map((i) => i.id)
-                  : activeFilter === "pending"
-                    ? pendingItems.map((i) => i.id)
-                    : activeFilter === "sold"
-                      ? visibleSoldGroups.map((g) => g.groupKey).filter(Boolean)
-                      : [
-                          ...allNonSoldItems.map((i) => i.id),
-                          ...visibleSoldGroups
-                            .map((g) => g.groupKey)
-                            .filter(Boolean),
-                        ];
+              activeFilter === "active"
+                ? activeItems.map((i) => i.id)
+                : activeFilter === "pending"
+                  ? pendingItems.map((i) => i.id)
+                  : activeFilter === "sold"
+                    ? visibleSoldGroups.map((g) => g.groupKey).filter(Boolean)
+                    : [
+                        ...allNonSoldItems.map((i) => i.id),
+                        ...visibleSoldGroups
+                          .map((g) => g.groupKey)
+                          .filter(Boolean),
+                      ];
             const allSel =
               listIds.length > 0 && listIds.every((id) => selected.has(id));
 
@@ -4178,25 +4253,14 @@ function Dashboard() {
                 color: "#fbbf24",
               });
             }
-            if (activeFilter === "watching") {
-              actions.push({
-                key: "unwatch",
-                label: "Remove from Watching",
-                bg: "rgba(255,77,77,0.1)",
-                border: "rgba(255,77,77,0.22)",
-                color: "#ff6b6b",
-                isDanger: true,
-              });
-            } else {
-              actions.push({
-                key: "delete",
-                label: "Delete",
-                bg: "rgba(255,77,77,0.1)",
-                border: "rgba(255,77,77,0.22)",
-                color: "#ff6b6b",
-                isDanger: true,
-              });
-            }
+            actions.push({
+              key: "delete",
+              label: "Delete",
+              bg: "rgba(255,77,77,0.1)",
+              border: "rgba(255,77,77,0.22)",
+              color: "#ff6b6b",
+              isDanger: true,
+            });
 
             return (
               <div
@@ -4370,7 +4434,7 @@ function Dashboard() {
                     left: 0,
                     right: 0,
                     height: "1px",
-                    background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === "delete" || bulkConfirm.action === "unwatch" ? "rgba(255,107,107,0.4)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.4)" : "rgba(81,207,102,0.4)"}, transparent)`,
+                    background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.4)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.4)" : "rgba(81,207,102,0.4)"}, transparent)`,
                   }}
                 />
                 <div
@@ -4380,20 +4444,18 @@ function Dashboard() {
                     borderRadius: "14px",
                     margin: "0 auto 1.25rem",
                     background:
-                      bulkConfirm.action === "delete" ||
-                      bulkConfirm.action === "unwatch"
+                      bulkConfirm.action === "delete"
                         ? "rgba(255,107,107,0.1)"
                         : bulkConfirm.action === "pending"
                           ? "rgba(251,189,35,0.1)"
                           : "rgba(81,207,102,0.1)",
-                    border: `1px solid ${bulkConfirm.action === "delete" || bulkConfirm.action === "unwatch" ? "rgba(255,107,107,0.2)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.2)" : "rgba(81,207,102,0.2)"}`,
+                    border: `1px solid ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.2)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.2)" : "rgba(81,207,102,0.2)"}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  {bulkConfirm.action === "delete" ||
-                  bulkConfirm.action === "unwatch" ? (
+                  {bulkConfirm.action === "delete" ? (
                     <svg
                       width="20"
                       height="20"
@@ -4437,8 +4499,6 @@ function Dashboard() {
                   >
                     {bulkConfirm.action === "delete" &&
                       `Delete ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""}?`}
-                    {bulkConfirm.action === "unwatch" &&
-                      `Remove ${bulkConfirm.ids.length} item${bulkConfirm.ids.length > 1 ? "s" : ""} from watching?`}
                     {bulkConfirm.action === "pending" &&
                       `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""} as Pending?`}
                     {bulkConfirm.action === "active" &&
@@ -4453,8 +4513,6 @@ function Dashboard() {
                   >
                     {bulkConfirm.action === "delete" &&
                       "Permanently removes all selected listings and their images. Cannot be undone."}
-                    {bulkConfirm.action === "unwatch" &&
-                      "You will stop receiving price drop alerts for these items."}
                     {bulkConfirm.action === "pending" &&
                       "Active listings will be marked as pending. Already-pending ones are unchanged."}
                     {bulkConfirm.action === "active" &&
@@ -4487,8 +4545,7 @@ function Dashboard() {
                       flex: 1,
                       padding: "0.75rem",
                       background:
-                        bulkConfirm.action === "delete" ||
-                        bulkConfirm.action === "unwatch"
+                        bulkConfirm.action === "delete"
                           ? "linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))"
                           : bulkConfirm.action === "pending"
                             ? "linear-gradient(135deg, rgba(251,189,35,0.9), rgba(220,160,20,0.9))"
@@ -4568,10 +4625,17 @@ function Dashboard() {
               return <EmptyState label={activeFilter + " listings"} />;
             return (
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
+                key={gridSize}
+              style={{
+                  display: "grid",
+                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
+                  gridTemplateColumns:
+              gridSize === 1
+                ? "1fr"
+                : gridSize === 2
+                  ? "repeat(auto-fill, minmax(360px, 1fr))"
+                  : "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
                 }}
               >
                 {list.map((item) => (
@@ -4584,6 +4648,7 @@ function Dashboard() {
                     selectMode={selectMode}
                     selected={selected.has(item.id)}
                     onToggle={() => toggleSelect(item.id)}
+                    gridSize={gridSize}
                   />
                 ))}
               </div>
@@ -4598,10 +4663,17 @@ function Dashboard() {
               return <EmptyState label="listings" />;
             return (
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
+                key={gridSize}
+              style={{
+                  display: "grid",
+                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
+                  gridTemplateColumns:
+              gridSize === 1
+                ? "1fr"
+                : gridSize === 2
+                  ? "repeat(auto-fill, minmax(360px, 1fr))"
+                  : "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
                 }}
               >
                 {allNonSoldItems.map((item) => (
@@ -4614,6 +4686,7 @@ function Dashboard() {
                     selectMode={selectMode}
                     selected={selected.has(item.id)}
                     onToggle={() => toggleSelect(item.id)}
+                    gridSize={gridSize}
                   />
                 ))}
                 {visibleSoldGroups.map((group) => (
@@ -4637,6 +4710,7 @@ function Dashboard() {
                     onToggle={() => {
                       if (group.groupKey != null) toggleSelect(group.groupKey);
                     }}
+                    gridSize={gridSize}
                   />
                 ))}
               </div>
@@ -4651,10 +4725,17 @@ function Dashboard() {
               return <EmptyState label="sold items" />;
             return (
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
+                key={gridSize}
+              style={{
+                  display: "grid",
+                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
+                  gridTemplateColumns:
+              gridSize === 1
+                ? "1fr"
+                : gridSize === 2
+                  ? "repeat(auto-fill, minmax(360px, 1fr))"
+                  : "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
                 }}
               >
                 {visibleSoldGroups.map((group) => (
@@ -4678,283 +4759,17 @@ function Dashboard() {
                     onToggle={() => {
                       if (group.groupKey != null) toggleSelect(group.groupKey);
                     }}
+                    gridSize={gridSize}
                   />
                 ))}
               </div>
             );
           })()}
 
-        {!loading &&
-          !error &&
-          activeFilter === "watching" &&
-          (() => {
-            if (watchedItems.length === 0)
-              return <EmptyState label="watched items" />;
-            return (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
-                }}
-              >
-                {watchedItems.map((w) => {
-                  const dropped = w.item.price < w.priceAtWatch;
-                  const pct = Math.round(
-                    ((w.priceAtWatch - w.item.price) / w.priceAtWatch) * 100,
-                  );
-                  const isHL = highlightItemId === w.item.id;
-                  return (
-                    <div
-                      key={w.id}
-                      onClick={() => {
-                        if (selectMode) {
-                          toggleSelect(w.item.id);
-                        } else navigate(`/items/${w.item.id}`);
-                      }}
-                      onMouseEnter={(e) => {
-                        setHoveredWatchId(w.item.id);
-                        if (!isHL)
-                          e.currentTarget.style.background = selected.has(
-                            w.item.id,
-                          )
-                            ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.15) 0%, rgba(var(--accent-rgb),0.05) 100%)"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%)";
-                      }}
-                      onMouseLeave={(e) => {
-                        setHoveredWatchId(null);
-                        if (!isHL)
-                          e.currentTarget.style.background = selected.has(
-                            w.item.id,
-                          )
-                            ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
-                      }}
-                      ref={
-                        isHL
-                          ? (el) => {
-                              if (el)
-                                setTimeout(
-                                  () =>
-                                    el.scrollIntoView({
-                                      behavior: "smooth",
-                                      block: "center",
-                                    }),
-                                  150,
-                                );
-                            }
-                          : null
-                      }
-                      style={{
-                        background: isHL
-                          ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.1) 0%, rgba(var(--accent-rgb),0.03) 100%)"
-                          : selected.has(w.item.id)
-                            ? "linear-gradient(135deg, rgba(var(--accent-rgb),0.12) 0%, rgba(var(--accent-rgb),0.04) 100%)"
-                            : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-                        border: isHL
-                          ? "1px solid rgba(var(--accent-rgb),0.5)"
-                          : selected.has(w.item.id)
-                            ? "1px solid rgba(var(--accent-rgb),0.3)"
-                            : "1px solid rgba(255,255,255,0.09)",
-                        borderRadius: "16px",
-                        padding: "1rem 1.25rem",
-                        cursor: "pointer",
-                        transition: "all 0.3s",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "1rem",
-                        boxShadow: selected.has(w.item.id)
-                          ? "0 4px 20px rgba(var(--accent-rgb),0.1)"
-                          : isHL
-                            ? "0 0 0 2px rgba(var(--accent-rgb),0.12), 0 0 18px rgba(var(--accent-rgb),0.08)"
-                            : "none",
-                      }}
-                    >
-                      {/* Checkbox */}
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSelect(w.item.id);
-                        }}
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "6px",
-                          flexShrink: 0,
-                          border: selected.has(w.item.id)
-                            ? "none"
-                            : "1.5px solid rgba(255,255,255,0.18)",
-                          background: selected.has(w.item.id)
-                            ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                            : "rgba(255,255,255,0.04)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.2s ease",
-                          boxShadow: selected.has(w.item.id)
-                            ? "0 2px 10px rgba(var(--accent-rgb),0.45)"
-                            : "none",
-                          opacity:
-                            selectMode ||
-                            selected.has(w.item.id) ||
-                            hoveredWatchId === w.item.id
-                              ? 1
-                              : 0,
-                          transform:
-                            selectMode ||
-                            selected.has(w.item.id) ||
-                            hoveredWatchId === w.item.id
-                              ? "scale(1)"
-                              : "scale(0.7)",
-                          pointerEvents: "auto",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {selected.has(w.item.id) && (
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                          >
-                            <polyline
-                              points="2,6 5,9 10,3"
-                              stroke="white"
-                              strokeWidth="1.9"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                      {w.item.images?.[0] && (
-                        <img
-                          src={w.item.images[0]}
-                          alt={w.item.title}
-                          style={{
-                            width: "52px",
-                            height: "52px",
-                            borderRadius: "10px",
-                            objectFit: "cover",
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: "0.92rem",
-                            fontWeight: "700",
-                            color: "var(--text-primary)",
-                            marginBottom: "0.3rem",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {w.item.title}
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "0.72rem",
-                              color: "var(--text-muted)",
-                              fontWeight: "600",
-                            }}
-                          >
-                            Watching since
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "0.8rem",
-                              fontWeight: "800",
-                              color: "var(--text-muted)",
-                              textDecoration: dropped ? "line-through" : "none",
-                            }}
-                          >
-                            ₹{w.priceAtWatch.toLocaleString()}
-                          </span>
-                          {dropped && (
-                            <>
-                              <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#ef4444"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                              >
-                                <line x1="5" y1="12" x2="19" y2="12" />
-                                <polyline points="12 5 19 12 12 19" />
-                              </svg>
-                              <span
-                                style={{
-                                  fontSize: "0.8rem",
-                                  fontWeight: "800",
-                                  color: "#ef4444",
-                                }}
-                              >
-                                ₹{w.item.price.toLocaleString()}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: "0.65rem",
-                                  fontWeight: "700",
-                                  color: "#ef4444",
-                                  background: "rgba(239,68,68,0.12)",
-                                  border: "1px solid rgba(239,68,68,0.25)",
-                                  padding: "1px 6px",
-                                  borderRadius: "5px",
-                                }}
-                              >
-                                -{pct}%
-                              </span>
-                            </>
-                          )}
-                          {!dropped && (
-                            <span
-                              style={{
-                                fontSize: "0.72rem",
-                                color: "var(--text-ghost)",
-                                fontWeight: "500",
-                              }}
-                            >
-                              · No drop yet
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-end",
-                          gap: "0.3rem",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <span
-                          className={`status-pill status-${w.item.status?.toLowerCase()}`}
-                        >
-                          {w.item.status}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+
       </div>
     </div>
+    </>
   );
 }
 
