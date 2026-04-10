@@ -401,7 +401,22 @@ export const getWatchedItems = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
     })
-    res.json(watched)
+
+    const itemIds = watched.map(w => w.itemId)
+    const notifications = await prisma.notification.findMany({
+      where: {
+        userId: parseInt(userId),
+        itemId: { in: itemIds },
+        type: 'price_drop'
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { itemId: true, price: true, oldPrice: true, createdAt: true }
+    })
+    const results = watched.map(w => ({
+      ...w,
+      priceHistory: notifications.filter(n => n.itemId === w.itemId)
+    }))
+    res.json(results)
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch watched items.' })
