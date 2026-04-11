@@ -115,19 +115,19 @@ student-shop/
 │       ├── api/            ← Axios instance
 │       └── index.css       ← CSS variables + all 3 themes
 │
-├── backend/
-│   └── src/
-│       ├── controllers/    ← auth, users, items, messages
-│       │                      transactions, notifications, upload
-│       ├── routes/
-│       ├── middleware/     ← JWT auth
-│       ├── lib/            ← Prisma client
-│       └── data/           ← institutions.js (5000+ entries)
-│
-└── database/
-    └── prisma/
-        ├── schema.prisma
-        └── migrations/
+└── backend/
+    ├── src/
+    │   ├── controllers/    ← auth, users, items, messages
+    │   │                      transactions, notifications, upload
+    │   ├── routes/
+    │   ├── middleware/     ← JWT auth
+    │   ├── lib/            ← Prisma client
+    │   └── data/           ← institutions.js (5000+ entries)
+    │ 
+    └── database/
+        └── prisma/
+            ├── schema.prisma
+            └── migrations/
 ```
 
 ---
