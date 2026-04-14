@@ -1,0 +1,637 @@
+{
+  "info": {
+    "_postman_id": "d6bc532f-bab5-4d7a-8793-35db7f94f77b",
+    "name": "Student Shop APIs",
+    "description": "Single collection with grouped folders for Auth, Items, Transactions, Notifications, and Sales Flow.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Buyer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"{{buyerFirstName}}\",\n  \"lastName\": \"{{buyerLastName}}\",\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenBuyer', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"{{sellerFirstName}}\",\n  \"lastName\": \"{{sellerLastName}}\",\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenSeller', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Buyer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenBuyer', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Seller",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenSeller', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Items",
+      "item": [
+        {
+          "name": "Get All Items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["items"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const first = Array.isArray(json) ? json[0] : (Array.isArray(json.items) ? json.items[0] : null);",
+                  "if (first?.id) pm.environment.set('itemId', String(first.id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Item By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/items/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["items", "{{itemId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{itemId}},\n  \"paymentMethod\": \"upi_direct\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/quote",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "quote"]
+            }
+          }
+        },
+        {
+          "name": "Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{itemId}},\n  \"paymentMethod\": \"upi_direct\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "checkout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const tx = json.transactionId || json.transaction?.id;",
+                  "if (tx) pm.environment.set('transactionId', String(tx));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Razorpay (optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": {{transactionId}},\n  \"razorpayOrderId\": \"replace_me\",\n  \"razorpayPaymentId\": \"replace_me\",\n  \"razorpaySignature\": \"replace_me\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/razorpay/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "razorpay", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Get My Transactions (Buyer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction By ID (Buyer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const otp = json.deliveryOtp || json.delivery_otp || json.checkoutSession?.displayPin;",
+                  "if (otp) pm.environment.set('deliveryOtp', String(otp));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seller Schedule Handoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduledAt\": \"{{scheduledAt}}\",\n  \"windowHours\": {{windowHours}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/handoff-schedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "handoff-schedule"]
+            }
+          }
+        },
+        {
+          "name": "Seller Confirm OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"{{deliveryOtp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/confirm-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "confirm-pin"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Unseen Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"]
+            }
+          }
+        },
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "all"]
+            }
+          }
+        },
+        {
+          "name": "Mark Notifications Seen",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mark-seen",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "mark-seen"]
+            }
+          }
+        },
+        {
+          "name": "Delete One Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Clear All Notifications",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/clear",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "clear"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales Flow",
+      "description": "Run top-to-bottom for checkout + delivery OTP handoff flow.",
+      "item": [
+        {
+          "name": "1. Login Buyer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenBuyer', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Login Seller",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || json.accessToken || json.jwt;",
+                  "if (token) pm.environment.set('tokenSeller', token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Get All Items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["items"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const first = Array.isArray(json) ? json[0] : (Array.isArray(json.items) ? json.items[0] : null);",
+                  "if (first?.id) pm.environment.set('itemId', String(first.id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Transactions Quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{itemId}},\n  \"paymentMethod\": \"upi_direct\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/quote",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "quote"]
+            }
+          }
+        },
+        {
+          "name": "5. Transactions Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{itemId}},\n  \"paymentMethod\": \"upi_direct\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "checkout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const tx = json.transactionId || json.transaction?.id;",
+                  "if (tx) pm.environment.set('transactionId', String(tx));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Seller Schedule Handoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduledAt\": \"{{scheduledAt}}\",\n  \"windowHours\": {{windowHours}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/handoff-schedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "handoff-schedule"]
+            }
+          }
+        },
+        {
+          "name": "7. Buyer Get Transaction (sets deliveryOtp)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenBuyer}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const otp = json.deliveryOtp || json.delivery_otp || json.checkoutSession?.displayPin;",
+                  "if (otp) pm.environment.set('deliveryOtp', String(otp));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Seller Confirm OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"{{deliveryOtp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/confirm-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "confirm-pin"]
+            }
+          }
+        },
+        {
+          "name": "9. Seller Notifications All",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenSeller}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "all"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "buyerFirstName", "value": "Buyer" },
+    { "key": "buyerLastName", "value": "Demo" },
+    { "key": "buyerEmail", "value": "buyer@example.com" },
+    { "key": "buyerPassword", "value": "your_password" },
+    { "key": "sellerFirstName", "value": "Seller" },
+    { "key": "sellerLastName", "value": "Demo" },
+    { "key": "sellerEmail", "value": "seller@example.com" },
+    { "key": "sellerPassword", "value": "your_password" },
+    { "key": "itemId", "value": "1" },
+    { "key": "transactionId", "value": "" },
+    { "key": "tokenBuyer", "value": "" },
+    { "key": "tokenSeller", "value": "" },
+    { "key": "deliveryOtp", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "scheduledAt", "value": "2026-12-31T10:30:00.000Z" },
+    { "key": "windowHours", "value": "24" }
+  ]
+}
