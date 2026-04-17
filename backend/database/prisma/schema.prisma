@@ -34,6 +34,9 @@ model User {
   messageNotifications Boolean @default(true)
   priceDropAlerts      Boolean @default(true)
   profileComplete      Boolean @default(true)
+  sellerIdVerified     Boolean @default(false)
+  sellerVideoVerified  Boolean @default(false)
+  sellerVerificationExpiresAt DateTime?
   createdAt    DateTime  @default(now())
 
   items            Item[]
@@ -49,6 +52,7 @@ model User {
   receivedRequests ChatRequest[]  @relation("ReceivedRequests")
   reviewsGiven     Review[]       @relation("ReviewsGiven")
   reviewsReceived  Review[]       @relation("ReviewsReceived")
+  checkoutSessions CheckoutSession[]
 }
 
 model Item {
@@ -84,6 +88,7 @@ model Item {
   cartItems     CartItem[]
   notifications Notification[]
   watchedBy     WatchedItem[]
+  checkoutSessions CheckoutSession[]
 }
 
 model WatchedItem {
@@ -102,6 +107,7 @@ model WatchedItem {
 model Message {
   id         Int      @id @default(autoincrement())
   content    String
+  imageUrl   String?
   createdAt  DateTime @default(now())
   read       Boolean  @default(false)
 
@@ -120,6 +126,17 @@ model Message {
 model Transaction {
   id           Int      @id @default(autoincrement())
   status       String   @default("pending")
+  paymentMethod String  @default("upi_direct")
+  paymentStatus String  @default("pending")
+  safetyTier    String  @default("minimal")
+  qrPayload     String?
+  pinCodeHash   String?
+  pinAttempts   Int     @default(0)
+  pinConfirmedAt DateTime?
+  paidAt        DateTime?
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
   createdAt    DateTime @default(now())
 
   quantity     Int      @default(1)
@@ -136,6 +153,36 @@ model Transaction {
   seller    User  @relation("SellerTransactions", fields: [sellerId], references: [id])
 
   review    Review?
+  checkoutSession CheckoutSession?
+}
+
+model CheckoutSession {
+  id               Int      @id @default(autoincrement())
+  idempotencyKey   String   @unique
+  status           String   @default("initialized")
+  paymentMethod    String   @default("upi_direct")
+  subtotal         Float    @default(0)
+  platformFee      Float    @default(0)
+  paymentGatewayFee Float   @default(0)
+  gstOnFees        Float    @default(0)
+  totalPayable     Float    @default(0)
+  currency         String   @default("INR")
+  displayPin       String?
+  upiIntent        String?
+  qrPayload        String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId           Int
+  itemId           Int
+  transactionId    Int?     @unique
+
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item             Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  transaction      Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, itemId, status, expiresAt])
 }
 
 model CartItem {
