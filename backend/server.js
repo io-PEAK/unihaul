@@ -18,6 +18,7 @@ import institutionsRoutes from "./src/routes/institutionsRoute.js";
 import uploadRoutes from "./src/routes/uploadRoute.js";
 import chatRequestRoutes from "./src/routes/chatRequestsRoute.js";
 import reviewRoutes from "./src/routes/reviewsRoute.js";
+import { expireCheckoutSessions } from "./src/controllers/transactionsController.js";
 
 dotenv.config();
 const app = express();
@@ -107,6 +108,11 @@ app.use(
   }),
 );
 
+app.use(
+  "/transactions/razorpay/webhook",
+  express.raw({ type: "application/json" }),
+);
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -164,41 +170,48 @@ const PORT = process.env.PORT || 8000;
 const isDev = process.env.NODE_ENV !== "production";
 
 httpServer.listen(PORT, () => {
-  const c = chalk
-  const W = 52
-  const strip = s => s.replace(/\x1b\[[0-9;]*m/g, '')
+  const c = chalk;
+  const W = 52;
+  const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
-  const top = c.cyan('  ┌' + '─'.repeat(W) + '┐')
-  const mid = c.cyan('  ├' + '─'.repeat(W) + '┤')
-  const bot = c.cyan('  └' + '─'.repeat(W) + '┘')
-  const sep = c.cyan('  │') + ' '.repeat(W) + c.cyan('│')
+  const top = c.cyan("  ┌" + "─".repeat(W) + "┐");
+  const mid = c.cyan("  ├" + "─".repeat(W) + "┤");
+  const bot = c.cyan("  └" + "─".repeat(W) + "┘");
+  const sep = c.cyan("  │") + " ".repeat(W) + c.cyan("│");
 
   const row = (label, val) => {
-    const inner = `   ${label.padEnd(12)}${c.cyan('→')}  ${val}`
-    const padding = ' '.repeat(Math.max(0, W - strip(inner).length))
-    return c.cyan('  │') + inner + padding + c.cyan('│')
-  }
+    const inner = `   ${label.padEnd(12)}${c.cyan("→")}  ${val}`;
+    const padding = " ".repeat(Math.max(0, W - strip(inner).length));
+    return c.cyan("  │") + inner + padding + c.cyan("│");
+  };
 
-  const title = '   Student Shop API'
-  const titlePad = ' '.repeat(Math.max(0, W - strip(title).length))
+  const title = "   Student Shop API";
+  const titlePad = " ".repeat(Math.max(0, W - strip(title).length));
 
-  console.log('')
-  console.log(top)
-  console.log(c.cyan('  │') + c.bold.white(title) + titlePad + c.cyan('│'))
-  console.log(mid)
-  console.log(row('API',       c.white(`http://localhost:${PORT}`)))
-  console.log(row('Socket.IO', c.white(`http://localhost:${PORT}`)))
-  console.log(row('Env',       isDev ? c.yellow('development') : c.green('production')))
-  console.log(row('Database',  c.magenta('Neon PostgreSQL')))
-  console.log(row('Routes',    c.white('12 registered')))
-  console.log(sep)
-  console.log(row('CORS',      c.cyan(allowedOrigins[0])))
-  allowedOrigins.slice(1).forEach(origin => {
-    console.log(row('',        c.cyan(origin)))
-  })
-  console.log(sep)
-  console.log(row('PID',       c.white(`${process.pid}`)))
-  console.log(row('Started',   c.green(new Date().toLocaleTimeString())))
-  console.log(bot)
-  console.log('')
-})
+  console.log("");
+  console.log(top);
+  console.log(c.cyan("  │") + c.bold.white(title) + titlePad + c.cyan("│"));
+  console.log(mid);
+  console.log(row("API", c.white(`http://localhost:${PORT}`)));
+  console.log(row("Socket.IO", c.white(`http://localhost:${PORT}`)));
+  console.log(
+    row("Env", isDev ? c.yellow("development") : c.green("production")),
+  );
+  console.log(row("Database", c.magenta("Neon PostgreSQL")));
+  console.log(row("Routes", c.white("12 registered")));
+  console.log(sep);
+  console.log(row("CORS", c.cyan(allowedOrigins[0])));
+  allowedOrigins.slice(1).forEach((origin) => {
+    console.log(row("", c.cyan(origin)));
+  });
+  console.log(sep);
+  console.log(row("PID", c.white(`${process.pid}`)));
+  console.log(row("Started", c.green(new Date().toLocaleTimeString())));
+  console.log(bot);
+  console.log("");
+
+  // Expire stale checkout reservations every minute.
+  setInterval(() => {
+    expireCheckoutSessions();
+  }, 60 * 1000);
+});
