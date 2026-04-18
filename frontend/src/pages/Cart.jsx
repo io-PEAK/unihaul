@@ -1,6 +1,519 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
+
+function ProtectedCheckoutModal({
+  open,
+  onClose,
+  items,
+  selectedItemId,
+  setSelectedItemId,
+  method,
+  setMethod,
+  quote,
+  quoteLoading,
+  onStart,
+  loading,
+  result,
+  error,
+  onPayRazorpay,
+  verifyingPayment,
+}) {
+  if (!open) return null;
+
+  const selectedItem =
+    items.find((i) => Number(i.id) === Number(selectedItemId)) || items[0];
+  const price = Number(selectedItem?.price || 0);
+  const methodLabel = method === "razorpay" ? "Razorpay" : "UPI";
+  const availableMethods = quote?.availableMethods || ["upi_direct"];
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        background: "rgba(0,0,0,0.68)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: "560px",
+          borderRadius: "var(--radius-xl)",
+          background: "var(--glass-bg-modal)",
+          border: "1px solid var(--glass-border)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.45)",
+          padding: "1.25rem",
+          maxHeight: "88vh",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "0.9rem",
+          }}
+        >
+          <h3
+            style={{
+              color: "var(--text-primary)",
+              fontSize: "1.05rem",
+              fontWeight: 800,
+            }}
+          >
+            Buy Now
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              width: "34px",
+              height: "34px",
+              borderRadius: "50%",
+              border: "1px solid var(--border)",
+              background: "var(--bg-card)",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            x
+          </button>
+        </div>
+
+        {items.length > 1 && (
+          <div style={{ marginBottom: "0.8rem" }}>
+            <div
+              style={{
+                color: "var(--text-secondary)",
+                marginBottom: "0.4rem",
+                fontSize: "0.78rem",
+              }}
+            >
+              Choose item
+            </div>
+            <select
+              value={selectedItem?.id || ""}
+              onChange={(e) => {
+                const nextId = Number(e.target.value);
+                setSelectedItemId(nextId);
+              }}
+              style={{
+                width: "100%",
+                padding: "0.62rem 0.7rem",
+                borderRadius: "10px",
+                border: "1px solid var(--border)",
+                background: "var(--bg-input)",
+                color: "var(--text-primary)",
+                fontSize: "0.82rem",
+              }}
+            >
+              {items.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.title} · Rs {Number(i.price).toLocaleString("en-IN")}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div
+          style={{
+            background: "var(--glass-bg-row)",
+            border: "1px solid var(--glass-border-row)",
+            borderRadius: "var(--radius-md)",
+            padding: "0.8rem",
+            marginBottom: "0.9rem",
+          }}
+        >
+          <div
+            style={{
+              color: "var(--text-primary)",
+              fontWeight: 700,
+              fontSize: "0.9rem",
+            }}
+          >
+            {selectedItem?.title}
+          </div>
+          <div
+            style={{
+              marginTop: "0.35rem",
+              color: "var(--text-secondary)",
+              fontSize: "0.8rem",
+            }}
+          >
+            Price: Rs {price.toLocaleString("en-IN")}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "0.9rem" }}>
+          <div
+            style={{
+              color: "var(--text-secondary)",
+              marginBottom: "0.45rem",
+              fontSize: "0.78rem",
+            }}
+          >
+            Payment route
+          </div>
+          <div style={{ display: "flex", gap: "0.55rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setMethod("upi_direct")}
+              disabled={
+                !availableMethods.includes("upi_direct") || loading || !!result
+              }
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: "10px",
+                border: `1px solid ${method === "upi_direct" ? "var(--border-accent)" : "var(--border)"}`,
+                background:
+                  method === "upi_direct"
+                    ? "var(--accent-soft)"
+                    : "var(--bg-card)",
+                color:
+                  method === "upi_direct"
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
+                cursor: loading || result ? "not-allowed" : "pointer",
+                opacity: availableMethods.includes("upi_direct") ? 1 : 0.45,
+                fontSize: "0.78rem",
+                fontWeight: 700,
+              }}
+            >
+              UPI
+            </button>
+            <button
+              type="button"
+              onClick={() => setMethod("razorpay")}
+              disabled={
+                !availableMethods.includes("razorpay") || loading || !!result
+              }
+              style={{
+                padding: "0.5rem 0.75rem",
+                borderRadius: "10px",
+                border: `1px solid ${method === "razorpay" ? "var(--border-accent)" : "var(--border)"}`,
+                background:
+                  method === "razorpay"
+                    ? "var(--accent-soft)"
+                    : "var(--bg-card)",
+                color:
+                  method === "razorpay"
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
+                cursor: loading || result ? "not-allowed" : "pointer",
+                opacity: availableMethods.includes("razorpay") ? 1 : 0.45,
+                fontSize: "0.78rem",
+                fontWeight: 700,
+              }}
+            >
+              Razorpay
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "var(--glass-bg-row)",
+            border: "1px solid var(--glass-border-row)",
+            borderRadius: "var(--radius-md)",
+            padding: "0.75rem",
+            marginBottom: "0.9rem",
+            fontSize: "0.78rem",
+          }}
+        >
+          {quoteLoading ? (
+            <div style={{ color: "var(--text-muted)" }}>
+              Calculating total...
+            </div>
+          ) : quote?.pricing ? (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <span>Item subtotal</span>
+                <span>
+                  Rs{" "}
+                  {Number(quote.pricing.subtotal || 0).toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <span>Platform fee</span>
+                <span>
+                  Rs{" "}
+                  {Number(quote.pricing.platformFee || 0).toLocaleString(
+                    "en-IN",
+                  )}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <span>Payment fee</span>
+                <span>
+                  Rs{" "}
+                  {Number(quote.pricing.paymentGatewayFee || 0).toLocaleString(
+                    "en-IN",
+                  )}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <span>GST on fees</span>
+                <span>
+                  Rs{" "}
+                  {Number(quote.pricing.gstOnFees || 0).toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div
+                style={{
+                  marginTop: "0.45rem",
+                  paddingTop: "0.45rem",
+                  borderTop: "1px solid var(--glass-divider)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  color: "var(--text-primary)",
+                  fontWeight: 800,
+                }}
+              >
+                <span>Total payable</span>
+                <span>
+                  Rs{" "}
+                  {Number(quote.pricing.totalPayable || 0).toLocaleString(
+                    "en-IN",
+                  )}
+                </span>
+              </div>
+              <div
+                style={{
+                  marginTop: "0.35rem",
+                  color: "var(--text-muted)",
+                  fontSize: "0.72rem",
+                }}
+              >
+                Paying via: {methodLabel}
+              </div>
+            </>
+          ) : (
+            <div style={{ color: "var(--text-muted)" }}>
+              Unable to load fee breakdown.
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onStart}
+          disabled={loading || !!result}
+          onMouseEnter={(e) => {
+            if (!loading && !result) {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "var(--shadow-accent-lg)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow =
+              !loading && !result ? "var(--shadow-accent)" : "none";
+          }}
+          style={{
+            width: "100%",
+            padding: "0.75rem",
+            borderRadius: "var(--radius-md)",
+            border: "none",
+            background:
+              "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+            color: "white",
+            fontWeight: 800,
+            letterSpacing: "0.8px",
+            textTransform: "uppercase",
+            cursor: loading || result ? "not-allowed" : "pointer",
+            boxShadow: !loading && !result ? "var(--shadow-accent)" : "none",
+            opacity: loading || result ? 0.7 : 1,
+            transform: "translateY(0)",
+            transition: "all 0.3s ease",
+          }}
+        >
+          {loading
+            ? "Initializing..."
+            : result
+              ? "Checkout Started"
+              : "Start Checkout"}
+        </button>
+
+        {error && (
+          <div
+            style={{
+              marginTop: "0.75rem",
+              fontSize: "0.78rem",
+              color: "var(--color-danger)",
+              background: "var(--bg-danger)",
+              border: "1px solid var(--bd-danger)",
+              borderRadius: "10px",
+              padding: "0.55rem 0.65rem",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div
+            style={{
+              marginTop: "0.95rem",
+              background: "var(--glass-bg-row)",
+              border: "1px solid var(--glass-border-row)",
+              borderRadius: "var(--radius-md)",
+              padding: "0.85rem",
+            }}
+          >
+            <div
+              style={{
+                color: "var(--text-primary)",
+                fontWeight: 700,
+                marginBottom: "0.5rem",
+                fontSize: "0.84rem",
+              }}
+            >
+              Checkout Initialized
+            </div>
+            <div
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.76rem",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Transaction #{result.transactionId} · Method:{" "}
+              {result.paymentMethod === "upi_direct" ? "UPI" : "Razorpay"}
+            </div>
+
+            {result.qrCodeDataUrl && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginBottom: "0.7rem",
+                }}
+              >
+                <img
+                  src={result.qrCodeDataUrl}
+                  alt="Transaction QR"
+                  style={{
+                    width: "190px",
+                    height: "190px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border)",
+                  }}
+                />
+              </div>
+            )}
+
+            {!!result.pinCode && (
+              <div
+                style={{
+                  color: "var(--text-primary)",
+                  textAlign: "center",
+                  fontWeight: 800,
+                  fontSize: "1.1rem",
+                  letterSpacing: "2px",
+                  marginBottom: "0.45rem",
+                }}
+              >
+                PIN: {result.pinCode}
+              </div>
+            )}
+
+            {result.upiIntent && (
+              <a
+                href={result.upiIntent}
+                style={{
+                  display: "inline-flex",
+                  marginTop: "0.35rem",
+                  color: "var(--accent-alt)",
+                  fontSize: "0.76rem",
+                  fontWeight: 700,
+                }}
+              >
+                Open UPI app
+              </a>
+            )}
+
+            {result.paymentMethod === "razorpay" && result.razorpayOrder && (
+              <button
+                onClick={onPayRazorpay}
+                disabled={verifyingPayment}
+                onMouseEnter={(e) => {
+                  if (!verifyingPayment) {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-accent-lg)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = !verifyingPayment
+                    ? "var(--shadow-accent)"
+                    : "none";
+                }}
+                style={{
+                  marginTop: "0.65rem",
+                  width: "100%",
+                  padding: "0.66rem",
+                  borderRadius: "10px",
+                  border: "none",
+                  background:
+                    "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                  color: "white",
+                  fontWeight: 800,
+                  letterSpacing: "0.6px",
+                  textTransform: "uppercase",
+                  cursor: verifyingPayment ? "not-allowed" : "pointer",
+                  boxShadow: !verifyingPayment
+                    ? "var(--shadow-accent)"
+                    : "none",
+                  opacity: verifyingPayment ? 0.7 : 1,
+                  transform: "translateY(0)",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {verifyingPayment ? "Verifying..." : "Pay with Razorpay"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 // ──  Empty Cart Illustration ─────────────────────
 function EmptyCartIllustration() {
@@ -49,67 +562,101 @@ function EmptyCartIllustration() {
       `}</style>
 
       {/* Outer wrapper — entrance fade */}
-      <div style={{
-        position: "relative",
-        width: "160px",
-        height: "160px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        animation: "fadeInScale 0.6s cubic-bezier(0.175,0.885,0.32,1.275) both",
-      }}>
-
+      <div
+        style={{
+          position: "relative",
+          width: "160px",
+          height: "160px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animation:
+            "fadeInScale 0.6s cubic-bezier(0.175,0.885,0.32,1.275) both",
+        }}
+      >
         {/* Orbit particle A */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          animation: "orbitA 5s linear infinite",
-          animationDelay: "0s",
-        }}>
-          <div style={{
-            width: "8px", height: "8px", borderRadius: "50%",
-            background: "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-            boxShadow: "0 0 8px rgba(var(--accent-rgb),0.7)",
-          }} />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "orbitA 5s linear infinite",
+            animationDelay: "0s",
+          }}
+        >
+          <div
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background:
+                "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+              boxShadow: "0 0 8px rgba(var(--accent-rgb),0.7)",
+            }}
+          />
         </div>
 
         {/* Orbit particle B — smaller, slower */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          animation: "orbitB 7s linear infinite",
-        }}>
-          <div style={{
-            width: "5px", height: "5px", borderRadius: "50%",
-            background: "rgba(var(--accent-rgb),0.55)",
-            boxShadow: "0 0 5px rgba(var(--accent-rgb),0.4)",
-          }} />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "orbitB 7s linear infinite",
+          }}
+        >
+          <div
+            style={{
+              width: "5px",
+              height: "5px",
+              borderRadius: "50%",
+              background: "rgba(var(--accent-rgb),0.55)",
+              boxShadow: "0 0 5px rgba(var(--accent-rgb),0.4)",
+            }}
+          />
         </div>
 
         {/* Orbit particle C — tiny, fastest */}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          animation: "orbitC 3.5s linear infinite",
-        }}>
-          <div style={{
-            width: "4px", height: "4px", borderRadius: "50%",
-            background: "rgba(var(--accent-rgb),0.35)",
-          }} />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "orbitC 3.5s linear infinite",
+          }}
+        >
+          <div
+            style={{
+              width: "4px",
+              height: "4px",
+              borderRadius: "50%",
+              background: "rgba(var(--accent-rgb),0.35)",
+            }}
+          />
         </div>
 
         {/* Floating cart group */}
         <div style={{ animation: "cartFloat 3s ease-in-out infinite" }}>
-
           {/* Glow shadow underneath */}
-          <div style={{
-            width: "72px", height: "10px", borderRadius: "50%",
-            background: "rgba(var(--accent-rgb),0.25)",
-            filter: "blur(8px)",
-            margin: "0 auto",
-            animation: "cartGlow 3s ease-in-out infinite",
-            position: "relative", top: "4px",
-          }} />
+          <div
+            style={{
+              width: "72px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "rgba(var(--accent-rgb),0.25)",
+              filter: "blur(8px)",
+              margin: "0 auto",
+              animation: "cartGlow 3s ease-in-out infinite",
+              position: "relative",
+              top: "4px",
+            }}
+          />
 
           <svg
             width="88"
@@ -119,10 +666,12 @@ function EmptyCartIllustration() {
             xmlns="http://www.w3.org/2000/svg"
           >
             {/* Handle with wiggle */}
-            <g style={{
-              transformOrigin: "56px 6px",
-              animation: "handleWiggle 4s ease-in-out infinite",
-            }}>
+            <g
+              style={{
+                transformOrigin: "56px 6px",
+                animation: "handleWiggle 4s ease-in-out infinite",
+              }}
+            >
               <path
                 d="M12 6H22L24 16"
                 stroke="rgba(var(--accent-rgb),0.55)"
@@ -151,7 +700,10 @@ function EmptyCartIllustration() {
 
             {/* Animated dashed empty lines inside cart */}
             <line
-              x1="32" y1="28" x2="56" y2="28"
+              x1="32"
+              y1="28"
+              x2="56"
+              y2="28"
               stroke="rgba(var(--accent-rgb),0.22)"
               strokeWidth="1.8"
               strokeLinecap="round"
@@ -159,51 +711,116 @@ function EmptyCartIllustration() {
               style={{ animation: "dashDrift 1.8s linear infinite" }}
             />
             <line
-              x1="33" y1="38" x2="54" y2="38"
+              x1="33"
+              y1="38"
+              x2="54"
+              y2="38"
               stroke="rgba(var(--accent-rgb),0.14)"
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeDasharray="5 4"
-              style={{ animation: "dashDrift 1.8s linear infinite", animationDelay: "0.4s" }}
+              style={{
+                animation: "dashDrift 1.8s linear infinite",
+                animationDelay: "0.4s",
+              }}
             />
 
             {/* Left wheel */}
-            <g style={{
-              transformOrigin: "34px 62px",
-              animation: "wheelSpin 3s linear infinite",
-            }}>
-              <circle cx="34" cy="62" r="6"
+            <g
+              style={{
+                transformOrigin: "34px 62px",
+                animation: "wheelSpin 3s linear infinite",
+              }}
+            >
+              <circle
+                cx="34"
+                cy="62"
+                r="6"
                 fill="rgba(var(--accent-rgb),0.08)"
                 stroke="rgba(var(--accent-rgb),0.55)"
                 strokeWidth="2"
               />
-              <line x1="34" y1="58" x2="34" y2="66"
-                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
-              <line x1="30" y1="62" x2="38" y2="62"
-                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+              <line
+                x1="34"
+                y1="58"
+                x2="34"
+                y2="66"
+                stroke="rgba(var(--accent-rgb),0.4)"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+              <line
+                x1="30"
+                y1="62"
+                x2="38"
+                y2="62"
+                stroke="rgba(var(--accent-rgb),0.4)"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
             </g>
 
             {/* Right wheel */}
-            <g style={{
-              transformOrigin: "58px 62px",
-              animation: "wheelSpin 3s linear infinite",
-              animationDirection: "reverse",
-            }}>
-              <circle cx="58" cy="62" r="6"
+            <g
+              style={{
+                transformOrigin: "58px 62px",
+                animation: "wheelSpin 3s linear infinite",
+                animationDirection: "reverse",
+              }}
+            >
+              <circle
+                cx="58"
+                cy="62"
+                r="6"
                 fill="rgba(var(--accent-rgb),0.08)"
                 stroke="rgba(var(--accent-rgb),0.55)"
                 strokeWidth="2"
               />
-              <line x1="58" y1="58" x2="58" y2="66"
-                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
-              <line x1="54" y1="62" x2="62" y2="62"
-                stroke="rgba(var(--accent-rgb),0.4)" strokeWidth="1.4" strokeLinecap="round" />
+              <line
+                x1="58"
+                y1="58"
+                x2="58"
+                y2="66"
+                stroke="rgba(var(--accent-rgb),0.4)"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+              <line
+                x1="54"
+                y1="62"
+                x2="62"
+                y2="62"
+                stroke="rgba(var(--accent-rgb),0.4)"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
             </g>
 
             {/* Sparkle top-right */}
-            <g style={{ animation: "handleWiggle 3s ease-in-out infinite", transformOrigin: "75px 10px" }}>
-              <line x1="75" y1="7"  x2="75" y2="13" stroke="rgba(var(--accent-rgb),0.55)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="72" y1="10" x2="78" y2="10" stroke="rgba(var(--accent-rgb),0.55)" strokeWidth="1.5" strokeLinecap="round" />
+            <g
+              style={{
+                animation: "handleWiggle 3s ease-in-out infinite",
+                transformOrigin: "75px 10px",
+              }}
+            >
+              <line
+                x1="75"
+                y1="7"
+                x2="75"
+                y2="13"
+                stroke="rgba(var(--accent-rgb),0.55)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="72"
+                y1="10"
+                x2="78"
+                y2="10"
+                stroke="rgba(var(--accent-rgb),0.55)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </g>
           </svg>
         </div>
@@ -1571,6 +2188,16 @@ function Cart() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [purchasedItems, setPurchasedItems] = useState([]);
   const [totalPaid, setTotalPaid] = useState("0");
+  const [protectedCheckoutOpen, setProtectedCheckoutOpen] = useState(false);
+  const [selectedProtectedItemId, setSelectedProtectedItemId] = useState(null);
+  const [checkoutMethod, setCheckoutMethod] = useState("upi_direct");
+  const [checkoutQuote, setCheckoutQuote] = useState(null);
+  const [checkoutSession, setCheckoutSession] = useState(null);
+  const [checkoutQuoteLoading, setCheckoutQuoteLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutResult, setCheckoutResult] = useState(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const token = localStorage.getItem("token");
   const isLoggedIn = !!token;
@@ -1644,6 +2271,178 @@ function Cart() {
     .reduce((sum, i) => sum + (i.price || 0) * (i.cartQty || 1), 0)
     .toFixed(2);
 
+  const protectedItems = availableItems.map((c) => ({
+    id: c.item?.id,
+    title: c.item?.title,
+    price: c.item?.price,
+  }));
+
+  async function loadRazorpayScript() {
+    if (window.Razorpay) return true;
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+
+  function handleOpenProtectedCheckout() {
+    if (!protectedItems.length) return;
+    const first = protectedItems[0];
+    setSelectedProtectedItemId(first.id);
+    setCheckoutMethod("upi_direct");
+    setCheckoutQuote(null);
+    setCheckoutSession(null);
+    setCheckoutError("");
+    setCheckoutResult(null);
+    setProtectedCheckoutOpen(true);
+  }
+
+  useEffect(() => {
+    if (!protectedCheckoutOpen || !selectedProtectedItemId || !!checkoutResult)
+      return;
+
+    const controller = new AbortController();
+
+    async function fetchQuote() {
+      setCheckoutQuoteLoading(true);
+      try {
+        const res = await API.post(
+          "/transactions/quote",
+          {
+            itemId: selectedProtectedItemId,
+            paymentMethod: checkoutMethod,
+          },
+          { signal: controller.signal },
+        );
+
+        setCheckoutQuote(res.data);
+        setCheckoutSession(res.data?.checkoutSession || null);
+        if (
+          res.data?.paymentMethod &&
+          res.data.paymentMethod !== checkoutMethod
+        ) {
+          setCheckoutMethod(res.data.paymentMethod);
+        }
+      } catch (err) {
+        if (err.name === "CanceledError") return;
+        setCheckoutError(
+          err.response?.data?.error || "Failed to load checkout quote.",
+        );
+      } finally {
+        setCheckoutQuoteLoading(false);
+      }
+    }
+
+    fetchQuote();
+    return () => controller.abort();
+  }, [
+    protectedCheckoutOpen,
+    selectedProtectedItemId,
+    checkoutMethod,
+    checkoutResult,
+  ]);
+
+  async function handleStartProtectedCheckout() {
+    const target = protectedItems.find(
+      (x) => Number(x.id) === Number(selectedProtectedItemId),
+    );
+    if (!target?.id) return;
+    const selectedMethod = checkoutQuote?.paymentMethod || checkoutMethod;
+    setCheckoutMethod(selectedMethod);
+
+    setCheckoutLoading(true);
+    setCheckoutError("");
+    try {
+      const res = await API.post("/transactions/checkout", {
+        itemId: target.id,
+        paymentMethod: selectedMethod,
+        checkoutSessionId: checkoutSession?.id,
+        idempotencyKey: checkoutSession?.idempotencyKey,
+      });
+      setCheckoutResult(res.data);
+      setCartItems((prev) =>
+        prev.filter((c) => Number(c.item?.id) !== Number(target.id)),
+      );
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setCheckoutError(
+          "Checkout already started for this item. Use the current QR and PIN shown below.",
+        );
+        return;
+      }
+      setCheckoutError(
+        err.response?.data?.error || "Failed to initialize checkout.",
+      );
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
+
+  async function handlePayWithRazorpay() {
+    const target = protectedItems.find(
+      (x) => Number(x.id) === Number(selectedProtectedItemId),
+    );
+    if (!checkoutResult?.razorpayOrder?.id || !checkoutResult?.razorpayKeyId) {
+      setCheckoutError("Razorpay order details are missing.");
+      return;
+    }
+
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      setCheckoutError("Failed to load Razorpay checkout.");
+      return;
+    }
+
+    const options = {
+      key: checkoutResult.razorpayKeyId,
+      amount: checkoutResult.razorpayOrder.amount,
+      currency: checkoutResult.razorpayOrder.currency,
+      name: "Student Shop",
+      description: target?.title || "Item purchase",
+      order_id: checkoutResult.razorpayOrder.id,
+      handler: async function (response) {
+        setVerifyingPayment(true);
+        setCheckoutError("");
+        try {
+          await API.post("/transactions/razorpay/verify", {
+            transactionId: checkoutResult.transactionId,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          setCheckoutResult((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  paymentStatus: "paid",
+                }
+              : prev,
+          );
+        } catch (err) {
+          setCheckoutError(
+            err.response?.data?.error || "Payment verification failed.",
+          );
+        } finally {
+          setVerifyingPayment(false);
+        }
+      },
+      theme: { color: "#e87722" },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on("payment.failed", function (resp) {
+      setCheckoutError(
+        resp?.error?.description ||
+          "Razorpay payment failed. Please try again.",
+      );
+    });
+    rzp.open();
+  }
+
   async function handleCheckout() {
     if (
       !window.confirm(
@@ -1687,13 +2486,23 @@ function Cart() {
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <style>{`
+        .cart-back-btn:hover {
+          border-color: var(--accent) !important;
+          color: var(--accent) !important;
+          box-shadow: 0 0 8px 2px rgba(var(--accent-rgb),0.35) !important;
+        }
+        @media (min-width: 769px) {
+          .cart-header { padding-left: 48px !important; }
+        }
         @media (min-width: 1280px) {
           .cart-page { padding: 6rem 5rem 3rem !important; }
-          .cart-back-btn { left: -60px !important; }
+          .cart-header { padding-left: 56px !important; }
+          .cart-back-btn { left: 0 !important; }
         }
         @media (min-width: 769px) and (max-width: 1024px) {
           .cart-page { padding: 4rem 2rem 3rem !important; }
-          .cart-back-btn { left: -36px !important; }
+          .cart-header { padding-left: 48px !important; }
+          .cart-back-btn { left: 0 !important; }
           .cart-header h1 { font-size: 2.2rem !important; letter-spacing: -1.2px !important; }
         }
         @media (max-width: 768px) {
@@ -1721,7 +2530,7 @@ function Cart() {
               className="cart-back-btn back-btn-circle"
               style={{
                 position: "absolute",
-                left: "-50px",
+                left: "0",
                 top: "6px",
                 width: "34px",
                 height: "34px",
@@ -1738,6 +2547,7 @@ function Cart() {
                 color: "var(--text-muted)",
                 fontFamily: "var(--font-body)",
                 transition: "all 0.15s",
+                zIndex: 2,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "var(--accent)";
@@ -1862,6 +2672,7 @@ function Cart() {
                 style={{
                   background: "var(--glass-bg)",
                   backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
                   border: "1px solid var(--border)",
                   borderRadius: "20px",
                   padding: "1.75rem",
@@ -1957,6 +2768,14 @@ function Cart() {
                   onClick={() =>
                     navigate("/login", { state: { from: "/cart" } })
                   }
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-accent-lg)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-accent)";
+                  }}
                   style={{
                     width: "100%",
                     padding: "0.9rem",
@@ -1972,6 +2791,7 @@ function Cart() {
                     textTransform: "uppercase",
                     transition: "all 0.3s ease",
                     boxShadow: "0 4px 15px rgba(var(--accent-rgb),0.3)",
+                    transform: "translateY(0)",
                   }}
                 >
                   Sign In to Buy →
@@ -2096,6 +2916,7 @@ function Cart() {
               style={{
                 background: "var(--glass-bg)",
                 backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
                 border: "1px solid var(--border)",
                 borderRadius: "20px",
                 padding: "1.75rem",
@@ -2189,8 +3010,25 @@ function Cart() {
                 </span>
               </div>
               <button
-                onClick={handleCheckout}
+                onClick={() =>
+                  navigate(
+                    `/checkout${availableItems[0]?.item?.id ? `?itemId=${availableItems[0].item.id}` : ""}`,
+                  )
+                }
                 disabled={checkingOut || availableItems.length === 0}
+                onMouseEnter={(e) => {
+                  if (!checkingOut && availableItems.length > 0) {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-accent-lg)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    availableItems.length > 0 && !checkingOut
+                      ? "var(--shadow-accent)"
+                      : "none";
+                }}
                 style={{
                   width: "100%",
                   padding: "0.9rem",
@@ -2215,14 +3053,28 @@ function Cart() {
                   transition: "all 0.3s ease",
                   boxShadow:
                     availableItems.length > 0 && !checkingOut
-                      ? "0 4px 15px rgba(var(--accent-rgb),0.3)"
+                      ? "var(--shadow-accent)"
                       : "none",
+                  transform: "translateY(0)",
                 }}
               >
                 {checkingOut
                   ? "Processing..."
                   : `Buy Now — ₹${Number(totalPrice).toLocaleString("en-IN")}`}
               </button>
+              {availableItems.length > 1 && (
+                <p
+                  style={{
+                    textAlign: "center",
+                    marginTop: "0.55rem",
+                    color: "var(--text-muted)",
+                    fontSize: "0.72rem",
+                  }}
+                >
+                  Protected checkout currently processes one cart item at a
+                  time.
+                </p>
+              )}
               {unavailableItems.length > 0 && (
                 <p
                   style={{
@@ -2241,6 +3093,23 @@ function Cart() {
           </>
         )}
       </div>
+      <ProtectedCheckoutModal
+        open={protectedCheckoutOpen}
+        onClose={() => setProtectedCheckoutOpen(false)}
+        items={protectedItems}
+        selectedItemId={selectedProtectedItemId}
+        setSelectedItemId={setSelectedProtectedItemId}
+        method={checkoutMethod}
+        setMethod={setCheckoutMethod}
+        quote={checkoutQuote}
+        quoteLoading={checkoutQuoteLoading}
+        onStart={handleStartProtectedCheckout}
+        loading={checkoutLoading}
+        result={checkoutResult}
+        error={checkoutError}
+        onPayRazorpay={handlePayWithRazorpay}
+        verifyingPayment={verifyingPayment}
+      />
     </div>
   );
 }
