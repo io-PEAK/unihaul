@@ -28,12 +28,12 @@ with people from your own college or school.</p>
 
 <div align="center">
 
-| Home | Item Detail | Dashboard |
-|:----:|:-----------:|:---------:|
+|                 Home                 |             Item Detail              |                   Dashboard                    |
+| :----------------------------------: | :----------------------------------: | :--------------------------------------------: |
 | ![Home](images/screenshots/home.png) | ![Item](images/screenshots/item.png) | ![Dashboard](images/screenshots/dashboard.png) |
 
-| Messages | Settings | Post Item |
-|:--------:|:--------:|:---------:|
+|                   Messages                   |                   Settings                   |              Post Item               |
+| :------------------------------------------: | :------------------------------------------: | :----------------------------------: |
 | ![Messages](images/screenshots/messages.png) | ![Settings](images/screenshots/settings.png) | ![Post](images/screenshots/post.png) |
 
 </div>
@@ -64,10 +64,13 @@ Watch any item and get a real-time notification on price drops
 **<img src="images/icons/bell.svg" width="16" height="16" valign="middle"/> &nbsp; Live Notifications**<br/>
 Sales and messages delivered instantly via WebSocket
 
+**<img src="images/icons/lock.svg" width="16" height="16" valign="middle"/> &nbsp; Hybrid Checkout + Delivery OTP**<br/>
+Quote → checkout → payment confirmation → seller handoff OTP
+
 **<img src="images/icons/palette.svg" width="16" height="16" valign="middle"/> &nbsp; 3 Themes**<br/>
 Ember · Midnight · Chalk, synced to your profile
 
-**<img src="images/icons/lock.svg" width="16" height="16" valign="middle"/> &nbsp; Flexible Auth**<br/>
+**<img src="images/icons/message.svg" width="16" height="16" valign="middle"/> &nbsp; Flexible Auth**<br/>
 Google OAuth or classic email + password, your choice
 
 **<img src="images/icons/college.svg" width="16" height="16" valign="middle"/> &nbsp; 5000+ Institutions**<br/>
@@ -83,16 +86,16 @@ Every college and school across all Indian states
 
 <div align="center">
 
-|  | Frontend | Backend | Infra |
-|--|----------|---------|-------|
-| **Runtime** | React 18 + Vite | Node.js + Express | PostgreSQL |
-| **Styling** | Tailwind CSS + CSS vars | — | Prisma ORM v7 |
-| **Auth** | — | JWT (7d) + bcrypt | — |
-| **OAuth** | — | Google auth-code flow | — |
-| **Media** | — | Cloudinary | — |
-| **Realtime** | Socket.IO client | Socket.IO server | — |
-| **Routing** | React Router DOM | Express Router | — |
-| **Security** | — | Helmet + rate-limit | — |
+|              | Frontend                | Backend               | Infra         |
+| ------------ | ----------------------- | --------------------- | ------------- |
+| **Runtime**  | React 18 + Vite         | Node.js + Express     | PostgreSQL    |
+| **Styling**  | Tailwind CSS + CSS vars | —                     | Prisma ORM v7 |
+| **Auth**     | —                       | JWT (7d) + bcrypt     | —             |
+| **OAuth**    | —                       | Google auth-code flow | —             |
+| **Media**    | —                       | Cloudinary            | —             |
+| **Realtime** | Socket.IO client        | Socket.IO server      | —             |
+| **Routing**  | React Router DOM        | Express Router        | —             |
+| **Security** | —                       | Helmet + rate-limit   | —             |
 
 </div>
 
@@ -123,7 +126,7 @@ student-shop/
     │   ├── middleware/     ← JWT auth
     │   ├── lib/            ← Prisma client
     │   └── data/           ← institutions.js (5000+ entries)
-    │ 
+    │
     └── database/
         └── prisma/
             ├── schema.prisma
@@ -164,6 +167,7 @@ POST  /auth/register
 POST  /auth/login
 POST  /auth/google
 ```
+
 </details>
 
 <details>
@@ -180,6 +184,7 @@ POST   /users/change-password
 POST   /users/reset-password
 DELETE /users/account
 ```
+
 </details>
 
 <details>
@@ -194,6 +199,26 @@ PUT    /items/:id
 PATCH  /items/:id/status
 DELETE /items/:id
 ```
+
+</details>
+
+<details>
+<summary>&nbsp;<b>Transactions</b></summary>
+
+```
+POST   /transactions/quote
+POST   /transactions/checkout
+POST   /transactions/razorpay/verify
+POST   /transactions/razorpay/webhook
+POST   /transactions/:id/handoff-schedule
+POST   /transactions/:id/confirm-pin
+GET    /transactions
+GET    /transactions/:id
+DELETE /transactions/:id
+```
+
+> Legacy endpoint `POST /transactions` has been removed. All purchases must use quote + checkout.
+
 </details>
 
 <details>
@@ -206,6 +231,7 @@ GET   /messages/:itemId
 GET   /notifications
 PATCH /notifications/read
 ```
+
 </details>
 
 <details>
@@ -217,6 +243,7 @@ DELETE /upload/avatar
 POST   /upload/item-image
 DELETE /upload/item-image
 ```
+
 </details>
 
 <details>
@@ -226,6 +253,7 @@ DELETE /upload/item-image
 GET /institutions/search?q=&type=&limit=
 GET /institutions/states
 ```
+
 </details>
 
 ---
@@ -233,6 +261,7 @@ GET /institutions/states
 ## <img src="images/icons/start.svg" width="20" height="20" valign="middle"/> &nbsp; Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - PostgreSQL running locally
 - Cloudinary account — free tier, no credit card
@@ -265,9 +294,11 @@ npm install
 Create `backend/.env`:
 
 ```env
+NODE_ENV=development
 PORT=8000
 DATABASE_URL=postgresql://your_user@localhost:5432/student_shop?schema=public
 JWT_SECRET=your_64_char_random_hex
+FRONTEND_URL=http://localhost:5173
 
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
@@ -276,7 +307,14 @@ CLOUDINARY_API_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-FRONTEND_URL=http://localhost:5173
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+
+PLATFORM_UPI_ID=
+
+RESEND_API_KEY=
+DEV_EMAIL=
 ```
 
 ```bash
@@ -307,14 +345,29 @@ npm run dev
 
 ---
 
+## <img src="images/icons/bell.svg" width="20" height="20" valign="middle"/> &nbsp; Sales Notification Timeline
+
+After the checkout migration, the sales notification feed is milestone-based.
+
+1. `checkout_started` — when buyer initiates checkout for your item.
+2. `payment_received` — when payment is confirmed for seller.
+3. `order_confirmed` — when buyer sees order/payment confirmed.
+4. `handoff_otp_ready` — when seller schedules delivery and OTP is generated.
+5. `delivery_confirmed` — when seller confirms handoff OTP successfully.
+6. `payment_failed` — when checkout/payment fails and transaction is not completed.
+
+Legacy direct-buy style `sale` notifications are now excluded from the sales feed.
+
+---
+
 ## <img src="images/icons/themes.svg" width="20" height="20" valign="middle"/> &nbsp; Themes
 
 <div align="center">
 
-| Ember | Midnight | Chalk |
-|:-----:|:--------:|:-----:|
+|                    Ember                     |                      Midnight                      |                    Chalk                     |
+| :------------------------------------------: | :------------------------------------------------: | :------------------------------------------: |
 | ![Ember](images/screenshots/theme-ember.png) | ![Midnight](images/screenshots/theme-midnight.png) | ![Chalk](images/screenshots/theme-chalk.png) |
-| Dark · Glass · Orange/Gold | Dark · Sharp · Electric Blue | Light · Neumorphic · Indigo |
+|          Dark · Glass · Orange/Gold          |            Dark · Sharp · Electric Blue            |         Light · Neumorphic · Indigo          |
 
 </div>
 
