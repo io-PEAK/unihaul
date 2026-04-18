@@ -1311,6 +1311,7 @@ function Messages() {
   const [respondingId, setRespondingId] = useState(null);
   const [activeRequest, setActiveRequest] = useState(null);
   const [messages, setMessages] = useState([]);
+  const fetchTick = useRef(0); // increments on every convo click → forces useEffect to re-run
   const [newMessage, setNewMessage] = useState("");
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -1663,7 +1664,8 @@ function Messages() {
     if (activeConvo.isNew && !activeConvo.chat_request_id) return;
     const fetchMessages = async () => {
       try {
-        setLoadingMessages(true);
+        // Only show loading spinner if we have no messages yet — otherwise keep showing old ones
+        if (messages.length === 0) setLoadingMessages(true);
         const itemIdParam = activeConvo.item_id ?? "null";
         const res = await API.get(`/messages/${itemIdParam}`, {
           params: { otherUserId: activeConvo.other_user_id },
@@ -1693,7 +1695,12 @@ function Messages() {
       }
     };
     fetchMessages();
-  }, [activeConvo?.conversation_id, activeConvo?.chat_request_status]);
+    // fetchTick added so clicking the same convo again always re-fetches
+  }, [
+    activeConvo?.conversation_id,
+    activeConvo?.chat_request_status,
+    fetchTick.current,
+  ]); // eslint-disable-line
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1913,6 +1920,7 @@ function Messages() {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        padding: "2rem 4rem 1.5rem",
       }}
     >
       <style>{`
@@ -1922,70 +1930,34 @@ function Messages() {
         @keyframes typingDot { 0%,60%,100% { transform:translateY(0); opacity:0.4 } 30% { transform:translateY(-3px); opacity:1 } }
         @keyframes reqSlideIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
         @keyframes lockPulse { 0%,100% { opacity:0.5 } 50% { opacity:1 } }
-        @keyframes slideInRight { from { transform:translateX(100%); opacity:0 } to { transform:translateX(0); opacity:1 } }
-        @keyframes slideOutRight { from { transform:translateX(0); opacity:1 } to { transform:translateX(100%); opacity:0 } }
+        @keyframes drawerIn  { from { transform:translateX(-100%) } to { transform:translateX(0) } }
         .msg-input::placeholder { color: var(--text-muted) }
         .msg-input:focus { outline: none }
         ::-webkit-scrollbar { width: 0px }
         ::-webkit-scrollbar-track { background: transparent }
         ::-webkit-scrollbar-thumb { background: transparent }
         .hide-scrollbar::-webkit-scrollbar { display: none }
-
-        /* ── Desktop ── */
         .msgs-page    { padding: 2rem 4rem 1.5rem }
         .msgs-heading { display:flex; align-items:flex-end; justify-content:space-between; flex-shrink:0 }
         .msgs-title   { font-size:2.8rem }
         .msgs-panels  { display:grid; grid-template-columns:300px 1fr; gap:1rem; flex:1; min-height:0; position:relative }
         .msgs-back-desktop { display:flex }
         .msgs-hamburger    { display:none !important }
-        .mob-chat-back     { display:none !important }
-
-        /* ── Mobile ≤768px: full-screen stack ── */
+        .msgs-drawer       { display:none }
         @media (max-width:768px) {
-          .msgs-page        { padding:0 !important; }
-          .msgs-inner-wrap  { padding:1rem 1rem 0 !important; gap:0.75rem !important; }
-          .msgs-heading     { flex-direction:column; align-items:flex-start; gap:0.4rem; padding:1rem 1rem 0 }
-          .msgs-title       { font-size:2rem !important }
-          /* panels = fixed height so absolute children know their bounds */
-          .msgs-panels      { display:block !important; flex:1; min-height:0; height:100%; position:relative !important; overflow:hidden; border-radius:20px }
-          /* sidebar fills the whole panel by default */
-          .msgs-panel-sidebar {
-            position:absolute !important; inset:0 !important;
-            display:flex !important;
-            border-radius:20px !important;
-            z-index:1;
-            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
-          }
-          .msgs-panel-sidebar.mob-hidden {
-            transform: translateX(-100%) !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-          }
-          /* chat panel slides in from right */
-          .msgs-panel-chat {
-            position:absolute !important; inset:0 !important;
-            display:flex !important;
-            border-radius:20px !important;
-            z-index:2;
-            transform: translateX(100%);
-            opacity: 0;
-            pointer-events: none;
-            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
-          }
-          .msgs-panel-chat.mob-visible {
-            transform: translateX(0) !important;
-            opacity: 1 !important;
-            pointer-events: all !important;
-          }
+          .msgs-page        { padding: 1.25rem 1.25rem 0.75rem !important }
+          .msgs-heading     { flex-direction:column; align-items:flex-start; gap:0.5rem }
+          .msgs-title       { font-size:2.2rem !important }
+          .msgs-panels      { grid-template-columns:1fr !important }
+          .msgs-panel-sidebar { display:none !important }
+          .msgs-panel-chat  { display:flex !important }
           .msgs-back-desktop { display:none !important }
-          .msgs-hamburger    { display:flex !important }
-          .mob-chat-back     { display:flex !important }
+          .msgs-hamburger   { display:flex !important }
+          .msgs-drawer      { display:block !important; position:absolute; inset:0; z-index:50; border-radius:20px; overflow:hidden; pointer-events:all }
         }
-
         @media (max-width:480px) {
-          .msgs-heading { padding:0.75rem 0.75rem 0 }
-          .msgs-title   { font-size:1.65rem !important }
-          .msgs-inner-wrap { padding:0.75rem 0.75rem 0 !important; }
+          .msgs-page  { padding: 0.75rem 0.75rem 0.5rem !important }
+          .msgs-title { font-size:1.8rem !important }
         }
       `}</style>
 
@@ -2001,12 +1973,10 @@ function Messages() {
       />
 
       <div
-        className="msgs-inner-wrap"
         style={{
           maxWidth: "1200px",
           width: "100%",
           margin: "0 auto",
-          padding: "2rem 4rem 1.5rem",
           display: "flex",
           flexDirection: "column",
           gap: "1.5rem",
@@ -2100,7 +2070,504 @@ function Messages() {
           )}
         </div>
 
-        {/* Mobile: sidebar slides left, chat slides in from right — controlled by mobShowChat state */}
+        {/* Mobile drawer — slides in over chat with dimmed overlay */}
+        {mobShowChat && (
+          <div className="msgs-drawer" onClick={() => setMobShowChat(false)}>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(4px)",
+                borderRadius: "20px",
+              }}
+            />
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                top: "0",
+                left: "0",
+                bottom: "0",
+                width: "88%",
+                maxWidth: "310px",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "20px 0 0 20px",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                boxShadow: "8px 0 40px rgba(0,0,0,0.5)",
+                zIndex: 51,
+                animation: "drawerIn 0.22s cubic-bezier(0.22,1,0.36,1)",
+              }}
+            >
+              {/* Tab headers */}
+              <div
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: "flex" }}>
+                  {[
+                    { key: "chats", label: "Chats" },
+                    ...(chatRequests.length > 0
+                      ? [
+                          {
+                            key: "requests",
+                            label: "Requests",
+                            count: chatRequests.length,
+                          },
+                        ]
+                      : []),
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setSidebarTab(tab.key);
+                        if (tab.key === "chats") setActiveRequest(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "0.75rem 0.5rem",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "0.72rem",
+                        fontWeight: sidebarTab === tab.key ? "700" : "500",
+                        color:
+                          sidebarTab === tab.key
+                            ? "var(--accent)"
+                            : "var(--text-muted)",
+                        borderBottom:
+                          sidebarTab === tab.key
+                            ? "2px solid var(--accent)"
+                            : "2px solid transparent",
+                        transition: "all 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.35rem",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {tab.label}
+                      {tab.count > 0 && (
+                        <span
+                          style={{
+                            fontSize: "0.55rem",
+                            fontWeight: "800",
+                            padding: "1px 5px",
+                            borderRadius: "10px",
+                            background:
+                              sidebarTab === tab.key
+                                ? "var(--accent-soft)"
+                                : "var(--bg-card-hover)",
+                            color:
+                              sidebarTab === tab.key
+                                ? "var(--accent)"
+                                : "var(--text-secondary)",
+                            border: `1px solid ${sidebarTab === tab.key ? "var(--accent-border)" : "var(--border)"}`,
+                          }}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setMobShowChat(false)}
+                    style={{
+                      padding: "0 0.85rem",
+                      background: "none",
+                      border: "none",
+                      borderLeft: "1px solid var(--border)",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+                {sidebarTab === "chats" && (
+                  <div
+                    style={{
+                      padding: "0.4rem 0.75rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    {selectMode && selectedIds.length > 0 && (
+                      <button
+                        onClick={() => setConfirmTarget("bulk")}
+                        style={{
+                          padding: "0.28rem 0.6rem",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(255,107,107,0.35)",
+                          background: "rgba(255,107,107,0.1)",
+                          color: "#ff8787",
+                          fontSize: "0.65rem",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete {selectedIds.length}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelectMode((s) => !s);
+                        setSelectedIds([]);
+                      }}
+                      style={{
+                        padding: "0.28rem 0.6rem",
+                        borderRadius: "8px",
+                        border: `1px solid ${selectMode ? "rgba(var(--accent-rgb),0.4)" : "var(--border)"}`,
+                        background: selectMode
+                          ? "rgba(var(--accent-rgb),0.12)"
+                          : "transparent",
+                        color: selectMode
+                          ? "var(--accent)"
+                          : "var(--text-muted)",
+                        fontSize: "0.65rem",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {selectMode ? "Cancel" : "Select"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* List */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "0.5rem",
+                  scrollbarWidth: "none",
+                }}
+                className="hide-scrollbar"
+              >
+                {sidebarTab === "requests" ? (
+                  chatRequests.length === 0 ? (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "3rem 1rem",
+                        color: "var(--text-ghost)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "2rem",
+                          marginBottom: "0.5rem",
+                          opacity: 0.3,
+                        }}
+                      >
+                        💬
+                      </div>
+                      <p style={{ fontSize: "0.78rem", fontWeight: "500" }}>
+                        No pending requests
+                      </p>
+                    </div>
+                  ) : (
+                    chatRequests.map((req) => {
+                      const isAct = activeRequest?.id === req.id;
+                      return (
+                        <div
+                          key={req.id}
+                          onClick={() => {
+                            setActiveRequest(req);
+                            setActiveConvo(null);
+                            setMobShowChat(false);
+                          }}
+                          style={{
+                            padding: "0.75rem 1rem",
+                            borderRadius: "14px",
+                            cursor: "pointer",
+                            marginBottom: "0.25rem",
+                            position: "relative",
+                            background: isAct
+                              ? "var(--accent-soft)"
+                              : "transparent",
+                            border: isAct
+                              ? "1px solid var(--accent-border)"
+                              : "1px solid transparent",
+                            display: "flex",
+                            gap: "0.75rem",
+                            alignItems: "center",
+                            height: "64px",
+                            boxSizing: "border-box",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isAct)
+                              e.currentTarget.style.background =
+                                "var(--bg-card-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isAct)
+                              e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: 0,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              width: "3px",
+                              height: "55%",
+                              borderRadius: "0 3px 3px 0",
+                              background:
+                                "linear-gradient(180deg, var(--accent), var(--accent-alt))",
+                            }}
+                          />
+                          <Avatar
+                            name={`${req.sender?.firstName} ${req.sender?.lastName}`}
+                            size={38}
+                            orange={isAct}
+                            src={req.sender?.avatar || null}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: "0.88rem",
+                                fontWeight: "700",
+                                color: isAct
+                                  ? "var(--accent)"
+                                  : "var(--text-primary)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {req.sender?.firstName} {req.sender?.lastName}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "0.7rem",
+                                color: "var(--text-muted)",
+                                marginTop: "0.15rem",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.35rem",
+                                minWidth: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.2rem",
+                                  color: isAct
+                                    ? "var(--accent)"
+                                    : "var(--text-muted)",
+                                  fontWeight: "600",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {!req.itemId ? (
+                                  <>
+                                    <svg
+                                      width="10"
+                                      height="10"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                      <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                    Profile
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg
+                                      width="10"
+                                      height="10"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                                      <line x1="7" y1="7" x2="7.01" y2="7" />
+                                    </svg>
+                                    Item
+                                  </>
+                                )}
+                              </span>
+                              <span
+                                style={{
+                                  color: "var(--text-ghost)",
+                                  fontSize: "0.65rem",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                •
+                              </span>
+                              <span
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  flex: 1,
+                                }}
+                              >
+                                {req.message || "Wants to chat with you"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )
+                ) : (
+                  <>
+                    {newConvoMode && activeConvo?.isNew && (
+                      <div
+                        style={{
+                          padding: "0.75rem 1rem",
+                          borderRadius: "14px",
+                          background: "var(--accent-soft)",
+                          border: "1px solid var(--accent-border)",
+                          marginBottom: "0.25rem",
+                          display: "flex",
+                          gap: "0.75rem",
+                          alignItems: "center",
+                          height: "64px",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <Avatar
+                          name={activeConvo.other_user_name}
+                          size={38}
+                          orange
+                          src={activeConvo.other_user_avatar || null}
+                        />
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "0.88rem",
+                              fontWeight: "700",
+                              color: "var(--accent)",
+                            }}
+                          >
+                            {activeConvo.other_user_name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.7rem",
+                              color: "var(--accent-alt)",
+                              fontWeight: "600",
+                              marginTop: "0.1rem",
+                              opacity: 0.8,
+                            }}
+                          >
+                            New conversation
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {loadingConvos ? (
+                      <div
+                        style={{ textAlign: "center", padding: "3rem 1rem" }}
+                      >
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            border: "2.5px solid var(--border)",
+                            borderTop: "2.5px solid var(--accent)",
+                            borderRadius: "50%",
+                            margin: "0 auto",
+                            animation: "spin 0.8s linear infinite",
+                          }}
+                        />
+                      </div>
+                    ) : conversations.length === 0 && !newConvoMode ? (
+                      <div
+                        style={{
+                          textAlign: "center",
+                          padding: "3rem 1rem",
+                          color: "var(--text-ghost)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "2rem",
+                            marginBottom: "0.5rem",
+                            opacity: 0.3,
+                          }}
+                        >
+                          ✉
+                        </div>
+                        <p style={{ fontSize: "0.78rem", fontWeight: "500" }}>
+                          No conversations yet
+                        </p>
+                      </div>
+                    ) : (
+                      conversations.map((convo) => (
+                        <ConversationItem
+                          key={convo.conversation_id}
+                          convo={convo}
+                          isActive={
+                            activeConvo?.conversation_id ===
+                            convo.conversation_id
+                          }
+                          isSelected={selectedIds.includes(
+                            convo.conversation_id,
+                          )}
+                          selectMode={selectMode}
+                          isTyping={
+                            !(
+                              activeConvo &&
+                              activeConvo.conversation_id ===
+                                convo.conversation_id
+                            ) && typingUserIds.has(String(convo.other_user_id))
+                          }
+                          onClick={() => {
+                            fetchTick.current++;
+                            setActiveConvo(convo);
+                            setActiveRequest(null);
+                            setNewConvoMode(false);
+                            setMobShowChat(false);
+                          }}
+                          onSelect={toggleSelect}
+                        />
+                      ))
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Panels */}
         <div className="msgs-panels">
@@ -2156,7 +2623,7 @@ function Messages() {
 
           {/* ── LEFT SIDEBAR ── */}
           <div
-            className={`msgs-panel-sidebar${mobShowChat ? " mob-hidden" : ""}`}
+            className="msgs-panel-sidebar"
             style={{
               background: "var(--bg-card)",
               backdropFilter: "blur(20px)",
@@ -2335,7 +2802,6 @@ function Messages() {
                         onClick={() => {
                           setActiveRequest(req);
                           setActiveConvo(null);
-                          setMobShowChat(true);
                         }}
                         style={{
                           padding: "0.75rem 1rem",
@@ -2588,10 +3054,10 @@ function Messages() {
                           ) && typingUserIds.has(String(convo.other_user_id))
                         }
                         onClick={() => {
+                          fetchTick.current++;
                           setActiveConvo(convo);
                           setActiveRequest(null);
                           setNewConvoMode(false);
-                          setMessages([]);
                           setMobShowChat(true);
                         }}
                         onSelect={toggleSelect}
@@ -2605,7 +3071,7 @@ function Messages() {
 
           {/* ── RIGHT PANEL ── */}
           <div
-            className={`msgs-panel-chat${mobShowChat ? " mob-visible" : ""}`}
+            className="msgs-panel-chat"
             style={{
               background: "var(--bg-card)",
               backdropFilter: "blur(20px)",
@@ -2646,42 +3112,34 @@ function Messages() {
                     }}
                   >
                     <button
-                      className="mob-chat-back"
-                      onClick={() => setMobShowChat(false)}
+                      className="msgs-hamburger"
+                      onClick={() => setMobShowChat((prev) => !prev)}
                       style={{
-                        width: "34px",
-                        height: "34px",
-                        borderRadius: "50%",
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "9px",
                         border: "1px solid var(--border-hover)",
                         background: "var(--bg-card)",
                         color: "var(--text-muted)",
                         cursor: "pointer",
-                        display: "none",
                         alignItems: "center",
                         justifyContent: "center",
                         flexShrink: 0,
                         transition: "all 0.15s",
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "var(--accent)";
-                        e.currentTarget.style.color = "var(--accent)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "var(--border-hover)";
-                        e.currentTarget.style.color = "var(--text-muted)";
-                      }}
                     >
                       <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 20 20"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
+                        strokeWidth="1.8"
                         strokeLinecap="round"
                       >
-                        <polyline points="15 18 9 12 15 6" />
+                        <line x1="2" y1="5" x2="18" y2="5" />
+                        <line x1="2" y1="10" x2="14" y2="10" />
+                        <line x1="2" y1="15" x2="18" y2="15" />
                       </svg>
                     </button>
                     <Avatar
@@ -3161,42 +3619,35 @@ function Messages() {
                     }}
                   >
                     <button
-                      className="mob-chat-back"
-                      onClick={() => setMobShowChat(false)}
+                      className="msgs-hamburger"
+                      onClick={() => setMobShowChat((prev) => !prev)}
                       style={{
-                        width: "34px",
-                        height: "34px",
-                        borderRadius: "50%",
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "9px",
                         border: "1px solid var(--border-hover)",
                         background: "var(--bg-card)",
                         color: "var(--text-muted)",
                         cursor: "pointer",
-                        display: "none",
                         alignItems: "center",
                         justifyContent: "center",
                         flexShrink: 0,
                         transition: "all 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "var(--accent)";
-                        e.currentTarget.style.color = "var(--accent)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "var(--border-hover)";
-                        e.currentTarget.style.color = "var(--text-muted)";
+                        gap: "0",
                       }}
                     >
                       <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 20 20"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
+                        strokeWidth="1.8"
                         strokeLinecap="round"
                       >
-                        <polyline points="15 18 9 12 15 6" />
+                        <line x1="2" y1="5" x2="18" y2="5" />
+                        <line x1="2" y1="10" x2="14" y2="10" />
+                        <line x1="2" y1="15" x2="18" y2="15" />
                       </svg>
                     </button>
                     <Avatar
