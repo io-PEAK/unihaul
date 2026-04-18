@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/axios";
 
+const MAX_ITEM_PRICE = 300000;
+
 const categories = [
   "Books & Notes",
   "Electronics",
@@ -1928,6 +1930,10 @@ function PostItem() {
     }
     if (parseFloat(form.price) <= 0) {
       setError("Price must be greater than ₹0.");
+      return;
+    }
+    if (parseFloat(form.price) > MAX_ITEM_PRICE) {
+      setError("Price cannot exceed ₹3,00,000.");
       return;
     }
     if (images.some((img) => img.uploading)) {
