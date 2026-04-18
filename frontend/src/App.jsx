@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import Messages from "./pages/Messages";
 import Transactions from "./pages/Transactions";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
 import Settings from "./pages/Settings";
 import Navbar from "./components/Navbar";
 import FindSellers from "./pages/FindSellers";
@@ -159,6 +160,14 @@ function AppInner() {
           <Route path="/register" element={<Register />} />
           <Route path="/items/:id" element={<ItemDetail />} />
           <Route path="/cart" element={<Cart />} />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/post"
             element={
