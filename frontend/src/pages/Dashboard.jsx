@@ -961,9 +961,7 @@ function SoldGroupRow({
               height: "20px",
               borderRadius: "6px",
               flexShrink: 0,
-              border: selected
-                ? "none"
-                : "1.5px solid var(--border-hover)",
+              border: selected ? "none" : "1.5px solid var(--border-hover)",
               background: selected
                 ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
                 : "var(--bg-surface)",
@@ -1011,7 +1009,13 @@ function SoldGroupRow({
               />
             </div>
           )}
-          <div style={{ flex: 1, minWidth: 0, width: gridSize === 1 ? "auto" : "100%" }}>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              width: gridSize === 1 ? "auto" : "100%",
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2189,9 +2193,7 @@ function ListingRow({
                 height: "20px",
                 borderRadius: "6px",
                 flexShrink: 0,
-                border: selected
-                  ? "none"
-                  : "1.5px solid var(--border-hover)",
+                border: selected ? "none" : "1.5px solid var(--border-hover)",
                 background: selected
                   ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
                   : "var(--bg-surface)",
@@ -2239,7 +2241,13 @@ function ListingRow({
                 />
               </div>
             )}
-            <div style={{ minWidth: 0, flex: 1, width: gridSize === 1 ? "auto" : "100%" }}>
+            <div
+              style={{
+                minWidth: 0,
+                flex: 1,
+                width: gridSize === 1 ? "auto" : "100%",
+              }}
+            >
               <h3
                 style={{
                   margin: 0,
@@ -3614,7 +3622,7 @@ function Dashboard() {
           );
         } catch {}
       }
-      }
+    }
     setSelectMode(false);
     setSelected(new Set());
   }
@@ -3630,7 +3638,15 @@ function Dashboard() {
   ).length;
 
   const myId = user.id;
-  const soldTxns = transactions.filter((t) => t.seller_id === myId);
+  const soldTxns = transactions.filter((t) => {
+    const txnStatus = (t.status || "").toLowerCase();
+    const paymentStatus = (t.payment_status || "").toLowerCase();
+    return (
+      t.seller_id === myId &&
+      txnStatus === "completed" &&
+      paymentStatus === "completed"
+    );
+  });
 
   const soldGroups = (() => {
     const map = new Map();
@@ -3661,7 +3677,10 @@ function Dashboard() {
   })();
 
   const visibleSoldGroups = soldGroups.filter(
-    (g) => g.groupKey != null && !hiddenGroupKeys.has(g.stableKey),
+    (g) =>
+      g.groupKey != null &&
+      !hiddenGroupKeys.has(g.stableKey) &&
+      ((g.item && g.item.status?.toLowerCase() === "sold") || !g.item),
   );
   const activeItems = items.filter(
     (i) => i.status?.toLowerCase() === "available",
@@ -3708,9 +3727,9 @@ function Dashboard() {
           100% { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
-    <div style={{ minHeight: "calc(100vh - 70px)" }}>
-      {/* ── Responsive styles injected here ── */}
-      <style>{`
+      <div style={{ minHeight: "calc(100vh - 70px)" }}>
+        {/* ── Responsive styles injected here ── */}
+        <style>{`
         /* ── Dashboard page wrapper ── */
         .dash-wrapper {
           padding: 5rem 4rem 3rem;
@@ -3908,523 +3927,113 @@ function Dashboard() {
         }
       `}</style>
 
-      <div className="dash-wrapper">
-        <div style={{ marginBottom: "2.5rem", position: "relative" }}>
-          {/* ── Back button ── */}
-          <button
-            ref={backRef}
-            className="dash-back-btn back-btn-circle"
-            onClick={() => navigate(-1)}
-            onMouseDown={onBackMouseDown}
-            onTouchStart={onBackTouchStart}
-            style={{
-              width: "34px",
-              height: "34px",
-              borderRadius: "50%",
-              background: "var(--bg-surface)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1.5px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: draggable ? "grab" : "pointer",
-              flexShrink: 0,
-              color: "var(--text-muted)",
-              fontFamily: "var(--font-body)",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--accent)";
-              e.currentTarget.style.color = "var(--accent)";
-              e.currentTarget.style.boxShadow =
-                "0 0 8px 2px rgba(var(--accent-rgb),0.35)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.color = "var(--text-muted)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-
-          <h1
-            className="dash-heading"
-            style={{
-              fontWeight: "900",
-              letterSpacing: "-2px",
-              lineHeight: "1.05",
-              marginBottom: "0.6rem",
-              color: "var(--text-primary)",
-            }}
-          >
-            My
-            <br />
-            <span
+        <div className="dash-wrapper">
+          <div style={{ marginBottom: "2.5rem", position: "relative" }}>
+            {/* ── Back button ── */}
+            <button
+              ref={backRef}
+              className="dash-back-btn back-btn-circle"
+              onClick={() => navigate(-1)}
+              onMouseDown={onBackMouseDown}
+              onTouchStart={onBackTouchStart}
               style={{
-                background:
-                  "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Dashboard.
-            </span>
-          </h1>
-          <p
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "0.85rem",
-              marginTop: "0.5rem",
-              fontWeight: "400",
-            }}
-          >
-            Welcome back, {username} — {activeCount} active listing
-            {activeCount !== 1 ? "s" : ""}
-          </p>
-        </div>
-
-        <div className="dash-stats-row">
-          {[
-            { label: "Active", value: activeCount },
-            { label: "Pending", value: pendingCount },
-            { label: "Sold", value: soldCount },
-            { label: "Total", value: items.length },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                background: "var(--glass-bg-row)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid var(--border)",
-                borderRadius: "14px",
-                padding: "0.85rem 1.25rem",
-                minWidth: "72px",
-                position: "relative",
-                overflow: "hidden",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "1px",
-                  background:
-                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: "0.5rem",
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                  fontWeight: "700",
-                  marginBottom: "0.25rem",
-                }}
-              >
-                {stat.label}
-              </div>
-              <div
-                style={{
-                  fontSize: "1.4rem",
-                  fontWeight: "800",
-                  color: "var(--text-secondary)",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                {stat.value}
-              </div>
-            </div>
-          ))}
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={() => navigate("/post")}
-            onMouseEnter={() => setPostBtnHovered(true)}
-            onMouseLeave={() => setPostBtnHovered(false)}
-            style={{
-              padding: "0.85rem 1.75rem",
-              background: postBtnHovered
-                ? "linear-gradient(135deg, var(--accent-alt), var(--accent))"
-                : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-              color: "white",
-              border: "none",
-              borderRadius: "14px",
-              fontSize: "0.8rem",
-              fontWeight: "700",
-              cursor: "pointer",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              transform: postBtnHovered ? "translateY(-3px)" : "translateY(0)",
-              boxShadow: postBtnHovered
-                ? "var(--shadow-accent-lg)"
-                : "var(--shadow-accent)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            + Post New Item
-          </button>
-        </div>
-
-        <div
-          style={{
-            height: "1px",
-            background: "var(--glass-divider)",
-            marginBottom: "1.5rem",
-          }}
-        />
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "1.5rem",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <div className="dash-filter-tabs" style={{ margin: 0 }}>
-            {FILTERS.map((f) => {
-              const isActive = activeFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => handleTabChange(f.key)}
-                  style={{
-                    padding: "0.55rem 1.4rem",
-                    background: isActive
-                      ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                      : "var(--bg-card-hover)",
-                    color: isActive ? "white" : "var(--text-secondary)",
-                    border: isActive ? "none" : "1px solid var(--border)",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: "700",
-                    transition: "all 0.25s ease",
-                    boxShadow: isActive ? "var(--shadow-accent)" : "none",
-                  }}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* Select button — hidden on sold tab */}
-          {!loading &&
-            !error &&
-            (() => {
-              const listLen =
-                activeFilter === "active"
-                  ? activeItems.length
-                  : activeFilter === "pending"
-                    ? pendingItems.length
-                    : activeFilter === "sold"
-                      ? visibleSoldGroups.length
-                      : allNonSoldItems.length;
-              if (listLen === 0) return null;
-              return (
-                <button
-                  onClick={() => {
-                    if (selectMode) {
-                      setSelectMode(false);
-                      setSelected(new Set());
-                      return;
-                    }
-                    setSelectMode(true);
-                    if (listLen === 1) {
-                      const singleId =
-                        activeFilter === "active"
-                          ? activeItems[0]?.id
-                          : activeFilter === "pending"
-                            ? pendingItems[0]?.id
-                            : activeFilter === "sold"
-                              ? visibleSoldGroups[0]?.groupKey
-                              : (allNonSoldItems[0]?.id ??
-                                visibleSoldGroups[0]?.groupKey);
-                      if (singleId != null) setSelected(new Set([singleId]));
-                    }
-                  }}
-                  style={{
-                    padding: "0.4rem 1rem",
-                    borderRadius: "10px",
-                    fontSize: "0.78rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    background: selectMode
-                      ? "rgba(var(--accent-rgb),0.1)"
-                      : "var(--bg-card)",
-                    border: selectMode
-                      ? "1px solid rgba(var(--accent-rgb),0.3)"
-                      : "1px solid var(--border)",
-                    color: selectMode ? "var(--accent)" : "var(--text-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    fontFamily: "var(--font-body)",
-                  }}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  >
-                    <polyline points="9 11 12 14 22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                  {selectMode ? "Cancel" : "Select"}
-                </button>
-              );
-            })()}
-        </div>
-
-        {/* ── Bulk toolbar ── */}
-        {selectMode &&
-          (() => {
-            const listIds =
-              activeFilter === "active"
-                ? activeItems.map((i) => i.id)
-                : activeFilter === "pending"
-                  ? pendingItems.map((i) => i.id)
-                  : activeFilter === "sold"
-                    ? visibleSoldGroups.map((g) => g.groupKey).filter(Boolean)
-                    : [
-                        ...allNonSoldItems.map((i) => i.id),
-                        ...visibleSoldGroups
-                          .map((g) => g.groupKey)
-                          .filter(Boolean),
-                      ];
-            const allSel =
-              listIds.length > 0 && listIds.every((id) => selected.has(id));
-
-            // Build action buttons per tab
-            const actions = [];
-            if (activeFilter === "active")
-              actions.push({
-                key: "pending",
-                label: "Mark Pending",
-                bg: "rgba(251,189,35,0.12)",
-                border: "rgba(251,189,35,0.3)",
-                color: "#fbbf24",
-              });
-            if (activeFilter === "pending")
-              actions.push({
-                key: "active",
-                label: "Mark Active",
-                bg: "rgba(81,207,102,0.12)",
-                border: "rgba(81,207,102,0.3)",
-                color: "#51cf66",
-              });
-            if (activeFilter === "all") {
-              actions.push({
-                key: "active",
-                label: "Mark Active",
-                bg: "rgba(81,207,102,0.12)",
-                border: "rgba(81,207,102,0.3)",
-                color: "#51cf66",
-              });
-              actions.push({
-                key: "pending",
-                label: "Mark Pending",
-                bg: "rgba(251,189,35,0.12)",
-                border: "rgba(251,189,35,0.3)",
-                color: "#fbbf24",
-              });
-            }
-            actions.push({
-              key: "delete",
-              label: "Delete",
-              bg: "rgba(255,77,77,0.1)",
-              border: "rgba(255,77,77,0.22)",
-              color: "#ff6b6b",
-              isDanger: true,
-            });
-
-            return (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background:
-                    "linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)",
-                  border: "1px solid rgba(var(--accent-rgb),0.18)",
-                  borderRadius: "14px",
-                  padding: "0.75rem 1.25rem",
-                  marginBottom: "1rem",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                  animation: "fadeSlideIn 0.2s ease",
-                }}
-              >
-                <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "1rem" }}
-                >
-                  <span
-                    style={{
-                      color: "var(--text-muted)",
-                      fontSize: "0.8rem",
-                      fontWeight: "600",
-                    }}
-                  >
-                    {selected.size} selected
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (allSel) {
-                        setSelected(new Set());
-                        setSelectMode(false);
-                      } else setSelected(new Set(listIds));
-                    }}
-                    style={{
-                      padding: "0.3rem 0.8rem",
-                      borderRadius: "8px",
-                      fontSize: "0.75rem",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      background: "var(--bg-card)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-muted)",
-                      transition: "all 0.2s ease",
-                      fontFamily: "var(--font-body)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "white";
-                      e.currentTarget.style.background =
-                        "rgba(255,255,255,0.1)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "rgba(255,255,255,0.45)";
-                      e.currentTarget.style.background =
-                        "rgba(255,255,255,0.05)";
-                    }}
-                  >
-                    {allSel ? "Deselect All" : "Select All"}
-                  </button>
-                </div>
-                <div
-                  style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
-                >
-                  {actions.map((a) => (
-                    <button
-                      key={a.key}
-                      disabled={selected.size === 0}
-                      onClick={() => {
-                        if (selected.size > 0)
-                          setBulkConfirm({ action: a.key, ids: [...selected] });
-                      }}
-                      style={{
-                        padding: "0.35rem 1rem",
-                        borderRadius: "8px",
-                        fontSize: "0.78rem",
-                        fontWeight: "700",
-                        cursor: selected.size === 0 ? "not-allowed" : "pointer",
-                        background:
-                          selected.size > 0 ? a.bg : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${selected.size > 0 ? a.border : "rgba(255,255,255,0.05)"}`,
-                        color:
-                          selected.size > 0 ? a.color : "rgba(255,255,255,0.2)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.4rem",
-                        transition: "all 0.2s ease",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      {a.isDanger && (
-                        <svg
-                          width="11"
-                          height="11"
-                          viewBox="0 0 16 17"
-                          fill="none"
-                        >
-                          <path
-                            d="M2 4h12"
-                            stroke="currentColor"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
-                            stroke="currentColor"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                          />
-                          <path
-                            d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
-                            stroke="currentColor"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                      {a.key === "delete"
-                        ? `Delete${selected.size > 0 ? ` (${selected.size})` : ""}`
-                        : a.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-        {/* ── Bulk confirm modal ── */}
-        {bulkConfirm &&
-          createPortal(
-            <div
-              onClick={() => setBulkConfirm(null)}
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
-                background: "rgba(0,0,0,0.65)",
+                width: "34px",
+                height: "34px",
+                borderRadius: "50%",
+                background: "var(--bg-surface)",
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)",
+                border: "1.5px solid var(--border)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                animation: "cdFadeIn 0.18s ease",
+                cursor: draggable ? "grab" : "pointer",
+                flexShrink: 0,
+                color: "var(--text-muted)",
+                fontFamily: "var(--font-body)",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent)";
+                e.currentTarget.style.color = "var(--accent)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 8px 2px rgba(var(--accent-rgb),0.35)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
-              <div
-                onClick={(e) => e.stopPropagation()}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+
+            <h1
+              className="dash-heading"
+              style={{
+                fontWeight: "900",
+                letterSpacing: "-2px",
+                lineHeight: "1.05",
+                marginBottom: "0.6rem",
+                color: "var(--text-primary)",
+              }}
+            >
+              My
+              <br />
+              <span
                 style={{
                   background:
-                    "linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)",
-                  border: "1px solid var(--border-hover)",
-                  borderRadius: "20px",
-                  padding: "2rem",
-                  width: "380px",
-                  maxWidth: "90vw",
-                  boxShadow: "0 40px 80px rgba(0,0,0,0.6)",
+                    "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                Dashboard.
+              </span>
+            </h1>
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "0.85rem",
+                marginTop: "0.5rem",
+                fontWeight: "400",
+              }}
+            >
+              Welcome back, {username} — {activeCount} active listing
+              {activeCount !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <div className="dash-stats-row">
+            {[
+              { label: "Active", value: activeCount },
+              { label: "Pending", value: pendingCount },
+              { label: "Sold", value: soldCount },
+              { label: "Total", value: items.length },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: "var(--glass-bg-row)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "14px",
+                  padding: "0.85rem 1.25rem",
+                  minWidth: "72px",
                   position: "relative",
                   overflow: "hidden",
-                  animation:
-                    "cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)",
+                  boxShadow: "var(--shadow-card)",
                 }}
               >
                 <div
@@ -4434,341 +4043,769 @@ function Dashboard() {
                     left: 0,
                     right: 0,
                     height: "1px",
-                    background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.4)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.4)" : "rgba(81,207,102,0.4)"}, transparent)`,
+                    background:
+                      "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
                   }}
                 />
                 <div
                   style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "14px",
-                    margin: "0 auto 1.25rem",
-                    background:
-                      bulkConfirm.action === "delete"
-                        ? "rgba(255,107,107,0.1)"
-                        : bulkConfirm.action === "pending"
-                          ? "rgba(251,189,35,0.1)"
-                          : "rgba(81,207,102,0.1)",
-                    border: `1px solid ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.2)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.2)" : "rgba(81,207,102,0.2)"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    fontSize: "0.5rem",
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "var(--text-muted)",
+                    fontWeight: "700",
+                    marginBottom: "0.25rem",
                   }}
                 >
-                  {bulkConfirm.action === "delete" ? (
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#ff6b6b"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                      <path d="M9 6V4h6v2" />
-                    </svg>
-                  ) : (
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke={
-                        bulkConfirm.action === "pending" ? "#fbbf24" : "#51cf66"
-                      }
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    >
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  )}
+                  {stat.label}
                 </div>
-                <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-                  <div
-                    style={{
-                      fontSize: "1rem",
-                      fontWeight: "800",
-                      color: "var(--text-primary)",
-                      marginBottom: "0.5rem",
-                      letterSpacing: "-0.3px",
-                    }}
-                  >
-                    {bulkConfirm.action === "delete" &&
-                      `Delete ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""}?`}
-                    {bulkConfirm.action === "pending" &&
-                      `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""} as Pending?`}
-                    {bulkConfirm.action === "active" &&
-                      `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""} as Active?`}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.82rem",
-                      color: "var(--text-muted)",
-                      lineHeight: "1.5",
-                    }}
-                  >
-                    {bulkConfirm.action === "delete" &&
-                      "Permanently removes all selected listings and their images. Cannot be undone."}
-                    {bulkConfirm.action === "pending" &&
-                      "Active listings will be marked as pending. Already-pending ones are unchanged."}
-                    {bulkConfirm.action === "active" &&
-                      "Pending listings will be made active again. Already-active ones are unchanged."}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "0.65rem" }}>
-                  <button
-                    onClick={() => setBulkConfirm(null)}
-                    style={{
-                      flex: 1,
-                      padding: "0.75rem",
-                      background: "var(--bg-card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                      fontWeight: "700",
-                      color: "var(--text-muted)",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() =>
-                      executeBulkAction(bulkConfirm.action, bulkConfirm.ids)
-                    }
-                    style={{
-                      flex: 1,
-                      padding: "0.75rem",
-                      background:
-                        bulkConfirm.action === "delete"
-                          ? "linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))"
-                          : bulkConfirm.action === "pending"
-                            ? "linear-gradient(135deg, rgba(251,189,35,0.9), rgba(220,160,20,0.9))"
-                            : "linear-gradient(135deg, rgba(81,207,102,0.9), rgba(55,178,77,0.9))",
-                      border: "none",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                      fontWeight: "700",
-                      color: "white",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
-                    Confirm
-                  </button>
+                <div
+                  style={{
+                    fontSize: "1.4rem",
+                    fontWeight: "800",
+                    color: "var(--text-secondary)",
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  {stat.value}
                 </div>
               </div>
-            </div>,
-            document.body,
-          )}
-
-        <p
-          style={{
-            color: "var(--text-ghost)",
-            fontSize: "0.7rem",
-            marginBottom: "1rem",
-            fontWeight: "700",
-            letterSpacing: "1.5px",
-            textTransform: "uppercase",
-          }}
-        >
-          {sectionLabel[activeFilter]}
-        </p>
-
-        {loading && (
-          <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
-            <div
+            ))}
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => navigate("/post")}
+              onMouseEnter={() => setPostBtnHovered(true)}
+              onMouseLeave={() => setPostBtnHovered(false)}
               style={{
-                width: "40px",
-                height: "40px",
-                border: "3px solid rgba(255,255,255,0.08)",
-                borderTop: "3px solid var(--accent)",
-                borderRadius: "50%",
-                margin: "0 auto 1rem",
-                animation: "spin 0.8s linear infinite",
+                padding: "0.85rem 1.75rem",
+                background: postBtnHovered
+                  ? "linear-gradient(135deg, var(--accent-alt), var(--accent))"
+                  : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                color: "white",
+                border: "none",
+                borderRadius: "14px",
+                fontSize: "0.8rem",
+                fontWeight: "700",
+                cursor: "pointer",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+                transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                transform: postBtnHovered
+                  ? "translateY(-3px)"
+                  : "translateY(0)",
+                boxShadow: postBtnHovered
+                  ? "var(--shadow-accent-lg)"
+                  : "var(--shadow-accent)",
+                whiteSpace: "nowrap",
               }}
-            />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes dashSpin { to { transform: rotate(360deg); } }`}</style>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              Loading your dashboard...
-            </p>
+            >
+              + Post New Item
+            </button>
           </div>
-        )}
 
-        {!loading && error && (
           <div
             style={{
-              textAlign: "center",
-              padding: "3rem 2rem",
-              background: "rgba(255,107,107,0.08)",
-              border: "1px solid rgba(255,107,107,0.15)",
-              borderRadius: "20px",
-              color: "#ff6b6b",
+              height: "1px",
+              background: "var(--glass-divider)",
+              marginBottom: "1.5rem",
+            }}
+          />
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "1.5rem",
+              gap: "0.75rem",
+              flexWrap: "wrap",
             }}
           >
-            <p>{error}</p>
+            <div className="dash-filter-tabs" style={{ margin: 0 }}>
+              {FILTERS.map((f) => {
+                const isActive = activeFilter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => handleTabChange(f.key)}
+                    style={{
+                      padding: "0.55rem 1.4rem",
+                      background: isActive
+                        ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
+                        : "var(--bg-card-hover)",
+                      color: isActive ? "white" : "var(--text-secondary)",
+                      border: isActive ? "none" : "1px solid var(--border)",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      fontWeight: "700",
+                      transition: "all 0.25s ease",
+                      boxShadow: isActive ? "var(--shadow-accent)" : "none",
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Select button — hidden on sold tab */}
+            {!loading &&
+              !error &&
+              (() => {
+                const listLen =
+                  activeFilter === "active"
+                    ? activeItems.length
+                    : activeFilter === "pending"
+                      ? pendingItems.length
+                      : activeFilter === "sold"
+                        ? visibleSoldGroups.length
+                        : allNonSoldItems.length;
+                if (listLen === 0) return null;
+                return (
+                  <button
+                    onClick={() => {
+                      if (selectMode) {
+                        setSelectMode(false);
+                        setSelected(new Set());
+                        return;
+                      }
+                      setSelectMode(true);
+                      if (listLen === 1) {
+                        const singleId =
+                          activeFilter === "active"
+                            ? activeItems[0]?.id
+                            : activeFilter === "pending"
+                              ? pendingItems[0]?.id
+                              : activeFilter === "sold"
+                                ? visibleSoldGroups[0]?.groupKey
+                                : (allNonSoldItems[0]?.id ??
+                                  visibleSoldGroups[0]?.groupKey);
+                        if (singleId != null) setSelected(new Set([singleId]));
+                      }
+                    }}
+                    style={{
+                      padding: "0.4rem 1rem",
+                      borderRadius: "10px",
+                      fontSize: "0.78rem",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      background: selectMode
+                        ? "rgba(var(--accent-rgb),0.1)"
+                        : "var(--bg-card)",
+                      border: selectMode
+                        ? "1px solid rgba(var(--accent-rgb),0.3)"
+                        : "1px solid var(--border)",
+                      color: selectMode ? "var(--accent)" : "var(--text-muted)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    >
+                      <polyline points="9 11 12 14 22 4" />
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    {selectMode ? "Cancel" : "Select"}
+                  </button>
+                );
+              })()}
           </div>
-        )}
 
-        {!loading &&
-          !error &&
-          (activeFilter === "active" || activeFilter === "pending") &&
-          (() => {
-            const list = activeFilter === "active" ? activeItems : pendingItems;
-            if (list.length === 0)
-              return <EmptyState label={activeFilter + " listings"} />;
-            return (
-              <div
-                key={gridSize}
-              style={{
-                  display: "grid",
-                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
-                  gridTemplateColumns:
-              gridSize === 1
-                ? "1fr"
-                : gridSize === 2
-                  ? "repeat(auto-fill, minmax(360px, 1fr))"
-                  : "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
-                }}
-              >
-                {list.map((item) => (
-                  <ListingRow
-                    key={item.id}
-                    item={item}
-                    onDelete={handleDelete}
-                    onUpdate={handleUpdate}
-                    isHighlighted={highlightItemId === item.id}
-                    selectMode={selectMode}
-                    selected={selected.has(item.id)}
-                    onToggle={() => toggleSelect(item.id)}
-                    gridSize={gridSize}
-                  />
-                ))}
-              </div>
-            );
-          })()}
+          {/* ── Bulk toolbar ── */}
+          {selectMode &&
+            (() => {
+              const listIds =
+                activeFilter === "active"
+                  ? activeItems.map((i) => i.id)
+                  : activeFilter === "pending"
+                    ? pendingItems.map((i) => i.id)
+                    : activeFilter === "sold"
+                      ? visibleSoldGroups.map((g) => g.groupKey).filter(Boolean)
+                      : [
+                          ...allNonSoldItems.map((i) => i.id),
+                          ...visibleSoldGroups
+                            .map((g) => g.groupKey)
+                            .filter(Boolean),
+                        ];
+              const allSel =
+                listIds.length > 0 && listIds.every((id) => selected.has(id));
 
-        {!loading &&
-          !error &&
-          activeFilter === "all" &&
-          (() => {
-            if (allNonSoldItems.length === 0 && soldGroups.length === 0)
-              return <EmptyState label="listings" />;
-            return (
-              <div
-                key={gridSize}
-              style={{
-                  display: "grid",
-                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
-                  gridTemplateColumns:
-              gridSize === 1
-                ? "1fr"
-                : gridSize === 2
-                  ? "repeat(auto-fill, minmax(360px, 1fr))"
-                  : "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
-                }}
-              >
-                {allNonSoldItems.map((item) => (
-                  <ListingRow
-                    key={item.id}
-                    item={item}
-                    onDelete={handleDelete}
-                    onUpdate={handleUpdate}
-                    isHighlighted={highlightItemId === item.id}
-                    selectMode={selectMode}
-                    selected={selected.has(item.id)}
-                    onToggle={() => toggleSelect(item.id)}
-                    gridSize={gridSize}
-                  />
-                ))}
-                {visibleSoldGroups.map((group) => (
-                  <SoldGroupRow
-                    key={group.stableKey}
-                    group={group}
-                    stableKey={group.stableKey}
-                    isNewSale={
-                      group.groupKey != null &&
-                      freshSaleItemIds.has(group.groupKey)
-                    }
-                    isHighlighted={
-                      highlightItemId != null &&
-                      group.groupKey === highlightItemId
-                    }
-                    onDelete={handleDelete}
-                    selectMode={selectMode}
-                    selected={
-                      group.groupKey != null && selected.has(group.groupKey)
-                    }
-                    onToggle={() => {
-                      if (group.groupKey != null) toggleSelect(group.groupKey);
+              // Build action buttons per tab
+              const actions = [];
+              if (activeFilter === "active")
+                actions.push({
+                  key: "pending",
+                  label: "Mark Pending",
+                  bg: "rgba(251,189,35,0.12)",
+                  border: "rgba(251,189,35,0.3)",
+                  color: "#fbbf24",
+                });
+              if (activeFilter === "pending")
+                actions.push({
+                  key: "active",
+                  label: "Mark Active",
+                  bg: "rgba(81,207,102,0.12)",
+                  border: "rgba(81,207,102,0.3)",
+                  color: "#51cf66",
+                });
+              if (activeFilter === "all") {
+                actions.push({
+                  key: "active",
+                  label: "Mark Active",
+                  bg: "rgba(81,207,102,0.12)",
+                  border: "rgba(81,207,102,0.3)",
+                  color: "#51cf66",
+                });
+                actions.push({
+                  key: "pending",
+                  label: "Mark Pending",
+                  bg: "rgba(251,189,35,0.12)",
+                  border: "rgba(251,189,35,0.3)",
+                  color: "#fbbf24",
+                });
+              }
+              actions.push({
+                key: "delete",
+                label: "Delete",
+                bg: "rgba(255,77,77,0.1)",
+                border: "rgba(255,77,77,0.22)",
+                color: "#ff6b6b",
+                isDanger: true,
+              });
+
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background:
+                      "linear-gradient(135deg, rgba(var(--accent-rgb),0.07) 0%, rgba(var(--accent-rgb),0.02) 100%)",
+                    border: "1px solid rgba(var(--accent-rgb),0.18)",
+                    borderRadius: "14px",
+                    padding: "0.75rem 1.25rem",
+                    marginBottom: "1rem",
+                    flexWrap: "wrap",
+                    gap: "0.5rem",
+                    animation: "fadeSlideIn 0.2s ease",
+                  }}
+                >
+                  <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:translateY(0) } }`}</style>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
                     }}
-                    gridSize={gridSize}
-                  />
-                ))}
-              </div>
-            );
-          })()}
+                  >
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {selected.size} selected
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (allSel) {
+                          setSelected(new Set());
+                          setSelectMode(false);
+                        } else setSelected(new Set(listIds));
+                      }}
+                      style={{
+                        padding: "0.3rem 0.8rem",
+                        borderRadius: "8px",
+                        fontSize: "0.75rem",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-muted)",
+                        transition: "all 0.2s ease",
+                        fontFamily: "var(--font-body)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "white";
+                        e.currentTarget.style.background =
+                          "rgba(255,255,255,0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "rgba(255,255,255,0.45)";
+                        e.currentTarget.style.background =
+                          "rgba(255,255,255,0.05)";
+                      }}
+                    >
+                      {allSel ? "Deselect All" : "Select All"}
+                    </button>
+                  </div>
+                  <div
+                    style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                  >
+                    {actions.map((a) => (
+                      <button
+                        key={a.key}
+                        disabled={selected.size === 0}
+                        onClick={() => {
+                          if (selected.size > 0)
+                            setBulkConfirm({
+                              action: a.key,
+                              ids: [...selected],
+                            });
+                        }}
+                        style={{
+                          padding: "0.35rem 1rem",
+                          borderRadius: "8px",
+                          fontSize: "0.78rem",
+                          fontWeight: "700",
+                          cursor:
+                            selected.size === 0 ? "not-allowed" : "pointer",
+                          background:
+                            selected.size > 0 ? a.bg : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${selected.size > 0 ? a.border : "rgba(255,255,255,0.05)"}`,
+                          color:
+                            selected.size > 0
+                              ? a.color
+                              : "rgba(255,255,255,0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          transition: "all 0.2s ease",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        {a.isDanger && (
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 16 17"
+                            fill="none"
+                          >
+                            <path
+                              d="M2 4h12"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M3.5 4.5l.75 9.5a.75.75 0 0 0 .75.75h6a.75.75 0 0 0 .75-.75l.75-9.5"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                        {a.key === "delete"
+                          ? `Delete${selected.size > 0 ? ` (${selected.size})` : ""}`
+                          : a.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
-        {!loading &&
-          !error &&
-          activeFilter === "sold" &&
-          (() => {
-            if (visibleSoldGroups.length === 0)
-              return <EmptyState label="sold items" />;
-            return (
+          {/* ── Bulk confirm modal ── */}
+          {bulkConfirm &&
+            createPortal(
               <div
-                key={gridSize}
-              style={{
-                  display: "grid",
-                  animation: 'gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards',
-                  gridTemplateColumns:
-              gridSize === 1
-                ? "1fr"
-                : gridSize === 2
-                  ? "repeat(auto-fill, minmax(360px, 1fr))"
-                  : "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: gridSize === 1 ? "0.75rem" : "1.25rem",
+                onClick={() => setBulkConfirm(null)}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 9999,
+                  background: "rgba(0,0,0,0.65)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  animation: "cdFadeIn 0.18s ease",
                 }}
               >
-                {visibleSoldGroups.map((group) => (
-                  <SoldGroupRow
-                    key={group.stableKey}
-                    group={group}
-                    stableKey={group.stableKey}
-                    isNewSale={
-                      group.groupKey != null &&
-                      freshSaleItemIds.has(group.groupKey)
-                    }
-                    isHighlighted={
-                      highlightItemId != null &&
-                      group.groupKey === highlightItemId
-                    }
-                    onDelete={handleDelete}
-                    selectMode={selectMode}
-                    selected={
-                      group.groupKey != null && selected.has(group.groupKey)
-                    }
-                    onToggle={() => {
-                      if (group.groupKey != null) toggleSelect(group.groupKey);
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(22,20,30,0.98) 0%, rgba(14,12,20,0.98) 100%)",
+                    border: "1px solid var(--border-hover)",
+                    borderRadius: "20px",
+                    padding: "2rem",
+                    width: "380px",
+                    maxWidth: "90vw",
+                    boxShadow: "0 40px 80px rgba(0,0,0,0.6)",
+                    position: "relative",
+                    overflow: "hidden",
+                    animation:
+                      "cdSlideUp 0.22s cubic-bezier(0.175,0.885,0.32,1.275)",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: "1px",
+                      background: `linear-gradient(90deg, transparent, ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.4)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.4)" : "rgba(81,207,102,0.4)"}, transparent)`,
                     }}
-                    gridSize={gridSize}
                   />
-                ))}
-              </div>
-            );
-          })()}
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "14px",
+                      margin: "0 auto 1.25rem",
+                      background:
+                        bulkConfirm.action === "delete"
+                          ? "rgba(255,107,107,0.1)"
+                          : bulkConfirm.action === "pending"
+                            ? "rgba(251,189,35,0.1)"
+                            : "rgba(81,207,102,0.1)",
+                      border: `1px solid ${bulkConfirm.action === "delete" ? "rgba(255,107,107,0.2)" : bulkConfirm.action === "pending" ? "rgba(251,189,35,0.2)" : "rgba(81,207,102,0.2)"}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {bulkConfirm.action === "delete" ? (
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#ff6b6b"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
+                    ) : (
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke={
+                          bulkConfirm.action === "pending"
+                            ? "#fbbf24"
+                            : "#51cf66"
+                        }
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      >
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+                    <div
+                      style={{
+                        fontSize: "1rem",
+                        fontWeight: "800",
+                        color: "var(--text-primary)",
+                        marginBottom: "0.5rem",
+                        letterSpacing: "-0.3px",
+                      }}
+                    >
+                      {bulkConfirm.action === "delete" &&
+                        `Delete ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""}?`}
+                      {bulkConfirm.action === "pending" &&
+                        `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""} as Pending?`}
+                      {bulkConfirm.action === "active" &&
+                        `Mark ${bulkConfirm.ids.length} listing${bulkConfirm.ids.length > 1 ? "s" : ""} as Active?`}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.82rem",
+                        color: "var(--text-muted)",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {bulkConfirm.action === "delete" &&
+                        "Permanently removes all selected listings and their images. Cannot be undone."}
+                      {bulkConfirm.action === "pending" &&
+                        "Active listings will be marked as pending. Already-pending ones are unchanged."}
+                      {bulkConfirm.action === "active" &&
+                        "Pending listings will be made active again. Already-active ones are unchanged."}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.65rem" }}>
+                    <button
+                      onClick={() => setBulkConfirm(null)}
+                      style={{
+                        flex: 1,
+                        padding: "0.75rem",
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "12px",
+                        cursor: "pointer",
+                        fontSize: "0.85rem",
+                        fontWeight: "700",
+                        color: "var(--text-muted)",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() =>
+                        executeBulkAction(bulkConfirm.action, bulkConfirm.ids)
+                      }
+                      style={{
+                        flex: 1,
+                        padding: "0.75rem",
+                        background:
+                          bulkConfirm.action === "delete"
+                            ? "linear-gradient(135deg, rgba(255,107,107,0.9), rgba(220,53,69,0.9))"
+                            : bulkConfirm.action === "pending"
+                              ? "linear-gradient(135deg, rgba(251,189,35,0.9), rgba(220,160,20,0.9))"
+                              : "linear-gradient(135deg, rgba(81,207,102,0.9), rgba(55,178,77,0.9))",
+                        border: "none",
+                        borderRadius: "12px",
+                        cursor: "pointer",
+                        fontSize: "0.85rem",
+                        fontWeight: "700",
+                        color: "white",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
 
+          <p
+            style={{
+              color: "var(--text-ghost)",
+              fontSize: "0.7rem",
+              marginBottom: "1rem",
+              fontWeight: "700",
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+            }}
+          >
+            {sectionLabel[activeFilter]}
+          </p>
 
+          {loading && (
+            <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  border: "3px solid rgba(255,255,255,0.08)",
+                  borderTop: "3px solid var(--accent)",
+                  borderRadius: "50%",
+                  margin: "0 auto 1rem",
+                  animation: "spin 0.8s linear infinite",
+                }}
+              />
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes dashSpin { to { transform: rotate(360deg); } }`}</style>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                Loading your dashboard...
+              </p>
+            </div>
+          )}
+
+          {!loading && error && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "3rem 2rem",
+                background: "rgba(255,107,107,0.08)",
+                border: "1px solid rgba(255,107,107,0.15)",
+                borderRadius: "20px",
+                color: "#ff6b6b",
+              }}
+            >
+              <p>{error}</p>
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            (activeFilter === "active" || activeFilter === "pending") &&
+            (() => {
+              const list =
+                activeFilter === "active" ? activeItems : pendingItems;
+              if (list.length === 0)
+                return <EmptyState label={activeFilter + " listings"} />;
+              return (
+                <div
+                  key={gridSize}
+                  style={{
+                    display: "grid",
+                    animation:
+                      "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+                    gridTemplateColumns:
+                      gridSize === 1
+                        ? "1fr"
+                        : gridSize === 2
+                          ? "repeat(auto-fill, minmax(360px, 1fr))"
+                          : "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: gridSize === 1 ? "0.75rem" : "1.25rem",
+                  }}
+                >
+                  {list.map((item) => (
+                    <ListingRow
+                      key={item.id}
+                      item={item}
+                      onDelete={handleDelete}
+                      onUpdate={handleUpdate}
+                      isHighlighted={highlightItemId === item.id}
+                      selectMode={selectMode}
+                      selected={selected.has(item.id)}
+                      onToggle={() => toggleSelect(item.id)}
+                      gridSize={gridSize}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+
+          {!loading &&
+            !error &&
+            activeFilter === "all" &&
+            (() => {
+              if (allNonSoldItems.length === 0 && soldGroups.length === 0)
+                return <EmptyState label="listings" />;
+              return (
+                <div
+                  key={gridSize}
+                  style={{
+                    display: "grid",
+                    animation:
+                      "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+                    gridTemplateColumns:
+                      gridSize === 1
+                        ? "1fr"
+                        : gridSize === 2
+                          ? "repeat(auto-fill, minmax(360px, 1fr))"
+                          : "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: gridSize === 1 ? "0.75rem" : "1.25rem",
+                  }}
+                >
+                  {allNonSoldItems.map((item) => (
+                    <ListingRow
+                      key={item.id}
+                      item={item}
+                      onDelete={handleDelete}
+                      onUpdate={handleUpdate}
+                      isHighlighted={highlightItemId === item.id}
+                      selectMode={selectMode}
+                      selected={selected.has(item.id)}
+                      onToggle={() => toggleSelect(item.id)}
+                      gridSize={gridSize}
+                    />
+                  ))}
+                  {visibleSoldGroups.map((group) => (
+                    <SoldGroupRow
+                      key={group.stableKey}
+                      group={group}
+                      stableKey={group.stableKey}
+                      isNewSale={
+                        group.groupKey != null &&
+                        freshSaleItemIds.has(group.groupKey)
+                      }
+                      isHighlighted={
+                        highlightItemId != null &&
+                        group.groupKey === highlightItemId
+                      }
+                      onDelete={handleDelete}
+                      selectMode={selectMode}
+                      selected={
+                        group.groupKey != null && selected.has(group.groupKey)
+                      }
+                      onToggle={() => {
+                        if (group.groupKey != null)
+                          toggleSelect(group.groupKey);
+                      }}
+                      gridSize={gridSize}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+
+          {!loading &&
+            !error &&
+            activeFilter === "sold" &&
+            (() => {
+              if (visibleSoldGroups.length === 0)
+                return <EmptyState label="sold items" />;
+              return (
+                <div
+                  key={gridSize}
+                  style={{
+                    display: "grid",
+                    animation:
+                      "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+                    gridTemplateColumns:
+                      gridSize === 1
+                        ? "1fr"
+                        : gridSize === 2
+                          ? "repeat(auto-fill, minmax(360px, 1fr))"
+                          : "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: gridSize === 1 ? "0.75rem" : "1.25rem",
+                  }}
+                >
+                  {visibleSoldGroups.map((group) => (
+                    <SoldGroupRow
+                      key={group.stableKey}
+                      group={group}
+                      stableKey={group.stableKey}
+                      isNewSale={
+                        group.groupKey != null &&
+                        freshSaleItemIds.has(group.groupKey)
+                      }
+                      isHighlighted={
+                        highlightItemId != null &&
+                        group.groupKey === highlightItemId
+                      }
+                      onDelete={handleDelete}
+                      selectMode={selectMode}
+                      selected={
+                        group.groupKey != null && selected.has(group.groupKey)
+                      }
+                      onToggle={() => {
+                        if (group.groupKey != null)
+                          toggleSelect(group.groupKey);
+                      }}
+                      gridSize={gridSize}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+        </div>
       </div>
-    </div>
     </>
   );
 }
