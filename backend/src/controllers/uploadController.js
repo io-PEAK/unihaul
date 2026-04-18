@@ -105,7 +105,7 @@ export const uploadAvatar = async (req, res) => {
   }
 };
 
-// POST /upload/message-image — upload one message attachment image
+// POST /upload/message-image — upload message attachment image
 export const uploadMessageImage = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file provided." });
@@ -130,7 +130,7 @@ export const uploadMessageImage = async (req, res) => {
   }
 };
 
-// POST /upload/message-video — upload one message attachment video
+// POST /upload/message-video — upload message attachment video
 export const uploadMessageVideo = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file provided." });
