@@ -2134,8 +2134,8 @@ export default function Settings() {
       institution: "",
       city: "",
       state: "",
-      notificationsEnabled: u.notificationsEnabled ?? true,
-      messageNotificationsEnabled: u.messageNotificationsEnabled ?? true,
+      saleNotifications: u.saleNotifications ?? true,
+      messageNotifications: u.messageNotifications ?? true,
       priceDropAlerts: u.priceDropAlerts ?? true,
     };
   });
@@ -2148,16 +2148,32 @@ export default function Settings() {
     "institution",
     "appearance",
     "notifications",
+    "password",
     "account",
   ];
   const sectionParam = searchParams.get("section");
-  const [activeSection, setActiveSection] = useState(
-    validSections.includes(sectionParam) ? sectionParam : "profile",
-  );
+  const activeSection = validSections.includes(sectionParam)
+    ? sectionParam
+    : "profile";
+
+  // Keep activeSection in sync with URL param on navigation/refresh
+  useEffect(() => {
+    if (
+      validSections.includes(sectionParam) &&
+      sectionParam !== activeSection
+    ) {
+      setActiveSection(sectionParam);
+    }
+  }, [sectionParam]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [verificationIdUrl, setVerificationIdUrl] = useState("");
+  const [verificationUploadingId, setVerificationUploadingId] = useState(false);
+  const [verificationSubmitting, setVerificationSubmitting] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationSaved, setVerificationSaved] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [showCrop, setShowCrop] = useState(false);
   const savedFormRef = useRef(null);
@@ -2191,8 +2207,8 @@ export default function Settings() {
           institution: u.institution || "",
           city: u.city || "",
           state: u.state || "",
-          notificationsEnabled: u.notificationsEnabled ?? true,
-          messageNotificationsEnabled: u.messageNotificationsEnabled ?? true,
+          saleNotifications: u.saleNotifications ?? true,
+          messageNotifications: u.messageNotifications ?? true,
           priceDropAlerts: u.priceDropAlerts ?? true,
         };
         setForm(loaded);
@@ -2209,9 +2225,8 @@ export default function Settings() {
             institution: user.institution || "",
             city: user.city || "",
             state: user.state || "",
-            notificationsEnabled: user.notificationsEnabled ?? true,
-            messageNotificationsEnabled:
-              user.messageNotificationsEnabled ?? true,
+            saleNotifications: user.saleNotifications ?? true,
+            messageNotifications: user.messageNotifications ?? true,
             priceDropAlerts: user.priceDropAlerts ?? true,
           };
           setForm(loaded);
@@ -2324,10 +2339,13 @@ export default function Settings() {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const changeSection = (id) => {
     if (savedFormRef.current) setForm({ ...savedFormRef.current });
-    setActiveSection(id);
     setSaved(false);
     setError("");
     setAvatarError("");
+    // Use React Router navigation to update the URL and trigger re-render
+    const params = new URLSearchParams(window.location.search);
+    params.set("section", id);
+    navigate(`?${params.toString()}`, { replace: true });
   };
   const upd = (u) => {
     setUser(u);
@@ -2365,6 +2383,16 @@ export default function Settings() {
   }
 
   async function handleToggle(key, val) {
+    const wasOff = form[key] === false;
+    if (val === true && wasOff) {
+      const now = new Date().toISOString();
+      if (key === "saleNotifications" || key === "priceDropAlerts") {
+        localStorage.setItem("saleNotifReenabledAt", now);
+      }
+      if (key === "messageNotifications") {
+        localStorage.setItem("msgNotifReenabledAt", now);
+      }
+    }
     set(key, val);
     try {
       await API.put("/users/profile", { [key]: val });
@@ -2392,9 +2420,9 @@ export default function Settings() {
         institution: form.institution,
         city: form.city,
         state: form.state,
-        notificationsEnabled: form.notificationsEnabled,
-        messageNotificationsEnabled: form.messageNotificationsEnabled,
-        theme,
+        saleNotifications: form.saleNotifications,
+        messageNotifications: form.messageNotifications,
+        priceDropAlerts: form.priceDropAlerts,
       });
       upd({ ...user, ...res.data });
       savedFormRef.current = { ...form };
@@ -2411,6 +2439,59 @@ export default function Settings() {
     setThemeById(id);
     API.put("/users/profile", { theme: id }).catch(() => {});
     upd({ ...user, theme: id });
+  }
+
+  async function handleUploadVerificationFile(file) {
+    if (!file) return;
+
+    setVerificationUploadingId(true);
+    setVerificationError("");
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await API.post("/upload/verification-id", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setVerificationIdUrl(res.data?.url || "");
+    } catch (err) {
+      const status = err.response?.status;
+      setVerificationError(
+        status === 413
+          ? "File too large."
+          : err.response?.data?.error || "Upload failed.",
+      );
+    } finally {
+      setVerificationUploadingId(false);
+    }
+  }
+
+  async function handleSubmitSellerVerification() {
+    if (!verificationIdUrl) {
+      setVerificationError("Upload ID proof first.");
+      return;
+    }
+
+    try {
+      setVerificationSubmitting(true);
+      setVerificationError("");
+
+      const res = await API.post("/users/seller-verification", {
+        idDocumentUrl: verificationIdUrl,
+      });
+
+      upd(res.data?.user || user);
+      setVerificationSaved(true);
+      setVerificationIdUrl("");
+      setTimeout(() => setVerificationSaved(false), 1800);
+    } catch (err) {
+      setVerificationError(
+        err.response?.data?.error || "Failed to submit verification.",
+      );
+    } finally {
+      setVerificationSubmitting(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -2434,6 +2515,12 @@ export default function Settings() {
         day: "numeric",
       })
     : null;
+  const verificationExpired = user?.sellerVerificationExpiresAt
+    ? new Date(user.sellerVerificationExpiresAt) < new Date()
+    : true;
+  const sellerVerified = Boolean(
+    user?.sellerIdVerified && !verificationExpired,
+  );
   const noSave = [
     "appearance",
     "account",
@@ -3067,7 +3154,7 @@ export default function Settings() {
                             strokeWidth="2.5"
                             strokeLinecap="round"
                           >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                             <polyline points="17 8 12 3 7 8" />
                             <line x1="12" y1="3" x2="12" y2="15" />
                           </svg>
@@ -3468,7 +3555,6 @@ export default function Settings() {
                               border: "1px solid var(--border)",
                               borderRadius: "6px",
                               cursor: "pointer",
-                              fontFamily: "var(--font-body)",
                               padding: "0.25rem 0.7rem",
                             }}
                           >
@@ -3591,16 +3677,14 @@ export default function Settings() {
                     }
                   >
                     <Toggle
-                      value={form.notificationsEnabled}
-                      onChange={(v) => handleToggle("notificationsEnabled", v)}
+                      value={form.saleNotifications}
+                      onChange={(v) => handleToggle("saleNotifications", v)}
                       label="Sale notifications"
                       desc="Get notified when someone buys your item"
                     />
                     <Toggle
-                      value={form.messageNotificationsEnabled}
-                      onChange={(v) =>
-                        handleToggle("messageNotificationsEnabled", v)
-                      }
+                      value={form.messageNotifications}
+                      onChange={(v) => handleToggle("messageNotifications", v)}
                       label="Message notifications"
                       desc="Get notified when you receive a new message"
                     />
@@ -3789,6 +3873,201 @@ export default function Settings() {
                       Log out
                     </button>
                   </div>
+
+                  <SectionCard
+                    title="Seller Verification"
+                    subtitle="Required to sell high-value items in strict safety tier"
+                    icon={
+                      <svg
+                        width="17"
+                        height="17"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <polyline points="9 12 11 14 15 10" />
+                      </svg>
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "0.75rem",
+                        padding: "0.85rem 1rem",
+                        borderRadius: "12px",
+                        background: sellerVerified
+                          ? "rgba(34,197,94,0.07)"
+                          : "var(--bg-input)",
+                        border: sellerVerified
+                          ? "1px solid rgba(34,197,94,0.25)"
+                          : "1px solid var(--border)",
+                        marginBottom: "0.9rem",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "0.82rem",
+                            fontWeight: "700",
+                            color: sellerVerified
+                              ? "#22c55e"
+                              : "var(--text-primary)",
+                          }}
+                        >
+                          {sellerVerified ? "Verified" : "Not verified"}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "var(--text-muted)",
+                            marginTop: "0.1rem",
+                          }}
+                        >
+                          {user?.sellerVerificationExpiresAt
+                            ? `Valid till ${new Date(user.sellerVerificationExpiresAt).toLocaleDateString("en-IN")}`
+                            : "Upload ID to verify seller account"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="st-grid-2"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <div>
+                        <label style={LS}>ID Proof (image/pdf)</label>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "1rem",
+                            marginBottom: "0.5rem",
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "relative",
+                              display: "inline-block",
+                            }}
+                          >
+                            <input
+                              id="id-proof-upload"
+                              type="file"
+                              accept="image/*,.pdf,application/pdf"
+                              onChange={(e) =>
+                                handleUploadVerificationFile(
+                                  e.target.files?.[0],
+                                )
+                              }
+                              style={{
+                                opacity: 0,
+                                position: "absolute",
+                                left: 0,
+                                top: 0,
+                                width: "100%",
+                                height: "100%",
+                                cursor: "pointer",
+                                zIndex: 2,
+                              }}
+                            />
+                            <label
+                              htmlFor="id-proof-upload"
+                              style={{
+                                background: "var(--accent)",
+                                color: "#fff",
+                                borderRadius: "6px",
+                                padding: "0.38rem 0.9rem",
+                                fontWeight: 600,
+                                fontSize: "0.92rem",
+                                cursor: "pointer",
+                                display: "inline-block",
+                                minWidth: "60px",
+                                textAlign: "center",
+                              }}
+                            >
+                              Browse
+                            </label>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.93rem",
+                              color: "var(--text-primary)",
+                              marginLeft: "0.4rem",
+                            }}
+                          >
+                            {verificationIdUrl
+                              ? "File uploaded"
+                              : verificationUploadingId
+                                ? "Uploading..."
+                                : "No file chosen"}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            marginTop: "0.35rem",
+                            fontSize: "0.72rem",
+                            color: verificationIdUrl
+                              ? "#22c55e"
+                              : "var(--text-muted)",
+                          }}
+                        >
+                          {verificationIdUrl
+                            ? "Uploaded"
+                            : verificationUploadingId
+                              ? "Uploading..."
+                              : "Not uploaded"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {verificationError && (
+                      <div
+                        style={{
+                          marginTop: "0.75rem",
+                          fontSize: "0.76rem",
+                          color: "#ef4444",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {verificationError}
+                      </div>
+                    )}
+
+                    {verificationSaved && (
+                      <div style={{ marginTop: "0.75rem" }}>
+                        <Saved />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleSubmitSellerVerification}
+                      disabled={
+                        verificationSubmitting || verificationUploadingId
+                      }
+                      style={{
+                        ...AB,
+                        marginTop: "0.85rem",
+                        opacity:
+                          verificationSubmitting || verificationUploadingId
+                            ? 0.6
+                            : 1,
+                      }}
+                    >
+                      {verificationSubmitting
+                        ? "Submitting..."
+                        : "Submit Seller Verification"}
+                    </button>
+                  </SectionCard>
 
                   {/* ── Connected accounts ── */}
                   <SectionCard
