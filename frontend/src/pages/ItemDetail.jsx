@@ -867,6 +867,38 @@ function ItemDetail() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const myId = user?.id;
 
+  useEffect(() => {
+    async function fetchItem() {
+      try {
+        setLoading(true);
+        const res = await API.get(`/items/${id}`);
+        setItem(res.data);
+        setCartQty(res.data.cart?.quantity || 0);
+
+        const sellerId = Number(res.data?.seller?.id);
+        const currentUserId = Number(user?.id);
+        const canCheckWatch = Boolean(user?.id) && sellerId !== currentUserId;
+
+        if (canCheckWatch) {
+          try {
+            const watchRes = await API.get(`/items/${id}/watch`);
+            setWatching(Boolean(watchRes.data?.watching));
+          } catch {
+            setWatching(false);
+          }
+        } else {
+          setWatching(false);
+        }
+      } catch (err) {
+        console.error("Error fetching item:", err);
+        setError(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (id) fetchItem();
+  }, [id, user?.id]);
+
   // Track viewport width for responsive layout switching
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   useEffect(() => {
@@ -879,113 +911,42 @@ function ItemDetail() {
 
   // Lock scroll only on desktop (carousel scroll behaviour)
   useEffect(() => {
-    if (isMobile) return;
-    const el = document.documentElement;
-    const prev = el.style.overflow;
-    el.style.overflow = "hidden";
+    // Lock scroll only on desktop (carousel scroll behaviour)
+    if (!isMobile) {
+      // document.body.style.overflow = "hidden";
+    }
     return () => {
-      el.style.overflow = prev;
+      // document.body.style.overflow = "auto";
     };
   }, [isMobile]);
 
-  useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await API.get(`/items/${id}`);
-        setItem(res.data);
-      } catch {
-        setError("Item not found.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchItem();
-  }, [id]);
-
-  useEffect(() => {
-    if (!item || !user || item.sellerId === parseInt(myId)) return;
-    API.get(`/items/${item.id}/watch`)
-      .then((r) => setWatching(r.data.watching))
-      .catch(() => {});
-  }, [item?.id]);
-
-  useEffect(() => {
-    if (!item || !user) return;
-    const check = async () => {
-      try {
-        const res = await API.get("/cart");
-        const found = res.data.find(
-          (c) => c.itemId === item.id || c.item?.id === item.id,
-        );
-        if (found) {
-          setCartQty(found.quantity || 1);
-          setTimeout(
-            () =>
-              viewCartRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              }),
-            100,
-          );
-        }
-      } catch {}
-    };
-    check();
-  }, [item]); // eslint-disable-line
-
-  async function handleAddToCart() {
+  const handleAddToCart = async () => {
     if (!user) {
-      navigate("/login");
+      navigate("/login", { state: { from: location.pathname } });
       return;
     }
+    if (!item?.id) return;
     try {
       setCartLoading(true);
       const res = await API.post("/cart", { itemId: item.id, quantity: 1 });
-      setCartQty(res.data.quantity || 1);
-      window.dispatchEvent(
-        new CustomEvent("cart-updated", { detail: { delta: 1 } }),
-      );
-      setTimeout(
-        () =>
-          viewCartRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          }),
-        100,
-      );
+      const nextQty = Number(res?.data?.quantity);
+      setCartQty(Number.isFinite(nextQty) && nextQty > 0 ? nextQty : 1);
     } catch (err) {
-      const msg = err.response?.data?.error || "";
-      if (msg.includes("already in cart")) {
-        try {
-          const r = await API.get("/cart");
-          const found = r.data.find(
-            (c) => c.itemId === item.id || c.item?.id === item.id,
-          );
-          if (found) setCartQty(found.quantity || 1);
-        } catch {}
-      } else {
-        alert(msg || "Failed to add to cart.");
-      }
+      alert(err.response?.data?.error || "Failed to add item to cart.");
     } finally {
       setCartLoading(false);
     }
-  }
+  };
 
-  async function handleQtyChange(newQty) {
-    if (cartLoading) return;
-    const totalStock = item?.quantity ?? 1;
+  const handleUpdateCart = async (newQty) => {
     if (newQty < 1) {
       try {
         setCartLoading(true);
         await API.delete(`/cart/${item.id}`);
         setCartQty(0);
-        window.dispatchEvent(
-          new CustomEvent("cart-updated", { detail: { delta: -1 } }),
-        );
-      } catch {
-        alert("Failed to remove from cart.");
+      } catch (err) {
+        console.error("Error removing item from cart:", err);
+        alert("Failed to remove item from cart.");
       } finally {
         setCartLoading(false);
       }
@@ -1001,7 +962,7 @@ function ItemDetail() {
     } finally {
       setCartLoading(false);
     }
-  }
+  };
 
   if (loading)
     return (
@@ -1932,88 +1893,97 @@ function ItemDetail() {
           ) : status === "available" ? (
             cartQty === 0 ? (
               /* ── Not in cart: side-by-side ── */
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <button
-                  onClick={() => navigate("/messages", { state: { item } })}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                    e.currentTarget.style.color = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "var(--glass-bg-row)";
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "0.85rem",
-                    background: "var(--glass-bg-row)",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--glass-border-row)",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "0.85rem",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    fontFamily: "var(--font-body)",
-                  }}
-                >
-                  Message Seller
-                </button>
-                <button
-                  onClick={handleAddToCart}
-                  disabled={cartLoading}
-                  onMouseEnter={(e) => {
-                    if (!cartLoading) {
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow =
-                        "var(--shadow-accent-lg)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "var(--shadow-accent)";
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "0.85rem",
-                    background: cartLoading
-                      ? "var(--bg-card-hover)"
-                      : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-                    color: cartLoading ? "var(--text-muted)" : "white",
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "0.85rem",
-                    fontWeight: "700",
-                    cursor: cartLoading ? "not-allowed" : "pointer",
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    transition: "all 0.3s ease",
-                    boxShadow: "var(--shadow-accent)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    fontFamily: "var(--font-body)",
-                  }}
-                >
-                  {cartLoading ? (
-                    <>
-                      <div
-                        style={{
-                          width: "14px",
-                          height: "14px",
-                          border: "2px solid rgba(255,255,255,0.3)",
-                          borderTopColor: "white",
-                          borderRadius: "50%",
-                          animation: "idSpin 0.7s linear infinite",
-                        }}
-                      />
-                      Adding...
-                    </>
-                  ) : (
-                    "Add to Cart"
-                  )}
-                </button>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.65rem",
+                }}
+              >
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <button
+                    onClick={() => navigate("/messages", { state: { item } })}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.1)";
+                      e.currentTarget.style.color = "var(--text-primary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "var(--glass-bg-row)";
+                      e.currentTarget.style.color = "var(--text-secondary)";
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "0.85rem",
+                      background: "var(--glass-bg-row)",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--glass-border-row)",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "0.85rem",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    Message Seller
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={cartLoading}
+                    onMouseEnter={(e) => {
+                      if (!cartLoading) {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow =
+                          "var(--shadow-accent-lg)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "var(--shadow-accent)";
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "0.85rem",
+                      background: cartLoading
+                        ? "var(--bg-card-hover)"
+                        : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                      color: cartLoading ? "var(--text-muted)" : "white",
+                      border: "none",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "0.85rem",
+                      fontWeight: "700",
+                      cursor: cartLoading ? "not-allowed" : "pointer",
+                      letterSpacing: "1px",
+                      textTransform: "uppercase",
+                      transition: "all 0.3s ease",
+                      boxShadow: "var(--shadow-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "0.5rem",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    {cartLoading ? (
+                      <>
+                        <div
+                          style={{
+                            width: "14px",
+                            height: "14px",
+                            border: "2px solid rgba(255,255,255,0.3)",
+                            borderTopColor: "white",
+                            borderRadius: "50%",
+                            animation: "idSpin 0.7s linear infinite",
+                          }}
+                        />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add to Cart"
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               /* ── In cart: Message Seller above, cart controls below ── */
