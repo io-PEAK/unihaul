@@ -4,11 +4,18 @@ import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 
 // ── Transaction Detail Modal ──────────────────────────────────
-function TxnDetailModal({ txn, onClose, onReviewed }) {
+function TxnDetailModal({ txn, onClose, onReviewed, onTxnUpdated }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isBuyer = txn.buyer_id === user.id;
   const isDeleted = !txn.item_id;
   const showListingRemoved = isDeleted && !isBuyer;
+  const [pin, setPin] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState("");
+  const [pinSuccess, setPinSuccess] = useState("");
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+  const [scheduleSuccess, setScheduleSuccess] = useState("");
   const [review, setReview] = useState(txn.review || null);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -41,6 +48,125 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
   const qty = txn.quantity || 1;
   const totalPrice = txn.price;
   const unitPrice = qty > 1 ? Math.round(totalPrice / qty) : totalPrice;
+  const paymentStatus = (txn.payment_status || "pending").toLowerCase();
+  const txnStatus = (txn.status || "pending").toLowerCase();
+  const isFailedTxn = txnStatus === "failed" || paymentStatus === "failed";
+  const paymentMethod = (txn.payment_method || "upi_direct").toLowerCase();
+  const paymentMethodLabel =
+    paymentMethod === "upi_direct" ? "UPI" : "Razorpay";
+  const deliveryOtp = txn.delivery_otp || txn.deliveryOtp || null;
+  const deliveryOtpExpiresAt =
+    txn.delivery_otp_expires_at || txn.deliveryOtpExpiresAt || null;
+  const deliveryScheduledAt =
+    txn.delivery_scheduled_at || txn.deliveryScheduledAt || null;
+  const hasDeliveryOtp = Boolean(txn.has_delivery_otp || deliveryOtp);
+  const isPaymentConfirmed = paymentStatus === "completed";
+  const isDeliveryConfirmed = Boolean(
+    txn.pin_confirmed_at || txn.deliveryConfirmedAt,
+  );
+
+  function toDateTimeLocal(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  const defaultDeliveryAt = (() => {
+    const fallback = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return toDateTimeLocal(deliveryScheduledAt || fallback.toISOString());
+  })();
+
+  const initialWindowHours = (() => {
+    if (!deliveryScheduledAt || !deliveryOtpExpiresAt) return 24;
+    const start = new Date(deliveryScheduledAt).getTime();
+    const end = new Date(deliveryOtpExpiresAt).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+      return 24;
+    return Math.max(1, Math.round((end - start) / (60 * 60 * 1000)));
+  })();
+
+  const [deliveryAt, setDeliveryAt] = useState(defaultDeliveryAt);
+  const [deliveryWindowHours, setDeliveryWindowHours] = useState(
+    String(initialWindowHours),
+  );
+  const canConfirmPin =
+    !isBuyer &&
+    isPaymentConfirmed &&
+    !isFailedTxn &&
+    !isDeliveryConfirmed &&
+    hasDeliveryOtp;
+
+  async function handleGenerateDeliveryOtp() {
+    if (!deliveryAt) {
+      setScheduleError("Select delivery date and time.");
+      return;
+    }
+
+    try {
+      setScheduleLoading(true);
+      setScheduleError("");
+      setScheduleSuccess("");
+
+      const scheduledAtIso = new Date(deliveryAt).toISOString();
+      const hours = Math.max(1, Number(deliveryWindowHours) || 24);
+      const res = await API.post(`/transactions/${txn.id}/handoff-schedule`, {
+        scheduledAt: scheduledAtIso,
+        windowHours: hours,
+      });
+
+      const updatedTxn = {
+        ...txn,
+        has_delivery_otp: true,
+        delivery_scheduled_at: res.data?.deliveryScheduledAt || scheduledAtIso,
+        delivery_otp_expires_at: res.data?.deliveryOtpExpiresAt || null,
+      };
+
+      onTxnUpdated?.(updatedTxn);
+      setScheduleSuccess("Delivery OTP generated and shared with buyer.");
+      setPin("");
+    } catch (err) {
+      setScheduleError(err.response?.data?.error || "Failed to generate OTP.");
+    } finally {
+      setScheduleLoading(false);
+    }
+  }
+
+  async function handleConfirmPin() {
+    if (!pin.trim()) {
+      setPinError("Enter the buyer OTP first.");
+      return;
+    }
+
+    try {
+      setPinLoading(true);
+      setPinError("");
+      setPinSuccess("");
+
+      const res = await API.post(`/transactions/${txn.id}/confirm-pin`, {
+        pin: pin.trim(),
+      });
+
+      const updatedTxn = {
+        ...txn,
+        status: res.data?.status || "completed",
+        payment_status: res.data?.paymentStatus || "completed",
+        pin_confirmed_at:
+          res.data?.deliveryConfirmedAt || new Date().toISOString(),
+        has_delivery_otp: false,
+        delivery_otp: null,
+      };
+
+      onTxnUpdated?.(updatedTxn);
+      setPinSuccess("Delivery OTP confirmed.");
+      setPin("");
+    } catch (err) {
+      setPinError(err.response?.data?.error || "OTP confirmation failed.");
+    } finally {
+      setPinLoading(false);
+    }
+  }
 
   const [activeImg, setActiveImg] = useState(0);
   const [zoomed, setZoomed] = useState(false);
@@ -631,7 +757,11 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
               value: isBuyer ? txn.seller_name : txn.buyer_name,
             },
             { label: "Category", value: txn.category || "—" },
-            { label: "Role", value: isBuyer ? "Bought" : "Sold", isRole: true },
+            {
+              label: "Role",
+              value: isFailedTxn ? "Failed" : isBuyer ? "Bought" : "Sold",
+              isRole: true,
+            },
             { label: "Quantity", value: `${qty} unit${qty > 1 ? "s" : ""}` },
             {
               label: "Date",
@@ -684,15 +814,23 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
                   style={{
                     fontSize: "0.8rem",
                     fontWeight: "700",
-                    color: isBuyer ? "#74b9ff" : "#51cf66",
-                    background: isBuyer
-                      ? "rgba(116,185,255,0.1)"
-                      : "rgba(81,207,102,0.1)",
+                    color: isFailedTxn
+                      ? "#ff6b6b"
+                      : isBuyer
+                        ? "#74b9ff"
+                        : "#51cf66",
+                    background: isFailedTxn
+                      ? "rgba(255,107,107,0.1)"
+                      : isBuyer
+                        ? "rgba(116,185,255,0.1)"
+                        : "rgba(81,207,102,0.1)",
                     padding: "2px 10px",
                     borderRadius: "20px",
-                    border: isBuyer
-                      ? "1px solid rgba(116,185,255,0.15)"
-                      : "1px solid rgba(81,207,102,0.15)",
+                    border: isFailedTxn
+                      ? "1px solid rgba(255,107,107,0.2)"
+                      : isBuyer
+                        ? "1px solid rgba(116,185,255,0.15)"
+                        : "1px solid rgba(81,207,102,0.15)",
                   }}
                 >
                   {value}
@@ -722,17 +860,321 @@ function TxnDetailModal({ txn, onClose, onReviewed }) {
             fontSize: "0.82rem",
             fontWeight: "600",
             letterSpacing: "0.3px",
-            background: isBuyer
-              ? "rgba(116,185,255,0.06)"
-              : "rgba(81,207,102,0.06)",
-            border: isBuyer
-              ? "1px solid rgba(116,185,255,0.1)"
-              : "1px solid rgba(81,207,102,0.1)",
-            color: isBuyer ? "rgba(116,185,255,0.6)" : "rgba(81,207,102,0.6)",
+            background: isFailedTxn
+              ? "rgba(255,107,107,0.08)"
+              : isBuyer
+                ? "rgba(116,185,255,0.06)"
+                : "rgba(81,207,102,0.06)",
+            border: isFailedTxn
+              ? "1px solid rgba(255,107,107,0.15)"
+              : isBuyer
+                ? "1px solid rgba(116,185,255,0.1)"
+                : "1px solid rgba(81,207,102,0.1)",
+            color: isFailedTxn
+              ? "rgba(255,107,107,0.8)"
+              : isBuyer
+                ? "rgba(116,185,255,0.6)"
+                : "rgba(81,207,102,0.6)",
           }}
         >
-          {isBuyer ? "Purchase completed" : "Sale completed"}
+          {isFailedTxn
+            ? "Payment failed"
+            : txn.status === "completed"
+              ? isBuyer
+                ? "Purchase completed"
+                : "Sale completed"
+              : `Status: ${txn.status || "pending"}`}
         </div>
+
+        <div
+          style={{
+            marginTop: "0.6rem",
+            textAlign: "center",
+            padding: "0.65rem",
+            borderRadius: "10px",
+            fontSize: "0.74rem",
+            fontWeight: "700",
+            letterSpacing: "0.4px",
+            textTransform: "uppercase",
+            color: "var(--text-secondary)",
+            background: "var(--bg-input)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          Payment: {paymentMethodLabel} · {paymentStatus}
+        </div>
+
+        {paymentMethod === "upi_direct" && (
+          <div
+            style={{
+              marginTop: "0.55rem",
+              textAlign: "center",
+              padding: "0.55rem",
+              borderRadius: "10px",
+              fontSize: "0.72rem",
+              fontWeight: "600",
+              color: "rgba(255,171,0,0.85)",
+              background: "rgba(255,171,0,0.08)",
+              border: "1px solid rgba(255,171,0,0.2)",
+            }}
+          >
+            Direct UPI is test mode and considered unreliable for payment truth.
+          </div>
+        )}
+
+        {!isBuyer &&
+          isPaymentConfirmed &&
+          !isFailedTxn &&
+          !isDeliveryConfirmed && (
+            <div
+              style={{
+                marginTop: "0.8rem",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                background: "var(--bg-input)",
+                padding: "0.85rem",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.74rem",
+                  fontWeight: "700",
+                  color: "var(--text-muted)",
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Schedule Delivery OTP
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <input
+                  type="datetime-local"
+                  value={deliveryAt}
+                  onChange={(e) => setDeliveryAt(e.target.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: "210px",
+                    padding: "0.65rem 0.75rem",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-surface)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={deliveryWindowHours}
+                  onChange={(e) => setDeliveryWindowHours(e.target.value)}
+                  placeholder="Hours"
+                  style={{
+                    width: "96px",
+                    padding: "0.65rem 0.75rem",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-surface)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+                <button
+                  onClick={handleGenerateDeliveryOtp}
+                  disabled={scheduleLoading}
+                  style={{
+                    padding: "0.65rem 0.85rem",
+                    border: "none",
+                    borderRadius: "10px",
+                    cursor: scheduleLoading ? "not-allowed" : "pointer",
+                    background:
+                      "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                    color: "white",
+                    fontWeight: "800",
+                    fontSize: "0.74rem",
+                    opacity: scheduleLoading ? 0.6 : 1,
+                  }}
+                >
+                  {scheduleLoading
+                    ? "Saving..."
+                    : hasDeliveryOtp
+                      ? "Update OTP"
+                      : "Generate OTP"}
+                </button>
+              </div>
+              {scheduleError && (
+                <div
+                  style={{
+                    marginTop: "0.5rem",
+                    fontSize: "0.74rem",
+                    color: "#ef4444",
+                  }}
+                >
+                  {scheduleError}
+                </div>
+              )}
+              {scheduleSuccess && (
+                <div
+                  style={{
+                    marginTop: "0.5rem",
+                    fontSize: "0.74rem",
+                    color: "#22c55e",
+                  }}
+                >
+                  {scheduleSuccess}
+                </div>
+              )}
+            </div>
+          )}
+
+        {isBuyer && deliveryOtp && !isDeliveryConfirmed && (
+          <div
+            style={{
+              marginTop: "0.8rem",
+              border: "1px solid rgba(var(--accent-rgb),0.2)",
+              borderRadius: "12px",
+              background: "rgba(var(--accent-rgb),0.08)",
+              padding: "0.85rem",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--text-muted)",
+                marginBottom: "0.4rem",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontWeight: "700",
+              }}
+            >
+              Delivery OTP
+            </div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: "1.2rem",
+                letterSpacing: "0.25em",
+                fontWeight: "800",
+                color: "var(--text-primary)",
+              }}
+            >
+              {deliveryOtp}
+            </div>
+            {deliveryScheduledAt && (
+              <div
+                style={{
+                  marginTop: "0.45rem",
+                  fontSize: "0.72rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Scheduled:{" "}
+                {new Date(deliveryScheduledAt).toLocaleString("en-IN")}
+              </div>
+            )}
+            {deliveryOtpExpiresAt && (
+              <div
+                style={{
+                  marginTop: "0.2rem",
+                  fontSize: "0.72rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Expires:{" "}
+                {new Date(deliveryOtpExpiresAt).toLocaleString("en-IN")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {canConfirmPin && (
+          <div
+            style={{
+              marginTop: "0.8rem",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              background: "var(--bg-input)",
+              padding: "0.85rem",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.74rem",
+                fontWeight: "700",
+                color: "var(--text-muted)",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Confirm Delivery OTP
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <input
+                value={pin}
+                onChange={(e) => {
+                  const next = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setPin(next);
+                  setPinError("");
+                }}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                style={{
+                  flex: 1,
+                  padding: "0.65rem 0.75rem",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-surface)",
+                  color: "var(--text-primary)",
+                  fontFamily: "monospace",
+                  fontWeight: "700",
+                  letterSpacing: "0.2em",
+                }}
+              />
+              <button
+                onClick={handleConfirmPin}
+                disabled={pinLoading || pin.length < 6}
+                style={{
+                  padding: "0.65rem 0.85rem",
+                  border: "none",
+                  borderRadius: "10px",
+                  cursor:
+                    pinLoading || pin.length < 6 ? "not-allowed" : "pointer",
+                  background:
+                    "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                  color: "white",
+                  fontWeight: "800",
+                  fontSize: "0.74rem",
+                  opacity: pinLoading || pin.length < 6 ? 0.6 : 1,
+                }}
+              >
+                {pinLoading ? "Checking..." : "Confirm OTP"}
+              </button>
+            </div>
+            {pinError && (
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  fontSize: "0.74rem",
+                  color: "#ef4444",
+                }}
+              >
+                {pinError}
+              </div>
+            )}
+            {pinSuccess && (
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  fontSize: "0.74rem",
+                  color: "#22c55e",
+                }}
+              >
+                {pinSuccess}
+              </div>
+            )}
+          </div>
+        )}
 
         {showListingRemoved && (
           <div
@@ -995,7 +1437,10 @@ function TransactionRow({
   const review = txn.review || null;
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isBuyer = txn.buyer_id === user.id;
-  const role = isBuyer ? "Bought" : "Sold";
+  const paymentStatus = (txn.payment_status || "pending").toLowerCase();
+  const txnStatus = (txn.status || "pending").toLowerCase();
+  const isFailedTxn = txnStatus === "failed" || paymentStatus === "failed";
+  const role = isFailedTxn ? "Failed" : isBuyer ? "Bought" : "Sold";
   const otherParty = isBuyer
     ? txn.seller_name || "Seller"
     : txn.buyer_name || "Buyer";
@@ -1059,7 +1504,6 @@ function TransactionRow({
         }}
       />
 
-      {/* Checkbox */}
       <div
         onClick={(e) => {
           e.stopPropagation();
@@ -1158,7 +1602,13 @@ function TransactionRow({
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, minWidth: 0, padding: gridSize === 1 ? "0" : "1.25rem" }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: gridSize === 1 ? "0" : "1.25rem",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <h3
             style={{
@@ -1246,15 +1696,19 @@ function TransactionRow({
             style={{
               fontSize: "0.7rem",
               fontWeight: "700",
-              color: isBuyer ? "#74b9ff" : "#51cf66",
-              background: isBuyer
-                ? "rgba(116,185,255,0.1)"
-                : "rgba(81,207,102,0.1)",
+              color: isFailedTxn ? "#ff6b6b" : isBuyer ? "#74b9ff" : "#51cf66",
+              background: isFailedTxn
+                ? "rgba(255,107,107,0.1)"
+                : isBuyer
+                  ? "rgba(116,185,255,0.1)"
+                  : "rgba(81,207,102,0.1)",
               padding: "2px 10px",
               borderRadius: "20px",
-              border: isBuyer
-                ? "1px solid rgba(116,185,255,0.15)"
-                : "1px solid rgba(81,207,102,0.15)",
+              border: isFailedTxn
+                ? "1px solid rgba(255,107,107,0.2)"
+                : isBuyer
+                  ? "1px solid rgba(116,185,255,0.15)"
+                  : "1px solid rgba(81,207,102,0.15)",
             }}
           >
             {role}
@@ -1683,7 +2137,21 @@ function Transactions() {
 
   useEffect(() => {
     API.get("/transactions")
-      .then((r) => setTransactions(r.data))
+      .then((r) =>
+        setTransactions(
+          (r.data || []).filter((t) => {
+            const status = (t.status || "").toLowerCase();
+            const paymentStatus = (t.payment_status || "").toLowerCase();
+            const paymentMethod = (t.payment_method || "").toLowerCase();
+            const isPendingPinFlow =
+              status === "pending" &&
+              paymentMethod === "upi_direct" &&
+              (paymentStatus === "requires_pin" || paymentStatus === "pending");
+
+            return status !== "pending" || isPendingPinFlow;
+          }),
+        ),
+      )
       .catch(() => setError("Failed to load transactions."))
       .finally(() => setLoading(false));
   }, []);
@@ -1701,12 +2169,28 @@ function Transactions() {
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  const isFailedTxn = (t) => {
+    const txnStatus = (t.status || "").toLowerCase();
+    const paymentStatus = (t.payment_status || "").toLowerCase();
+    return txnStatus === "failed" || paymentStatus === "failed";
+  };
+
+  const boughtTxns = transactions.filter(
+    (t) => t.buyer_id === user.id && !isFailedTxn(t),
+  );
+  const soldTxns = transactions.filter(
+    (t) => t.seller_id === user.id && !isFailedTxn(t),
+  );
+  const failedTxns = transactions.filter((t) => isFailedTxn(t));
+
   const baseFiltered =
     filter === "All"
       ? transactions
       : filter === "Bought"
-        ? transactions.filter((t) => t.buyer_id === user.id)
-        : transactions.filter((t) => t.seller_id === user.id);
+        ? boughtTxns
+        : filter === "Sold"
+          ? soldTxns
+          : failedTxns;
 
   const filtered = search.trim()
     ? baseFiltered.filter((t) => {
@@ -1744,11 +2228,12 @@ function Transactions() {
   return (
     <div
       className="txn-page"
-      style={{ 
-        padding: "5rem 4rem 3rem", 
-        maxWidth: gridSize === 1 ? "900px" : gridSize === 2 ? "1100px" : "1300px", 
+      style={{
+        padding: "5rem 4rem 3rem",
+        maxWidth:
+          gridSize === 1 ? "900px" : gridSize === 2 ? "1100px" : "1300px",
         margin: "0 auto",
-        transition: "max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+        transition: "max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
       <style>{`
@@ -1785,6 +2270,14 @@ function Transactions() {
         <TxnDetailModal
           txn={openTxn}
           onClose={() => setOpenTxn(null)}
+          onTxnUpdated={(updatedTxn) => {
+            setOpenTxn(updatedTxn);
+            setTransactions((prev) =>
+              prev.map((t) =>
+                t.id === updatedTxn.id ? { ...t, ...updatedTxn } : t,
+              ),
+            );
+          }}
           onReviewed={(txnId, r) =>
             setTransactions((prev) =>
               prev.map((t) => (t.id === txnId ? { ...t, review: r } : t)),
@@ -1974,7 +2467,7 @@ function Transactions() {
         }}
       >
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          {["All", "Bought", "Sold"].map((f) => (
+          {["All", "Bought", "Sold", "Failed"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -2158,13 +2651,16 @@ function Transactions() {
         {[
           {
             label: "Bought",
-            value: transactions.filter((t) => t.buyer_id === user.id).length,
+            value: boughtTxns.length,
           },
           {
             label: "Sold",
-            value: transactions.filter((t) => t.seller_id === user.id).length,
+            value: soldTxns.length,
           },
-          { label: "Total", value: transactions.length },
+          {
+            label: "Total",
+            value: transactions.length,
+          },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -2184,7 +2680,6 @@ function Transactions() {
                 position: "absolute",
                 top: 0,
                 left: 0,
-                right: 0,
                 height: "1px",
                 background: "var(--glass-shimmer)",
               }}
@@ -2308,7 +2803,8 @@ function Transactions() {
             key={gridSize}
             style={{
               display: "grid",
-              animation: "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
+              animation:
+                "gridSwitchScale 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards",
               gridTemplateColumns:
                 gridSize === 1
                   ? "1fr"
