@@ -1,7 +1,7 @@
-import pg from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pkg from '@prisma/client';
-import dotenv from 'dotenv';
+import pg from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pkg from "@prisma/client";
+import dotenv from "dotenv";
 
 dotenv.config();
 
