@@ -54,6 +54,51 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
   const [delHovered, setDelHovered] = useState(false);
   const isUnseen = !notif.seen;
   const isPriceDrop = notif.type === "price_drop";
+  const isMilestone = !isPriceDrop;
+  const milestoneMeta = {
+    checkout_started: {
+      label: "Checkout",
+      color: "#74b9ff",
+      soft: "rgba(116,185,255,0.12)",
+      border: "rgba(116,185,255,0.25)",
+    },
+    payment_received: {
+      label: "Payment",
+      color: "#51cf66",
+      soft: "rgba(81,207,102,0.12)",
+      border: "rgba(81,207,102,0.24)",
+    },
+    order_confirmed: {
+      label: "Confirmed",
+      color: "#22b8cf",
+      soft: "rgba(34,184,207,0.12)",
+      border: "rgba(34,184,207,0.25)",
+    },
+    payment_failed: {
+      label: "Failed",
+      color: "#ff6b6b",
+      soft: "rgba(255,107,107,0.12)",
+      border: "rgba(255,107,107,0.24)",
+    },
+    handoff_otp_ready: {
+      label: "Delivery OTP",
+      color: "#f59e0b",
+      soft: "rgba(245,158,11,0.12)",
+      border: "rgba(245,158,11,0.24)",
+    },
+    delivery_confirmed: {
+      label: "Delivered",
+      color: "#10b981",
+      soft: "rgba(16,185,129,0.12)",
+      border: "rgba(16,185,129,0.24)",
+    },
+  };
+  const milestone = milestoneMeta[notif.type] || {
+    label: "Update",
+    color: "var(--accent)",
+    soft: "var(--accent-soft)",
+    border: "var(--border-accent)",
+  };
   const PD_COLOR = "#ef4444";
   const PD_SOFT = "rgba(239,68,68,0.12)";
   const PD_BORDER = "rgba(239,68,68,0.25)";
@@ -141,6 +186,20 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
             <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
             <polyline points="17 18 23 18 23 12" />
           </svg>
+        ) : isMilestone ? (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={isUnseen ? "white" : milestone.color}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 8a6 6 0 0 0-12 0v3H4v2h16v-2h-2z" />
+            <path d="M10 17a2 2 0 0 0 4 0" />
+          </svg>
         ) : (
           <svg
             width="14"
@@ -183,6 +242,24 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
               Price Drop
             </span>
           )}
+          {isMilestone && (
+            <span
+              style={{
+                fontSize: "0.58rem",
+                fontWeight: "800",
+                letterSpacing: "0.8px",
+                textTransform: "uppercase",
+                color: milestone.color,
+                background: milestone.soft,
+                border: `1px solid ${milestone.border}`,
+                padding: "1px 5px",
+                borderRadius: "4px",
+                flexShrink: 0,
+              }}
+            >
+              {milestone.label}
+            </span>
+          )}
           <div
             style={{
               fontSize: "0.82rem",
@@ -194,7 +271,9 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
             }}
           >
             {notif.itemTitle ||
-              (isPriceDrop ? "Item price dropped" : "Item sold")}
+              (isPriceDrop
+                ? "Item price dropped"
+                : notif.message || "Transaction update")}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -255,6 +334,21 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
                 </>
               )}
             </>
+          ) : isMilestone ? (
+            <span
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--text-muted)",
+                fontWeight: "500",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "190px",
+              }}
+              title={notif.message || "Transaction updated"}
+            >
+              {notif.message || "Transaction updated"}
+            </span>
           ) : (
             <>
               <span
@@ -334,6 +428,7 @@ function SaleNotifRow({ notif, onDelete, onClick }) {
 
 function MsgNotifRow({ msg, onClick }) {
   const [hovered, setHovered] = useState(false);
+  const isChatRequest = msg.type === "chat_request";
   return (
     <div
       onClick={onClick}
@@ -424,10 +519,14 @@ function MsgNotifRow({ msg, onClick }) {
             marginBottom: "0.12rem",
           }}
         >
-          {msg.content}
+          {isChatRequest
+            ? msg.content || "Sent you a chat request"
+            : msg.content}
         </div>
         <div style={{ fontSize: "0.67rem", fontWeight: "600", opacity: 0.7 }}>
-          <span style={{ color: "var(--text-muted)" }}>item: </span>
+          <span style={{ color: "var(--text-muted)" }}>
+            {isChatRequest ? "request: " : "item: "}
+          </span>
           <span style={{ color: "var(--accent)" }}>
             {msg.itemTitle || "Item"}
           </span>
@@ -559,6 +658,34 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
 
+  function buildRequestNotif(req) {
+    return {
+      id: `req-${req.id}`,
+      requestId: req.id,
+      type: "chat_request",
+      senderId: req.sender?.id,
+      senderName:
+        `${req.sender?.firstName || ""} ${req.sender?.lastName || ""}`.trim() ||
+        "Someone",
+      senderAvatar: req.sender?.avatar || null,
+      itemId: req.itemId ?? null,
+      itemTitle: req.item?.title || "Item",
+      content: req.message || "Sent you a chat request",
+      createdAt: req.createdAt,
+    };
+  }
+
+  function mergeMsgAndRequestNotifs(msgs, requests) {
+    const mappedMsgs = (msgs || []).map((m) => ({
+      ...m,
+      type: m.type || "message",
+    }));
+    const mappedReqs = (requests || []).map(buildRequestNotif);
+    return [...mappedReqs, ...mappedMsgs].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+    );
+  }
+
   useEffect(() => {
     if (registerOpenBell) {
       registerOpenBell(() => {
@@ -595,7 +722,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     const handler = (msg) => {
       if (String(msg.receiverId) !== String(me.id)) return;
       const u = JSON.parse(localStorage.getItem("user") || "null");
-      if (u?.messageNotificationsEnabled === false) return;
+      if (u?.messageNotifications === false) return;
       if (window.location.pathname === "/messages") {
         setUnreadMsgs(0);
         return;
@@ -625,7 +752,7 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     socket.on("new-message", handler);
     const priceDropHandler = (data) => {
       const u = JSON.parse(localStorage.getItem("user") || "null");
-      if (u?.notificationsEnabled === false || u?.priceDropAlerts === false)
+      if (u?.saleNotifications === false || u?.priceDropAlerts === false)
         return;
       setUnreadSales((prev) => prev + 1);
       setSaleNotifs((prev) => {
@@ -645,24 +772,42 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     };
     const newSaleHandler = (data) => {
       const u = JSON.parse(localStorage.getItem("user") || "null");
-      if (u?.notificationsEnabled === false) return;
+      if (u?.saleNotifications === false) return;
+      const fromPayload = data.notification || {};
+      const resolvedType = fromPayload.type || data.type || "update";
+      if (resolvedType === "sale") return;
       setUnreadSales((prev) => prev + 1);
       setSaleNotifs((prev) => {
         const notif = {
-          id: data.notification?.id || Date.now(),
-          type: "sale",
-          itemId: data.itemId,
-          itemTitle: data.itemTitle,
-          price: data.price,
-          buyerName: data.buyerName,
+          id: fromPayload.id || Date.now(),
+          type: resolvedType,
+          itemId: fromPayload.itemId ?? data.itemId,
+          itemTitle: fromPayload.itemTitle || data.itemTitle,
+          price: fromPayload.price ?? data.price,
+          buyerName: fromPayload.buyerName || data.buyerName,
+          message: fromPayload.message || data.message || "",
           seen: false,
-          createdAt: new Date().toISOString(),
+          createdAt: fromPayload.createdAt || new Date().toISOString(),
         };
         if (prev.some((n) => n.id === notif.id)) return prev;
         return [notif, ...prev];
       });
     };
-    const chatReqHandler = () => setUnreadRequests((prev) => prev + 1);
+    const chatReqHandler = (reqData) => {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      if (u?.messageNotifications === false) return;
+      if (window.location.pathname === "/messages") return;
+
+      setUnreadRequests((prev) => prev + 1);
+      setUnreadMsgs((prev) => prev + 1);
+      if (!reqData?.id) return;
+
+      setMsgNotifs((prev) => {
+        const notif = buildRequestNotif(reqData);
+        if (prev.some((n) => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+    };
     socket.on("new-chat-request", chatReqHandler);
     socket.on("new-sale", newSaleHandler);
     socket.on("price-drop", priceDropHandler);
@@ -681,8 +826,9 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
         !dropdownRef.current.contains(e.target) &&
         buttonRef.current &&
         !buttonRef.current.contains(e.target)
-      )
+      ) {
         setOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -700,17 +846,16 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
         (r) => r.status === "pending",
       ).length;
       setUnreadRequests(pendingReqs);
-      if (u?.notificationsEnabled !== false)
-        setUnreadSales(saleRes.data.length);
+      if (u?.saleNotifications !== false) setUnreadSales(saleRes.data.length);
       else setUnreadSales(0);
-      if (u?.messageNotificationsEnabled !== false)
-        setUnreadMsgs(msgRes.data.count || 0);
+      if (u?.messageNotifications !== false)
+        setUnreadMsgs((msgRes.data.count || 0) + pendingReqs);
       else setUnreadMsgs(0);
     } catch {
       try {
         const saleRes = await API.get("/notifications");
         const u2 = JSON.parse(localStorage.getItem("user") || "null");
-        if (u2?.notificationsEnabled !== false)
+        if (u2?.saleNotifications !== false)
           setUnreadSales(saleRes.data.length);
       } catch {}
     }
@@ -719,7 +864,12 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     setLoadingSales(true);
     try {
       const res = await API.get("/notifications/all");
-      setSaleNotifs(res.data || []);
+      const all = res.data || [];
+      const reenabledAt = localStorage.getItem("saleNotifReenabledAt");
+      const filtered = reenabledAt
+        ? all.filter((n) => new Date(n.createdAt) > new Date(reenabledAt))
+        : all;
+      setSaleNotifs(filtered);
     } catch {
       setSaleNotifs([]);
     }
@@ -728,13 +878,32 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   async function fetchMsgNotifs() {
     setLoadingMsgs(true);
     try {
-      const res = await API.get("/messages/unread");
-      const msgs = res.data || [];
-      setMsgNotifs(msgs);
-      setUnreadMsgs(msgs.length);
+      const [msgRes, reqRes] = await Promise.all([
+        API.get("/messages/unread"),
+        API.get("/chat-requests"),
+      ]);
+      const msgs = msgRes.data || [];
+      const pendingReqs = (reqRes.data?.received || []).filter(
+        (r) => r.status === "pending",
+      );
+
+      const merged = mergeMsgAndRequestNotifs(msgs, pendingReqs);
+      const reenabledAt = localStorage.getItem("msgNotifReenabledAt");
+      const filtered = reenabledAt
+        ? merged.filter((n) => new Date(n.createdAt) > new Date(reenabledAt))
+        : merged;
+      const filteredReqs = reenabledAt
+        ? pendingReqs.filter(
+            (r) => new Date(r.createdAt) > new Date(reenabledAt),
+          )
+        : pendingReqs;
+      setMsgNotifs(filtered);
+      setUnreadRequests(filteredReqs.length);
+      setUnreadMsgs(filtered.length);
     } catch {
       setMsgNotifs([]);
       setUnreadMsgs(0);
+      setUnreadRequests(0);
     }
     setLoadingMsgs(false);
   }
@@ -743,36 +912,64 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     const w = !open;
     setOpen(w);
     if (w) {
-      setPendingSales(unreadSales);
-      setPendingMsgs(unreadMsgs);
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      const salesEnabled = u?.saleNotifications !== false;
+      const msgsEnabled = u?.messageNotifications !== false;
+
+      // Clear badge immediately on open — stays cleared regardless of whether user clicks
       setUnreadSales(0);
       setUnreadMsgs(0);
+      // Also persist to server so refresh doesn't bring the badge back
+      if (salesEnabled) API.post("/notifications/mark-seen").catch(() => {});
+      if (msgsEnabled) API.post("/messages/mark-all-read").catch(() => {});
+
       if (unreadSales > 0) setActiveTab("sales");
       else if (unreadMsgs > 0) setActiveTab("messages");
-      const u = JSON.parse(localStorage.getItem("user") || "null");
+
+      // If both disabled — nothing to fetch, panel will show disabled state
+      if (!salesEnabled && !msgsEnabled) return;
+
       try {
-        const [saleRes, allRes, msgRes] = await Promise.all([
-          API.get("/notifications"),
-          API.get("/notifications/all"),
-          API.get("/messages/unread"),
+        const [saleRes, allRes, msgRes, reqRes] = await Promise.all([
+          salesEnabled
+            ? API.get("/notifications")
+            : Promise.resolve({ data: [] }),
+          salesEnabled
+            ? API.get("/notifications/all")
+            : Promise.resolve({ data: [] }),
+          msgsEnabled
+            ? API.get("/messages/unread")
+            : Promise.resolve({ data: [] }),
+          msgsEnabled
+            ? API.get("/chat-requests")
+            : Promise.resolve({ data: { received: [] } }),
         ]);
-        const sales =
-          u?.notificationsEnabled !== false ? saleRes.data.length : 0;
-        const msgs =
-          u?.messageNotificationsEnabled !== false ? msgRes.data.length : 0;
-        setPendingSales(sales);
-        setPendingMsgs(msgs);
-        setSaleNotifs(allRes.data || []);
-        setMsgNotifs(msgRes.data || []);
+        const sales = salesEnabled ? saleRes.data.length : 0;
+        const pendingReqs = msgsEnabled
+          ? (reqRes.data?.received || []).filter((r) => r.status === "pending")
+          : [];
+        const mergedMsgs = msgsEnabled
+          ? mergeMsgAndRequestNotifs(msgRes.data || [], pendingReqs)
+          : [];
+        const msgs = msgsEnabled ? mergedMsgs.length : 0;
+
+        setUnreadRequests(pendingReqs.length);
+        const saleReenabledAt = localStorage.getItem("saleNotifReenabledAt");
+        const allSales = salesEnabled ? allRes.data || [] : [];
+        setSaleNotifs(
+          saleReenabledAt
+            ? allSales.filter(
+                (n) => new Date(n.createdAt) > new Date(saleReenabledAt),
+              )
+            : allSales,
+        );
+        setMsgNotifs(mergedMsgs);
         if (sales > 0) setActiveTab("sales");
         else if (msgs > 0) setActiveTab("messages");
       } catch {}
-    } else {
-      setUnreadSales(pendingSales);
-      setUnreadMsgs(pendingMsgs);
-      setPendingSales(0);
-      setPendingMsgs(0);
     }
+    // No else — badge stays cleared once panel is opened.
+    // Notifications remain in the list until individually clicked.
   }
   async function handleMarkAllSeen() {
     try {
@@ -798,17 +995,33 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
   }
   function handleSaleClick(notif) {
     setOpen(false);
+    // Mark this notification seen — remove it from unseen count
+    setSaleNotifs((prev) => prev.map((n) => ({ ...n, seen: true })));
+    // Reduce pending by the unseen ones (now all seen), clear badge
     setPendingSales(0);
     setUnreadSales(0);
-    navigate(
-      `/dashboard?tab=${notif.type === "price_drop" ? "watching" : "sold"}&item=${notif.itemId}`,
-    );
     API.post("/notifications/mark-seen").catch(() => {});
+    if (notif.type === "price_drop") {
+      navigate(`/dashboard?tab=watching&item=${notif.itemId}`);
+    } else {
+      navigate("/transactions");
+    }
   }
   function handleMsgClick(msg) {
     setOpen(false);
-    setUnreadMsgs(0);
+    // Remove only this specific notification from the panel
+    setMsgNotifs((prev) => {
+      const remaining = prev.filter((n) => n.id !== msg.id);
+      // Update pending to reflect remaining count
+      setPendingMsgs(remaining.length);
+      setUnreadMsgs(remaining.length);
+      return remaining;
+    });
     API.post("/messages/mark-all-read").catch(() => {});
+    if (msg.type === "chat_request") {
+      navigate("/messages", { state: { openRequests: true } });
+      return;
+    }
     navigate("/messages", {
       state: {
         item: {
@@ -820,17 +1033,9 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
     });
   }
   function handleTabClick(tabKey) {
+    // Just switch tab — don't mark anything read.
+    // Notifications are only cleared when the user clicks them individually.
     setActiveTab(tabKey);
-    if (tabKey === "messages") {
-      setPendingMsgs(0);
-      setUnreadMsgs(0);
-      API.post("/messages/mark-read").catch(() => {});
-    }
-    if (tabKey === "sales") {
-      setPendingSales(0);
-      setUnreadSales(0);
-      API.post("/notifications/mark-seen").catch(() => {});
-    }
   }
 
   if (!isLoggedIn) return null;
@@ -1070,133 +1275,227 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
             className="notif-scroll"
           >
             {activeTab === "sales" &&
-              (loadingSales ? (
-                <div style={{ padding: "2rem", textAlign: "center" }}>
-                  <div
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "50%",
-                      border: "2px solid var(--accent-soft)",
-                      borderTopColor: "var(--accent)",
-                      animation: "spin 0.8s linear infinite",
-                      margin: "0 auto",
-                    }}
-                  />
-                </div>
-              ) : saleNotifs.length === 0 ? (
-                <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
-                  <div
-                    style={{
-                      fontSize: "1.6rem",
-                      marginBottom: "0.5rem",
-                      opacity: 0.3,
-                    }}
-                  >
-                    🛒
-                  </div>
-                  <div
-                    style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}
-                  >
-                    No sale notifications yet
-                  </div>
-                </div>
-              ) : (
-                saleNotifs.map((notif, i) => (
-                  <SaleNotifRow
-                    key={notif.id || i}
-                    notif={notif}
-                    onDelete={handleDeleteOne}
-                    onClick={() => handleSaleClick(notif)}
-                  />
-                ))
-              ))}
-            {activeTab === "messages" &&
-              (loadingMsgs ? (
-                <div style={{ padding: "2rem", textAlign: "center" }}>
-                  <div
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "50%",
-                      border: "2px solid rgba(116,185,255,0.3)",
-                      borderTopColor: "#74b9ff",
-                      animation: "spin 0.8s linear infinite",
-                      margin: "0 auto",
-                    }}
-                  />
-                </div>
-              ) : msgNotifs.length === 0 ? (
-                <div style={{ padding: "1.5rem 1rem" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                      padding: "0.85rem 1rem",
-                      background: "var(--bg-card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-sm)",
-                    }}
-                  >
+              (() => {
+                const u = JSON.parse(localStorage.getItem("user") || "null");
+                const salesEnabled = u?.saleNotifications !== false;
+                if (!salesEnabled)
+                  return (
+                    <div
+                      style={{ padding: "2.5rem 1rem", textAlign: "center" }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--text-muted)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        Sale notifications are turned off.
+                        <br />
+                        <span
+                          style={{
+                            color: "var(--accent)",
+                            cursor: "pointer",
+                            fontWeight: "600",
+                          }}
+                          onClick={() => {
+                            setOpen(false);
+                            navigate("/settings?section=notifications");
+                          }}
+                        >
+                          Enable in Settings →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                return loadingSales ? (
+                  <div style={{ padding: "2rem", textAlign: "center" }}>
                     <div
                       style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "var(--radius-sm)",
-                        background: "var(--bg-input)",
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "50%",
+                        border: "2px solid var(--accent-soft)",
+                        borderTopColor: "var(--accent)",
+                        animation: "spin 0.8s linear infinite",
+                        margin: "0 auto",
+                      }}
+                    />
+                  </div>
+                ) : saleNotifs.length === 0 ? (
+                  <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
+                    <div
+                      style={{
+                        width: "44px",
+                        height: "44px",
+                        margin: "0 auto 0.6rem",
+                        borderRadius: "12px",
                         border: "1px solid var(--border)",
+                        background: "var(--bg-card)",
+                        color: "var(--text-ghost)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        flexShrink: 0,
                       }}
                     >
                       <svg
-                        width="13"
-                        height="13"
+                        width="20"
+                        height="20"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="var(--text-muted)"
-                        strokeWidth="2"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        aria-hidden="true"
                       >
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <polyline points="22,6 12,13 2,6" />
+                        <path d="M3 6h15.5l-1.2 7.2a2 2 0 0 1-2 1.68H8.1a2 2 0 0 1-1.98-1.7L5 5H3" />
+                        <circle cx="9" cy="18" r="1.5" />
+                        <circle cx="16" cy="18" r="1.5" />
+                        <path d="M12 9.5v3" />
+                        <path d="M10.5 11h3" />
                       </svg>
                     </div>
-                    <div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      No sale notifications yet
+                    </div>
+                  </div>
+                ) : (
+                  saleNotifs.map((notif, i) => (
+                    <SaleNotifRow
+                      key={notif.id || i}
+                      notif={notif}
+                      onDelete={handleDeleteOne}
+                      onClick={() => handleSaleClick(notif)}
+                    />
+                  ))
+                );
+              })()}
+            {activeTab === "messages" &&
+              (() => {
+                const u = JSON.parse(localStorage.getItem("user") || "null");
+                const msgsEnabled = u?.messageNotifications !== false;
+                if (!msgsEnabled)
+                  return (
+                    <div
+                      style={{ padding: "2.5rem 1rem", textAlign: "center" }}
+                    >
                       <div
                         style={{
-                          fontSize: "0.78rem",
-                          fontWeight: "600",
-                          color: "var(--text-secondary)",
-                          marginBottom: "2px",
-                        }}
-                      >
-                        All caught up
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.68rem",
+                          fontSize: "0.75rem",
                           color: "var(--text-muted)",
+                          lineHeight: 1.5,
                         }}
                       >
-                        No unread messages
+                        Message notifications are turned off.
+                        <br />
+                        <span
+                          style={{
+                            color: "var(--accent)",
+                            cursor: "pointer",
+                            fontWeight: "600",
+                          }}
+                          onClick={() => {
+                            setOpen(false);
+                            navigate("/settings?section=notifications");
+                          }}
+                        >
+                          Enable in Settings →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                return loadingMsgs ? (
+                  <div style={{ padding: "2rem", textAlign: "center" }}>
+                    <div
+                      style={{
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "50%",
+                        border: "2px solid rgba(116,185,255,0.3)",
+                        borderTopColor: "#74b9ff",
+                        animation: "spin 0.8s linear infinite",
+                        margin: "0 auto",
+                      }}
+                    />
+                  </div>
+                ) : msgNotifs.length === 0 ? (
+                  <div style={{ padding: "1.5rem 1rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem",
+                        padding: "0.85rem 1rem",
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-sm)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--bg-input)",
+                          border: "1px solid var(--border)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--text-muted)"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                          <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "0.78rem",
+                            fontWeight: "600",
+                            color: "var(--text-secondary)",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          All caught up
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.68rem",
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          No unread messages or requests
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                msgNotifs.map((msg, i) => (
-                  <MsgNotifRow
-                    key={msg.id || i}
-                    msg={msg}
-                    onClick={() => handleMsgClick(msg)}
-                  />
-                ))
-              ))}
+                ) : (
+                  msgNotifs.map((msg, i) => (
+                    <MsgNotifRow
+                      key={msg.id || i}
+                      msg={msg}
+                      onClick={() => handleMsgClick(msg)}
+                    />
+                  ))
+                );
+              })()}
           </div>
           <div
             style={{
@@ -2258,7 +2557,8 @@ function Navbar({ registerOpenBell }) {
     try {
       const key = getGridKey(location.pathname);
       const isHome = key === "homeGridSize";
-      const defaultValue = (isHome || key === "gridSize_find-sellers") ? "3" : "1";
+      const defaultValue =
+        isHome || key === "gridSize_find-sellers" ? "3" : "1";
       const saved = parseInt(localStorage.getItem(key) || defaultValue, 10);
       setGridSizeState(isHome ? Math.max(2, saved) : saved);
     } catch {}
