@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "seed": "prisma db seed --schema=./database/prisma/schema.prisma",
     "prisma:migrate:dev": "prisma migrate dev --schema=./database/prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema=./database/prisma/schema.prisma",
     "prisma:push": "prisma db push --schema=./database/prisma/schema.prisma --accept-data-loss",
@@ -15,6 +16,9 @@
   },
   "postinstall": "prisma generate --schema=./database/prisma/schema.prisma",
   "keywords": [],
+  "prisma": {
+    "seed": "ts-node database/prisma/seed.ts"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -40,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2"
   }
 }

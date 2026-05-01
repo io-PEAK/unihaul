@@ -19,6 +19,7 @@ import uploadRoutes from "./src/routes/uploadRoute.js";
 import chatRequestRoutes from "./src/routes/chatRequestsRoute.js";
 import reviewRoutes from "./src/routes/reviewsRoute.js";
 import { expireCheckoutSessions } from "./src/controllers/transactionsController.js";
+import { cleanupExpiredAttachments } from "./src/lib/cleanupAttachments.js";
 
 dotenv.config();
 const app = express();
@@ -115,6 +116,10 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -214,4 +219,9 @@ httpServer.listen(PORT, () => {
   setInterval(() => {
     expireCheckoutSessions();
   }, 60 * 1000);
+
+  // Clean up expired multi-media attachments every 12 hours.
+  setInterval(() => {
+    cleanupExpiredAttachments();
+  }, 12 * 60 * 60 * 1000);
 });

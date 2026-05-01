@@ -27,6 +27,7 @@ model User {
   notificationsEnabled Boolean @default(true)
   theme                String  @default("ember")
 
+  upiId        String?
   googleId     String?   @unique
   authProvider String    @default("local")
 
@@ -106,8 +107,16 @@ model WatchedItem {
 
 model Message {
   id         Int      @id @default(autoincrement())
-  content    String
+  content    String?
   imageUrl   String?
+  fileUrl    String?
+  fileType   String?  // 'image', 'video', 'pdf'
+  fileName   String?
+  fileSize   Int?
+  publicId   String?
+  expiresAt  DateTime?
+  isCloudDeleted Boolean @default(false)
+  
   createdAt  DateTime @default(now())
   read       Boolean  @default(false)
 

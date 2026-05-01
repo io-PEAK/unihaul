@@ -19,13 +19,6 @@ export async function sendOtpEmail({ to, otp, type }) {
     ? 'You requested to change your email address. Use the code below to verify.'
     : 'You requested a password reset. Use the code below to set a new password.'
 
-  // Each digit gets its own styled box
-  const digits = otp.split('').map(d =>
-    `<td style="padding:0 4px;">
-      <div style="width:48px;height:58px;background:#1a1a1a;border:1.5px solid #2e2e2e;border-radius:10px;text-align:center;line-height:58px;font-size:26px;font-weight:800;color:#e87722;font-family:'Courier New',monospace;display:inline-block;">${d}</div>
-    </td>`
-  ).join('')
-
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,96 +26,82 @@ export async function sendOtpEmail({ to, otp, type }) {
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#0d0d0d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0d0d0d;padding:48px 20px;">
+<body style="margin:0;padding:0;background:#080810;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#080810;padding:60px 20px;">
   <tr><td align="center">
-    <table width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;width:100%;">
+    <table width="540" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;width:100%;">
 
-      <!-- CARD -->
-      <tr><td style="background:#161616;border:1px solid #252525;border-radius:20px;overflow:hidden;">
-
-        <!-- Accent bar -->
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="height:4px;background:linear-gradient(90deg,#c45e0a,#e87722,#ff9a3c,#e87722,#c45e0a);"></td>
-        </tr></table>
-
-        <!-- LOGO -->
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding:30px 40px 24px;">
-            <table cellpadding="0" cellspacing="0"><tr>
-              <td style="vertical-align:middle;">
-                <table cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#e87722,#ff9a3c);border-radius:10px;width:38px;height:38px;">
-                  <tr><td style="text-align:center;vertical-align:middle;width:38px;height:38px;">
-                    <span style="color:#fff;font-size:19px;font-weight:900;line-height:1;">S</span>
-                  </td></tr>
-                </table>
-              </td>
-              <td style="vertical-align:middle;padding-left:10px;">
-                <span style="color:#fff;font-size:15px;font-weight:800;letter-spacing:0.3px;">STUDENT</span>
-                <span style="color:#e87722;font-size:15px;font-weight:800;letter-spacing:0.3px;"> SHOP</span>
-              </td>
-            </tr></table>
-          </td>
-        </tr></table>
-
-        <!-- Divider -->
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding:0 40px;"><div style="height:1px;background:#222;"></div></td>
-        </tr></table>
-
-        <!-- HEADING -->
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding:28px 40px 0;">
-            <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.3px;line-height:1.25;">${heading}</h1>
-            <p style="margin:0;font-size:14px;color:#777;line-height:1.7;">${message}</p>
-          </td>
-        </tr></table>
-
-        <!-- OTP BOX -->
-        <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding:24px 40px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border:1px solid #222;border-radius:14px;">
-              <tr><td style="padding:26px 20px 8px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#444;margin-bottom:20px;">Verification Code</div>
-                <!-- Digit boxes -->
-                <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>${digits}</tr></table>
-              </td></tr>
-              <tr><td style="padding:14px 20px 24px;text-align:center;">
-                <span style="font-size:12px;color:#444;">Expires in </span>
-                <span style="font-size:12px;font-weight:700;color:#666;">3 minutes</span>
+      <!-- LOGO AREA -->
+      <tr><td style="padding-bottom:32px;text-align:center;">
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
+          <td style="vertical-align:middle;">
+            <table cellpadding="0" cellspacing="0" style="background:#e87722;border-radius:12px;width:44px;height:44px;">
+              <tr><td style="text-align:center;vertical-align:middle;padding:8px;">
+                <img src="https://student-shop.vercel.app/favicon.svg" width="28" height="28" style="display:block;margin:0 auto;" alt="S">
               </td></tr>
             </table>
           </td>
+          <td style="vertical-align:middle;padding-left:14px;">
+            <div style="color:#ffffff;font-size:20px;font-weight:900;letter-spacing:-0.5px;line-height:1;">STUDENT <span style="color:#e87722;">SHOP</span></div>
+          </td>
         </tr></table>
+      </td></tr>
 
-        <!-- SAFETY NOTE -->
+      <!-- MAIN CARD -->
+      <tr><td style="background:#12121e;border:1px solid #2a2a3a;border-radius:24px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.5);">
+        
+        <!-- Header Gradient Bar (Ember Theme) -->
+        <div style="height:4px;background:linear-gradient(90deg,#e87722,#f5a623,#e87722);"></div>
+
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding:20px 40px 36px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#1c1c1c;border:1px solid #272727;border-radius:10px;">
-              <tr><td style="padding:13px 16px;">
+          <td style="padding:44px 40px;">
+            
+            <!-- HEADING -->
+            <h1 style="margin:0 0 12px;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.8px;line-height:1.2;">${heading}</h1>
+            <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.6;font-weight:400;">${message}</p>
+
+            <!-- CONVENIENT OTP BOX -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:36px;background:rgba(232,119,34,0.08);border:2px dashed rgba(232,119,34,0.4);border-radius:20px;">
+              <tr><td style="padding:32px 20px;text-align:center;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.5);margin-bottom:16px;">Copy your verification code</div>
+                
+                <div style="display:inline-block;padding:12px 32px;background:#1a1a24;border:1px solid #333344;border-radius:14px;box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+                  <span style="font-size:36px;font-weight:900;color:#e87722;font-family:'Courier New',monospace;letter-spacing:6px;user-select:all;">${otp}</span>
+                </div>
+
+                <div style="margin-top:20px;">
+                  <div style="display:inline-block;padding:6px 14px;background:rgba(232,119,34,0.12);border-radius:20px;">
+                    <span style="font-size:13px;color:rgba(255,255,255,0.6);">Expires in </span>
+                    <span style="font-size:13px;font-weight:700;color:#e87722;">3 minutes</span>
+                  </div>
+                </div>
+              </td></tr>
+            </table>
+
+            <!-- INFO NOTE -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;">
+              <tr><td style="padding:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:16px;">
                 <table cellpadding="0" cellspacing="0"><tr>
-                  <td style="vertical-align:top;padding-right:9px;width:18px;">
-                    <table cellpadding="0" cellspacing="0" style="background:#2a2a2a;border-radius:50%;width:17px;height:17px;"><tr>
-                      <td style="text-align:center;vertical-align:middle;font-size:10px;font-weight:800;color:#555;line-height:17px;width:17px;height:17px;">i</td>
-                    </tr></table>
+                  <td style="vertical-align:top;padding-right:12px;">
+                    <div style="width:20px;height:20px;background:#e87722;border-radius:50%;color:#ffffff;font-size:12px;font-weight:bold;text-align:center;line-height:20px;">i</div>
                   </td>
-                  <td style="font-size:12px;color:#555;line-height:1.65;">
-                    If you didn't request this, you can safely ignore this email. Your account has not been changed.
+                  <td style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;">
+                    To protect your account, do not share this code with anyone. Our team will never ask for this code.
                   </td>
                 </tr></table>
               </td></tr>
             </table>
+
           </td>
         </tr></table>
 
       </td></tr>
-      <!-- END CARD -->
 
       <!-- FOOTER -->
-      <tr><td style="padding:20px 8px 0;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#333;line-height:1.9;">
-          Sent by <span style="color:#4a4a4a;font-weight:600;">Student Shop</span> · Campus Buy &amp; Sell<br>
-          This is an automated message — please do not reply.
+      <tr><td style="padding:32px 20px 0;text-align:center;">
+        <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.8;letter-spacing:0.2px;">
+          Sent by <span style="color:rgba(255,255,255,0.5);font-weight:700;">Student Shop</span><br>
+          An automated security message. Please do not reply.
         </p>
       </td></tr>
 
