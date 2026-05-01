@@ -1,5 +1,13 @@
 import prisma from "../lib/prisma.js";
-import { io } from "../../server.js";
+import { deleteFile } from "./uploadController.js";
+
+const getAttachmentPreview = (msg) => {
+  if (msg.content) return msg.content;
+  if (msg.fileType === "image" || msg.imageUrl) return "Photo";
+  if (msg.fileType === "video") return "Video";
+  if (msg.fileType === "pdf") return "Document";
+  return "";
+};
 
 // GET /messages/conversations
 export const getConversations = async (req, res) => {
@@ -9,8 +17,8 @@ export const getConversations = async (req, res) => {
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: userId, deletedBySender: false },
-          { receiverId: userId, deletedByReceiver: false },
+          { senderId: userId, deletedBySender: { not: true } },
+          { receiverId: userId, deletedByReceiver: { not: true } },
         ],
       },
       include: {
@@ -49,7 +57,7 @@ export const getConversations = async (req, res) => {
           other_user_name:
             `${otherUser.firstName} ${otherUser.lastName}`.trim(),
           other_user_avatar: otherUser.avatar || null,
-          last_message: msg.content || (msg.imageUrl ? "Photo" : ""),
+          last_message: getAttachmentPreview(msg),
           last_message_at: msg.createdAt,
           unread_count: !msg.read && msg.receiverId === userId ? 1 : 0,
           chat_request_id: null,
@@ -166,12 +174,12 @@ export const getMessages = async (req, res) => {
             {
               senderId: userId,
               receiverId: otherUserId,
-              deletedBySender: false,
+              deletedBySender: { not: true },
             },
             {
               senderId: otherUserId,
               receiverId: userId,
-              deletedByReceiver: false,
+              deletedByReceiver: { not: true },
             },
           ],
         },
@@ -225,7 +233,22 @@ export const getMessages = async (req, res) => {
       }
     }
 
-    res.json(result);
+    res.json(result.map(msg => ({
+      id: msg.id,
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      itemId: msg.itemId,
+      content: msg.content || "",
+      imageUrl: msg.imageUrl || null,
+      fileUrl: msg.fileUrl || null,
+      fileType: msg.fileType || null,
+      fileName: msg.fileName || null,
+      fileSize: msg.fileSize || null,
+      publicId: msg.publicId || null,
+      isCloudDeleted: msg.isCloudDeleted || false,
+      createdAt: msg.createdAt,
+      _synthetic: msg._synthetic || false,
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to get messages" });
@@ -235,11 +258,11 @@ export const getMessages = async (req, res) => {
 // POST /messages
 export const sendMessage = async (req, res) => {
   try {
-    const { receiverId, itemId, content, imageUrl } = req.body;
+    const { receiverId, itemId, content, imageUrl, fileUrl: reqFileUrl, attachmentType } = req.body;
     const text = content?.trim() || "";
-    if (!receiverId || (!text && !imageUrl)) {
+    if (!receiverId || (!text && !imageUrl && !reqFileUrl)) {
       return res.status(400).json({
-        error: "receiverId and at least one of content or imageUrl is required",
+        error: "receiverId and at least one of content, imageUrl, or fileUrl is required",
       });
     }
     const senderId = req.user.userId;
@@ -281,9 +304,9 @@ export const sendMessage = async (req, res) => {
         });
       }
 
-      if (!text && !imageUrl) {
+      if (!text && !imageUrl && !reqFileUrl) {
         return res.status(400).json({
-          error: "First message for a new request must include text or image.",
+          error: "First message for a new request must include text, image, or file.",
         });
       }
 
@@ -316,10 +339,11 @@ export const sendMessage = async (req, res) => {
         },
       });
 
-      const onlineUsers = io?._onlineUsers;
+      const socketIo = req.io;
+      const onlineUsers = socketIo?._onlineUsers;
       if (statusToSet === "pending") {
         onlineUsers?.get(String(parsedReceiverId))?.forEach((sid) => {
-          io.to(sid).emit("new-chat-request", {
+          socketIo.to(sid).emit("new-chat-request", {
             id: chatReq.id,
             sender: chatReq.sender,
             message: chatReq.message,
@@ -336,7 +360,7 @@ export const sendMessage = async (req, res) => {
       } else {
         // Ping receiver so their UI fetches the newly created auto-accepted thread
         onlineUsers?.get(String(parsedReceiverId))?.forEach((sid) => {
-          io.to(sid).emit("request-accepted", {
+          socketIo.to(sid).emit("request-accepted", {
             requestId: chatReq.id,
             itemId: parsedItemId,
             seller: chatReq.sender,
@@ -346,6 +370,12 @@ export const sendMessage = async (req, res) => {
     }
 
     // Normal message creation...
+    const { fileUrl, fileType, fileName, fileSize, publicId } = req.body;
+    
+    const expiresAt = (fileUrl || imageUrl) 
+      ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) 
+      : null;
+
     const message = await prisma.message.create({
       data: {
         senderId,
@@ -353,6 +383,12 @@ export const sendMessage = async (req, res) => {
         itemId: parsedItemId,
         content: text,
         imageUrl: imageUrl || null,
+        fileUrl: fileUrl || null,
+        fileType: fileType || null,
+        fileName: fileName || null,
+        fileSize: fileSize ? parseInt(fileSize) : null,
+        publicId: publicId || null,
+        expiresAt,
         read: false,
       },
     });
@@ -377,14 +413,15 @@ export const sendMessage = async (req, res) => {
       itemTitle: item?.title || "",
     };
 
-    const onlineUsers = io?._onlineUsers;
+    const socketIo = req.io;
+    const onlineUsers = socketIo?._onlineUsers;
     [String(parsedReceiverId), String(senderId)].forEach((uid) => {
       onlineUsers
         ?.get(uid)
-        ?.forEach((sid) => io.to(sid).emit("new-message", richMessage));
+        ?.forEach((sid) => socketIo.to(sid).emit("new-message", richMessage));
     });
 
-    res.status(201).json(message);
+    res.status(201).json(richMessage);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to send message" });
@@ -398,7 +435,7 @@ export const getUnreadCount = async (req, res) => {
       where: {
         receiverId: req.user.userId,
         read: false,
-        deletedByReceiver: false,
+        deletedByReceiver: { not: true },
       },
     });
     res.json({ count });
@@ -413,7 +450,7 @@ export const getUnreadMessages = async (req, res) => {
   try {
     const userId = req.user.userId;
     const messages = await prisma.message.findMany({
-      where: { receiverId: userId, read: false, deletedByReceiver: false },
+      where: { receiverId: userId, read: false, deletedByReceiver: { not: true } },
       include: {
         sender: {
           select: { id: true, firstName: true, lastName: true, avatar: true },
@@ -431,8 +468,12 @@ export const getUnreadMessages = async (req, res) => {
         senderAvatar: msg.sender.avatar || null,
         itemId: msg.itemId,
         itemTitle: msg.item?.title || "Item",
-        content: msg.content || (msg.imageUrl ? "Photo" : ""),
+        content: getAttachmentPreview(msg),
         imageUrl: msg.imageUrl || null,
+        fileUrl: msg.fileUrl || null,
+        fileType: msg.fileType || null,
+        fileName: msg.fileName || null,
+        isCloudDeleted: msg.isCloudDeleted,
         createdAt: msg.createdAt,
       })),
     );
@@ -512,6 +553,39 @@ export const deleteConversation = async (req, res) => {
       }),
     ]);
 
+    // Cleanup Logic: Permanently delete messages marked as deleted by BOTH users
+    const doubleDeleted = await prisma.message.findMany({
+      where: {
+        itemId: itemId ?? null,
+        deletedBySender: true,
+        deletedByReceiver: true,
+        OR: [
+          { senderId: userId, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: userId },
+        ],
+      },
+      select: { id: true, publicId: true, fileType: true },
+    });
+
+    if (doubleDeleted.length > 0) {
+      // 1. Delete from Cloudinary
+      for (const msg of doubleDeleted) {
+        if (msg.publicId) {
+          const resourceType =
+            msg.fileType === "video" ? "video" : 
+            (msg.fileType === "image" || !msg.fileType) ? "image" : "raw";
+          
+          // Fire and forget deletion
+          deleteFile(msg.publicId, resourceType);
+        }
+      }
+
+      // 2. Delete from Database
+      await prisma.message.deleteMany({
+        where: { id: { in: doubleDeleted.map((m) => m.id) } },
+      });
+    }
+
     await prisma.chatRequest.deleteMany({
       where: {
         itemId: itemId ?? null,
@@ -522,9 +596,10 @@ export const deleteConversation = async (req, res) => {
       },
     });
 
-    const onlineUsers = io?._onlineUsers;
+    const socketIo = req.io;
+    const onlineUsers = socketIo?._onlineUsers;
     onlineUsers?.get(String(otherUserId))?.forEach((sid) => {
-      io.to(sid).emit("convo-deleted-by-other", {
+      socketIo.to(sid).emit("convo-deleted-by-other", {
         itemId: itemId,
         otherUserId: userId,
       });

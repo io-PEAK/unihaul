@@ -54,6 +54,16 @@ export const uploadItemImage = async (req, res) => {
 // Called by frontend when:
 //   (a) user removes an image before submitting the form
 //   (b) user cancels the form entirely (component unmount cleanup)
+// Generic helper to delete any file from Cloudinary (image, video, or raw)
+export const deleteFile = async (publicId, resourceType = "image") => {
+  try {
+    if (!publicId) return;
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  } catch (err) {
+    console.error("Cloudinary delete error:", err);
+  }
+};
+
 export const deleteItemImage = async (req, res) => {
   try {
     const { publicId } = req.body;
@@ -144,6 +154,23 @@ export const uploadMessageVideo = async (req, res) => {
   } catch (err) {
     console.error("Cloudinary message video upload error:", err);
     res.status(500).json({ error: "Message video upload failed." });
+  }
+};
+
+// POST /upload/message-file — upload message attachment (PDF/Raw)
+export const uploadMessageFile = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file provided." });
+
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: "student_shop/messages",
+      resource_type: "raw",
+    });
+
+    res.json({ url: result.secure_url, publicId: result.public_id });
+  } catch (err) {
+    console.error("Cloudinary message file upload error:", err);
+    res.status(500).json({ error: "Message file upload failed." });
   }
 };
 

@@ -373,6 +373,7 @@ export const initializeCheckout = async (req, res) => {
             firstName: true,
             lastName: true,
             phone: true,
+            upiId: true,
             sellerIdVerified: true,
             sellerVideoVerified: true,
             sellerVerificationExpiresAt: true,
@@ -604,10 +605,16 @@ export const initializeCheckout = async (req, res) => {
       });
     }
 
+    if (method === PAYMENT_METHODS.UPI_DIRECT && !item.seller?.upiId) {
+      return res.status(400).json({
+        error: "Seller has not configured their UPI ID. Direct payment is unavailable for this item.",
+      });
+    }
+
     const upiIntent =
       method === PAYMENT_METHODS.UPI_DIRECT
         ? buildUpiIntent({
-            upiId: process.env.PLATFORM_UPI_ID,
+            upiId: item.seller.upiId,
             amount: quote.pricing.totalPayable,
             txnId: transaction.id,
             itemTitle: item.title,

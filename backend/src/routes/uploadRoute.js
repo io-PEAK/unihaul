@@ -7,6 +7,7 @@ import {
   uploadAvatar,
   uploadMessageImage,
   uploadMessageVideo,
+  uploadMessageFile,
   uploadVerificationId,
   uploadVerificationVideo,
 } from "../controllers/uploadController.js";
@@ -60,6 +61,25 @@ const messageVideoUpload = multer({
   },
 });
 
+const messageFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/plain",
+    ];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Only common document files (PDF, DOCX, XLSX, PPTX, TXT) are allowed."));
+  },
+});
+
 // POST /upload/item-image  — upload one image, returns { url, publicId }
 router.post("/item-image", protect, upload.single("image"), uploadItemImage);
 
@@ -82,6 +102,13 @@ router.post(
   protect,
   messageVideoUpload.single("video"),
   uploadMessageVideo,
+);
+
+router.post(
+  "/message-file",
+  protect,
+  messageFileUpload.single("file"),
+  uploadMessageFile,
 );
 
 router.post(
