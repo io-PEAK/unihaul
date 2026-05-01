@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import API from "../api/axios";
 import { useTheme } from "../ThemeContext";
 
 /* ─── InstitutionSearch ─────────────────────────────────────────────── */
-function InstitutionSearch({ value, type, onSelect }) {
+const InstitutionSearch = forwardRef(({ value, type, onSelect }, ref) => {
   const [query, setQuery] = useState(value || "");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +55,7 @@ function InstitutionSearch({ value, type, onSelect }) {
     <div ref={wrapRef} style={{ position: "relative" }}>
       <div style={{ position: "relative" }}>
         <input
+          ref={ref}
           type="text"
           value={query}
           onChange={handleChange}
@@ -231,7 +232,7 @@ function InstitutionSearch({ value, type, onSelect }) {
       )}
     </div>
   );
-}
+});
 
 /* ─── CreatePasswordPanel (Google users) ───────────────────────────── */
 function CreatePasswordPanel({ onSuccess }) {
@@ -331,7 +332,6 @@ function CreatePasswordPanel({ onSuccess }) {
           lineHeight: "1.6",
         }}
       >
-        Create a password so you can also log in with your email directly.
       </div>
       <div
         className="st-grid-2"
@@ -792,10 +792,12 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [hasResentOnce, setHasResentOnce] = useState(false);
   const timerRef = useRef(null);
   const otpInputRef = useRef(null);
   function startCountdown() {
     setCountdown(60);
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(
       () =>
         setCountdown((c) => {
@@ -822,15 +824,24 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
       return;
     }
     try {
+      const isResend = step === "otp_sent";
       setStep("sending");
       setError("");
       await API.post("/users/send-otp", { type: "email_change" });
       setStep("otp_sent");
-      startCountdown();
+      
+      if (isResend) {
+        setHasResentOnce(true);
+        startCountdown();
+      } else {
+        setHasResentOnce(false);
+        setCountdown(0);
+      }
+      
       setTimeout(() => otpInputRef.current?.focus(), 100);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send OTP");
-      setStep("idle");
+      setStep(step === "otp_sent" ? "otp_sent" : "idle");
     }
   }
   async function submit(otpVal) {
@@ -887,7 +898,7 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
       <div>
         <label style={LS}>New Email Address</label>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <input
             value={newEmail}
             onChange={(e) => {
@@ -899,10 +910,21 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
             type="email"
             disabled={step !== "idle"}
             className="st-inp"
-            style={{ ...IS, flex: 1, opacity: step !== "idle" ? 0.55 : 1 }}
+            style={{ ...IS, flex: 1, opacity: step !== "idle" ? 0.55 : 1, margin: 0 }}
           />
           {step === "idle" && (
-            <button onClick={sendOtp} style={AB}>
+            <button 
+              onClick={sendOtp} 
+              style={{ 
+                ...AB, 
+                padding: "0.5rem 1.1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "fit-content",
+                margin: 0
+              }}
+            >
               Send OTP
             </button>
           )}
@@ -933,6 +955,9 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
                 setStep("idle");
                 setOtp("");
                 setError("");
+                setHasResentOnce(false);
+                setCountdown(0);
+                if (timerRef.current) clearInterval(timerRef.current);
               }}
               style={{
                 ...GB,
@@ -975,7 +1000,7 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
             OTP sent to <strong>{currentEmail}</strong>
           </div>
           <label style={LS}>6-digit OTP</label>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <input
               ref={otpInputRef}
               value={otp}
@@ -1006,31 +1031,24 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
               }}
             />
             <button
-              onClick={() => submit()}
-              disabled={step === "submitting" || otp.length < 6}
+              onClick={countdown === 0 ? sendOtp : undefined}
+              disabled={step === "submitting" || countdown > 0}
               style={{
                 ...AB,
-                opacity: step === "submitting" || otp.length < 6 ? 0.45 : 1,
+                padding: "0.5rem 1.1rem",
+                opacity: (step === "submitting" || countdown > 0) ? 0.45 : 1,
+                minWidth: "fit-content",
+                fontSize: "0.78rem",
+                height: "fit-content",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: 0
               }}
             >
-              {step === "submitting" ? "Verifying…" : "Confirm"}
-            </button>
-          </div>
-          <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
-            <button
-              onClick={countdown === 0 ? sendOtp : undefined}
-              disabled={countdown > 0}
-              style={{
-                fontSize: "0.72rem",
-                fontWeight: "600",
-                color: countdown > 0 ? "var(--text-muted)" : "var(--accent)",
-                background: "none",
-                border: "none",
-                cursor: countdown > 0 ? "default" : "pointer",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
+              {step === "submitting" 
+                ? "Verifying…" 
+                : (countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP")}
             </button>
           </div>
         </div>
@@ -2156,15 +2174,6 @@ export default function Settings() {
     ? sectionParam
     : "profile";
 
-  // Keep activeSection in sync with URL param on navigation/refresh
-  useEffect(() => {
-    if (
-      validSections.includes(sectionParam) &&
-      sectionParam !== activeSection
-    ) {
-      setActiveSection(sectionParam);
-    }
-  }, [sectionParam]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -2178,6 +2187,33 @@ export default function Settings() {
   const [showCrop, setShowCrop] = useState(false);
   const savedFormRef = useRef(null);
   const saveBarRef = useRef(null);
+  const upiIdRef = useRef(null);
+  const instRef = useRef(null);
+
+  useEffect(() => {
+    if (loadingUser) return;
+    const focus = searchParams.get("focus");
+    if (!focus) return;
+
+    const targetRef =
+      focus === "upiId" ? upiIdRef : focus === "institution" ? instRef : null;
+    if (!targetRef) return;
+
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (targetRef.current) {
+        targetRef.current.focus();
+        // For some browsers/situations, we might need to call focus twice or with a slight delay
+        // but interval handles it. Also scroll to it.
+        targetRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        clearInterval(interval);
+      }
+      if (attempts > 30) clearInterval(interval);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [searchParams, activeSection, loadingUser]);
 
   const [navH, setNavH] = useState(64);
   useEffect(() => {
@@ -2207,6 +2243,7 @@ export default function Settings() {
           institution: u.institution || "",
           city: u.city || "",
           state: u.state || "",
+          upiId: u.upiId || "",
           saleNotifications: u.saleNotifications ?? true,
           messageNotifications: u.messageNotifications ?? true,
           priceDropAlerts: u.priceDropAlerts ?? true,
@@ -2225,6 +2262,7 @@ export default function Settings() {
             institution: user.institution || "",
             city: user.city || "",
             state: user.state || "",
+            upiId: user.upiId || "",
             saleNotifications: user.saleNotifications ?? true,
             messageNotifications: user.messageNotifications ?? true,
             priceDropAlerts: user.priceDropAlerts ?? true,
@@ -2420,6 +2458,7 @@ export default function Settings() {
         institution: form.institution,
         city: form.city,
         state: form.state,
+        upiId: form.upiId,
         saleNotifications: form.saleNotifications,
         messageNotifications: form.messageNotifications,
         priceDropAlerts: form.priceDropAlerts,
@@ -3146,15 +3185,16 @@ export default function Settings() {
                           }}
                         >
                           <svg
-                            width="12"
-                            height="12"
+                            width="14"
+                            height="14"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2.5"
                             strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" />
                             <line x1="12" y1="3" x2="12" y2="15" />
                           </svg>
@@ -3362,6 +3402,19 @@ export default function Settings() {
                       </div>
                     </div>
                     <div style={{ padding: "1.75rem 1.75rem 1.5rem" }}>
+                      <F
+                        label="UPI ID"
+                        hint="Buyers will pay you directly using this ID"
+                      >
+                        <input
+                          ref={upiIdRef}
+                          className="st-inp"
+                          style={IS}
+                          value={form.upiId}
+                          onChange={(e) => set("upiId", e.target.value)}
+                          placeholder="e.g. yourname@okaxis"
+                        />
+                      </F>
                       <div
                         style={{
                           fontSize: "0.68rem",
@@ -3582,6 +3635,7 @@ export default function Settings() {
                           hint="Can't find it? Just type the name manually."
                         >
                           <InstitutionSearch
+                            ref={instRef}
                             key={form.institutionType}
                             value={form.institution}
                             type={form.institutionType}

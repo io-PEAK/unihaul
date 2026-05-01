@@ -1218,7 +1218,9 @@ function ItemCard({ item, isWatching = false, gridSize = 3 }) {
                 minWidth: "120px",
               }}
             >
-              <StatusBadge status={status} isWatching={isWatching} small />
+              {status !== "available" && (
+                <StatusBadge status={status} isWatching={isWatching} small />
+              )}
               <span
                 style={{
                   fontSize: "1.25rem",
@@ -1298,7 +1300,9 @@ function ItemCard({ item, isWatching = false, gridSize = 3 }) {
                 zIndex: 3,
               }}
             >
-              <StatusBadge status={status} isWatching={isWatching} small />
+              {status !== "available" && (
+                <StatusBadge status={status} isWatching={isWatching} small />
+              )}
             </div>
             <div
               style={{
@@ -1488,7 +1492,9 @@ function ItemCard({ item, isWatching = false, gridSize = 3 }) {
                 zIndex: 3,
               }}
             >
-              <StatusBadge status={status} isWatching={isWatching} small />
+              {status !== "available" && (
+                <StatusBadge status={status} isWatching={isWatching} small />
+              )}
             </div>
             <div
               style={{
@@ -1672,7 +1678,9 @@ function ItemCard({ item, isWatching = false, gridSize = 3 }) {
               zIndex: 3,
             }}
           >
-            <StatusBadge status={status} isWatching={isWatching} />
+            {status !== "available" && (
+              <StatusBadge status={status} isWatching={isWatching} />
+            )}
           </div>
           {/* Gradient fade into card body */}
           <div
@@ -1927,28 +1935,6 @@ function Home() {
     return () => window.removeEventListener("scroll", updatePos, true);
   }, [showFilters]);
 
-  // Status menu
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const statusRef = useRef(null);
-  const statusBtnRef = useRef(null);
-  const statusMenuRef = useRef(null);
-  const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, left: 0 });
-
-  // Recalculate status menu position on scroll
-  useEffect(() => {
-    function updateStatusPos() {
-      if (showStatusMenu && statusBtnRef.current) {
-        const rect = statusBtnRef.current.getBoundingClientRect();
-        setStatusMenuPos({
-          top: rect.bottom + 8,
-          left: Math.max(8, rect.left + rect.width / 2 - 90),
-        });
-      }
-    }
-    window.addEventListener("scroll", updateStatusPos, true);
-    return () => window.removeEventListener("scroll", updateStatusPos, true);
-  }, [showStatusMenu]);
-
   // One spec dropdown open at a time
   const [openSpecKey, setOpenSpecKey] = useState(null);
 
@@ -1957,7 +1943,7 @@ function Home() {
   useEffect(() => {
     // Expose setter so navbar can update our search state
     window.__homeSearchBridge = { set: setSearch, get: () => search };
-  });
+  }, [search, setSearch]);
   useEffect(() => {
     // Listen for navbar search input → update our state
     function onNavSearch(e) {
@@ -2012,7 +1998,8 @@ function Home() {
   const [filters, setFilters] = useState(() => {
     try {
       const saved = sessionStorage.getItem("homeFilters");
-      return saved ? JSON.parse(saved) : { ...emptyFilters };
+      const parsed = saved ? JSON.parse(saved) : {};
+      return { ...emptyFilters, ...parsed };
     } catch {
       return { ...emptyFilters };
     }
@@ -2032,14 +2019,6 @@ function Home() {
         !filterBtnRef.current.contains(e.target)
       )
         setShowFilters(false);
-
-      if (
-        statusRef.current &&
-        !statusRef.current.contains(e.target) &&
-        statusMenuRef.current &&
-        !statusMenuRef.current.contains(e.target)
-      )
-        setShowStatusMenu(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -2061,16 +2040,6 @@ function Home() {
 
   // Listen for navbar → open status / filter panel (navbar passes button rect)
   useEffect(() => {
-    function onNavStatus(e) {
-      const rect = e.detail?.rect;
-      if (rect)
-        setStatusMenuPos({
-          top: rect.bottom + 8,
-          left: Math.max(8, rect.left + rect.width / 2 - 90),
-        });
-      setShowStatusMenu((v) => !v);
-      setShowFilters(false);
-    }
     function onNavFilters(e) {
       const rect = e.detail?.rect;
       if (rect)
@@ -2079,40 +2048,15 @@ function Home() {
           left: Math.max(8, rect.left + rect.width / 2 - 180),
         });
       setShowFilters((v) => !v);
-      setShowStatusMenu(false);
     }
-    window.addEventListener("navbar-open-status", onNavStatus);
     window.addEventListener("navbar-open-filters", onNavFilters);
     return () => {
-      window.removeEventListener("navbar-open-status", onNavStatus);
       window.removeEventListener("navbar-open-filters", onNavFilters);
     };
   }, []);
 
   function setCategory(cat) {
     setFilters((f) => ({ ...f, category: cat, subcategory: "", specs: {} }));
-  }
-
-  function toggleStatus(s) {
-    setFilters((prev) => ({
-      ...prev,
-      statuses: prev.statuses.includes(s)
-        ? prev.statuses.length === 1
-          ? prev.statuses
-          : prev.statuses.filter((x) => x !== s)
-        : [...prev.statuses, s],
-    }));
-  }
-
-  function openStatusMenu() {
-    if (statusBtnRef.current) {
-      const rect = statusBtnRef.current.getBoundingClientRect();
-      setStatusMenuPos({
-        top: rect.bottom + 8,
-        left: Math.max(8, rect.left + rect.width / 2 - 90),
-      });
-    }
-    setShowStatusMenu((v) => !v);
   }
 
   function clearAllFilters() {
@@ -2130,6 +2074,10 @@ function Home() {
         if (filters.category) params.category = filters.category;
         if (filters.subcategory) params.subcategory = filters.subcategory;
         if (filters.sortPrice) params.sortPrice = filters.sortPrice;
+        
+        // Default to available status
+        params.statuses = "available";
+        
         Object.entries(filters.specs || {}).forEach(([k, v]) => {
           if (v) params[k] = v;
         });
@@ -2156,8 +2104,8 @@ function Home() {
     return () => clearTimeout(t);
   }, [search, filters, location, routeKey]);
 
-  const filteredItems = items.filter((item) =>
-    filters.statuses.includes(item.status?.toLowerCase()),
+  const filteredItems = (items || []).filter((item) =>
+    (filters.statuses || []).includes(item.status?.toLowerCase()),
   );
 
   const activeCount = [
@@ -2194,41 +2142,6 @@ function Home() {
       })),
   ].filter(Boolean);
 
-  // ── Animated ··· status button vars ──────────────────────────────────────
-  const statusColors = filters.statuses.map((s) => statusMeta[s].color);
-  const strokeColor =
-    statusColors.length === 1
-      ? statusColors[0]
-      : statusColors.length === 2
-        ? filters.statuses.includes("available") &&
-          filters.statuses.includes("pending")
-          ? "#a8e060"
-          : filters.statuses.includes("available") &&
-              filters.statuses.includes("sold")
-            ? "#c06090"
-            : "#ffa060"
-        : "#e0b840";
-  const animId = "travel" + filters.statuses.slice().sort().join("");
-  const r = 9,
-    bw = 34,
-    bh = 34;
-  const perim = 2 * (bw + bh) - (8 - 2 * Math.PI) * r;
-  const dashLen = Math.round(perim * 1.0);
-
-  const pi = {
-    width: "100%",
-    padding: "0.52rem 0.85rem",
-    background: "var(--bg-input)",
-    border: "1px solid var(--border)",
-    borderRadius: "9px",
-    color: "var(--text-primary)",
-    fontSize: "0.8rem",
-    outline: "none",
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    transition: "border 0.2s ease",
-  };
 
   return (
     <div
@@ -2241,9 +2154,7 @@ function Home() {
         @keyframes panelIn { from { opacity:0; transform:translateY(-8px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
         @keyframes btnGlow { 0%,100% { box-shadow:0 0 0 0 rgba(var(--accent-rgb),0); } 60% { box-shadow:0 0 0 5px rgba(var(--accent-rgb),0.13); } }
         @keyframes spin    { to { transform:rotate(360deg); } }
-        @keyframes ${animId} { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -${Math.round(perim)}; } }
-        @keyframes ${animId}-glow { 0% { stroke-dashoffset:0; opacity:0.5; } 50% { opacity:0.85; } 100% { stroke-dashoffset:-${Math.round(perim)}; opacity:0.5; } }
-        @keyframes ${animId}-pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
+
         input::placeholder, textarea::placeholder { color: var(--text-ghost); }
         select option { background: var(--bg-surface); color: var(--text-primary); }
         .filter-panel::-webkit-scrollbar { width: 4px; }
@@ -2368,101 +2279,7 @@ function Home() {
             }}
           />
 
-          {/* ── Animated ··· Status Button ── */}
-          <div ref={statusRef} style={{ position: "relative", flexShrink: 0 }}>
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "10px",
-                border: "1.5px solid var(--border)",
-                pointerEvents: "none",
-                zIndex: 0,
-              }}
-            />
-            <svg
-              width={bw}
-              height={bh}
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 1,
-                pointerEvents: "none",
-                filter: "blur(2.5px)",
-                overflow: "visible",
-              }}
-            >
-              <rect
-                x="1"
-                y="1"
-                width={bw - 2}
-                height={bh - 2}
-                rx={r}
-                ry={r}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth="4"
-                strokeDasharray={`${Math.round(dashLen * 0.4)} ${Math.round(perim - dashLen * 0.4)}`}
-                strokeLinecap="round"
-                style={{ animation: `${animId}-glow 2s linear infinite` }}
-              />
-            </svg>
-            <svg
-              width={bw}
-              height={bh}
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 2,
-                pointerEvents: "none",
-                overflow: "visible",
-              }}
-            >
-              <rect
-                x="1"
-                y="1"
-                width={bw - 2}
-                height={bh - 2}
-                rx={r}
-                ry={r}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth="1.5"
-                strokeDasharray={`${dashLen} ${Math.round(perim - dashLen)}`}
-                strokeLinecap="round"
-                style={{ animation: `${animId} 2s linear infinite` }}
-              />
-            </svg>
-            <button
-              ref={statusBtnRef}
-              onClick={openStatusMenu}
-              title="Filter by status"
-              style={{
-                position: "relative",
-                zIndex: 3,
-                width: `${bw}px`,
-                height: `${bh}px`,
-                borderRadius: "10px",
-                cursor: "pointer",
-                background: showStatusMenu
-                  ? "var(--bg-card-hover)"
-                  : "transparent",
-                border: "none",
-                color: strokeColor,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.1rem",
-                letterSpacing: "1px",
-                fontWeight: "900",
-                lineHeight: 1,
-                transition: "background 0.2s ease",
-                animation: `${animId}-pulse 2s ease-in-out infinite`,
-              }}
-            >
-              ···
-            </button>
-          </div>
+
 
           {/* ── Filters Button ── */}
           <button
@@ -2852,138 +2669,6 @@ function Home() {
           document.body,
         )}
 
-      {/* ── Status dropdown ── */}
-      {showStatusMenu &&
-        createPortal(
-          <div
-            ref={statusMenuRef}
-            style={{
-              position: "fixed",
-              top: `${statusMenuPos.top}px`,
-              left: `${statusMenuPos.left}px`,
-              background: "var(--glass-bg-deep)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
-              border: "1px solid var(--border)",
-              borderRadius: "16px",
-              padding: "0.6rem",
-              minWidth: "170px",
-              boxShadow: "0 24px 48px rgba(0,0,0,0.5)",
-              zIndex: 9999,
-              animation: "panelIn 0.18s cubic-bezier(0.175,0.885,0.32,1.275)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "0.58rem",
-                letterSpacing: "1.8px",
-                textTransform: "uppercase",
-                color: "var(--text-ghost)",
-                fontWeight: "800",
-                padding: "0.35rem 0.85rem 0.65rem",
-              }}
-            >
-              Show Status
-            </div>
-            {statusOptions.map((s) => {
-              const isOn = filters.statuses.includes(s);
-              const meta = statusMeta[s];
-              return (
-                <div
-                  key={s}
-                  onClick={() => toggleStatus(s)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "0.6rem 0.85rem",
-                    borderRadius: "10px",
-                    cursor: "pointer",
-                    transition: "background 0.15s ease",
-                    background: isOn ? "var(--bg-card)" : "transparent",
-                    marginBottom: "2px",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--bg-card-hover)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = isOn
-                      ? "var(--bg-card)"
-                      : "transparent")
-                  }
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "50%",
-                        background: isOn ? meta.color : "var(--text-ghost)",
-                        display: "inline-block",
-                        transition: "background 0.2s",
-                        boxShadow: isOn ? `0 0 6px ${meta.color}80` : "none",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "0.83rem",
-                        fontWeight: "600",
-                        color: isOn
-                          ? "var(--text-primary)"
-                          : "var(--text-muted)",
-                        transition: "color 0.15s",
-                      }}
-                    >
-                      {meta.label}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      width: "18px",
-                      height: "18px",
-                      borderRadius: "6px",
-                      flexShrink: 0,
-                      border: isOn ? "none" : "1.5px solid var(--border)",
-                      background: isOn
-                        ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                        : "var(--bg-input)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.2s ease",
-                      boxShadow: isOn ? "0 2px 8px var(--accent-glow)" : "none",
-                    }}
-                  >
-                    {isOn && (
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <polyline
-                          points="2,6 5,9 10,3"
-                          stroke="white"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>,
-          document.body,
-        )}
-
       {/* Active filter chips */}
       {chips.length > 0 && (
         <div
@@ -3169,10 +2854,10 @@ function Home() {
                 />
               ))}
             </div>
-          </>
-        )}
-      </>
-    )}
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }

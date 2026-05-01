@@ -158,12 +158,7 @@ function Login() {
       const status = err.response?.status;
 
       if (status === 404 || code === "USER_NOT_FOUND") {
-        navigate("/register", {
-          state: {
-            email: form.email,
-            message: "No account found. Create one below!",
-          },
-        });
+        setError("Account does not exist. Please register first.");
         return;
       }
 

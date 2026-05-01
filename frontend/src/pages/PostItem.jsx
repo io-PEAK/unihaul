@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/axios";
+import Banner from "../components/Banner";
 
 const MAX_ITEM_PRICE = 300000;
 
@@ -2009,8 +2010,26 @@ function PostItem() {
     transition: "color 0.3s ease",
   });
 
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const showUPIBanner = user && !user.upiId;
+
   return (
-    <div className="pi-page-wrap">
+    <>
+      {showUPIBanner && (
+        <Banner
+          id="missing_upi"
+          message="You haven't added a UPI ID. Direct UPI transfers will be disabled; buyers can only use Razorpay."
+          buttonText="Add UPI ID"
+          to="/settings?section=profile&focus=upiId"
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
+          }
+        />
+      )}
+      <div className="pi-page-wrap">
       <style>{`
         input::placeholder, textarea::placeholder { color: var(--text-ghost); }
         select option { background: var(--bg-surface); color: var(--text-primary); }
@@ -2926,6 +2945,7 @@ function PostItem() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

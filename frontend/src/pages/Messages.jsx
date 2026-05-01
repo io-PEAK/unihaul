@@ -1,7 +1,1006 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../api/axios";
 import { connectSocket, getSocket } from "../socket";
+
+// ── Image Utilities ──────────────────────────────────────────
+async function compressImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+    };
+  });
+}
+
+function FullImageModal({ gallery, onClose }) {
+  const [currentIndex, setCurrentIndex] = useState(gallery?.index || 0);
+
+  // Sync state if gallery prop changes while open
+  useEffect(() => {
+    if (gallery) setCurrentIndex(gallery.index || 0);
+  }, [gallery]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!gallery) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft") handlePrev(e);
+      if (e.key === "ArrowRight") handleNext(e);
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [gallery, currentIndex]);
+
+  if (!gallery || !gallery.images || gallery.images.length === 0) return null;
+
+  const images = gallery.images;
+  const currentSrc = images[currentIndex];
+  const hasMultiple = images.length > 1;
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 999999,
+        background: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "4rem",
+        cursor: "zoom-out",
+        animation: "cdFadeIn 0.2s ease-out",
+      }}
+    >
+      <style>{`
+        @keyframes imgPop {
+          from { opacity: 0; transform: scale(0.85) translateY(15px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .nav-button {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+          color: white;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          backdrop-filter: blur(8px);
+          transition: all 0.2s ease;
+          z-index: 20;
+        }
+        .nav-button:hover {
+          background: rgba(255,255,255,0.25);
+          transform: translateY(-50%) scale(1.1);
+        }
+      `}</style>
+      
+      {hasMultiple && (
+        <button onClick={handlePrev} className="nav-button" style={{ left: "2rem" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      )}
+
+      <div
+        style={{
+          position: "relative",
+          animation: "imgPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+          maxWidth: "85vw",
+          maxHeight: "85vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 40px 100px rgba(0,0,0,0.6)",
+          borderRadius: "16px",
+        }}
+      >
+        <img
+          key={currentSrc} // forces re-animation on change
+          src={currentSrc}
+          alt="Full size gallery"
+          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+          style={{
+            maxWidth: "100%",
+            maxHeight: "85vh",
+            borderRadius: "16px",
+            objectFit: "contain",
+            display: "block",
+            border: "2px solid rgba(255,255,255,0.15)",
+            cursor: "default",
+          }}
+        />
+        
+        {hasMultiple && (
+          <div style={{
+            position: "absolute",
+            bottom: "-2.5rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            color: "rgba(255,255,255,0.8)",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+            background: "rgba(0,0,0,0.5)",
+            padding: "0.4rem 1rem",
+            borderRadius: "20px",
+            backdropFilter: "blur(4px)",
+          }}>
+            {currentIndex + 1} / {images.length}
+          </div>
+        )}
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          style={{
+            position: "absolute",
+            top: "-1rem",
+            right: "-1rem",
+            background: "var(--bg-surface, #1e1e1e)",
+            border: "1px solid var(--border-hover, #444)",
+            color: "var(--text-primary, #fff)",
+            width: "36px",
+            height: "36px",
+            borderRadius: "50%",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
+            zIndex: 10,
+            transition: "transform 0.2s ease",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
+          onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      {hasMultiple && (
+        <button onClick={handleNext} className="nav-button" style={{ right: "2rem" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+function ImagePreviewEditor({ files, onSend, onClose }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [caption, setCaption] = useState("");
+  const [tool, setTool] = useState(null);
+  const [isHD, setIsHD] = useState(false);
+
+  // Draw
+  const [drawings, setDrawings] = useState({});
+  const [currentColor, setCurrentColor] = useState("#ffffff");
+  const [brushSize, setBrushSize] = useState(4);
+
+  // Text
+  const [textItems, setTextItems] = useState({});
+  const [textInput, setTextInput] = useState("");
+  const [isTypingText, setIsTypingText] = useState(false);
+
+  // Crop (% of image wrapper)
+  const [cropBox, setCropBox] = useState({ x: 10, y: 10, w: 80, h: 80 });
+  const cropDrag = useRef(null);
+
+  const canvasRef     = useRef(null);
+  const imgRef        = useRef(null);
+  const imgWrapRef    = useRef(null);
+  const isDrawing     = useRef(false);
+  const lastPos       = useRef(null);
+  const currentStroke = useRef([]);
+  const textDrag      = useRef(null);
+
+  const current = files[currentIndex];
+  const isImage = current?.type === "image";
+
+  const colors = ["#ffffff","#000000","#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#ff2d55"];
+
+  // ── Canvas helpers ───────────────────────────────────────────
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    (drawings[currentIndex] || []).forEach(stroke => {
+      if (!stroke.length) return;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke[0].color;
+      ctx.lineWidth   = stroke[0].size;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.moveTo(stroke[0].x, stroke[0].y);
+      stroke.forEach(pt => ctx.lineTo(pt.x, pt.y));
+      ctx.stroke();
+    });
+  }, [drawings, currentIndex]);
+
+  useEffect(() => { redrawCanvas(); }, [redrawCanvas]);
+
+  useEffect(() => {
+    const img    = imgRef.current;
+    const canvas = canvasRef.current;
+    if (!img || !canvas || !isImage) return;
+    const sync = () => {
+      canvas.width  = img.offsetWidth;
+      canvas.height = img.offsetHeight;
+      redrawCanvas();
+    };
+    img.addEventListener("load", sync);
+    if (img.complete) sync();
+    return () => img.removeEventListener("load", sync);
+  }, [currentIndex, isImage, redrawCanvas]);
+
+  const getPos = (e, el) => {
+    const rect = el.getBoundingClientRect();
+    const cx   = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy   = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: cx - rect.left, y: cy - rect.top };
+  };
+
+  const startDraw = (e) => {
+    if (tool !== "draw") return;
+    e.preventDefault();
+    isDrawing.current = true;
+    const pos = getPos(e, canvasRef.current);
+    lastPos.current = pos;
+    currentStroke.current = [{ ...pos, color: currentColor, size: brushSize }];
+  };
+  const draw = (e) => {
+    if (!isDrawing.current || tool !== "draw") return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx    = canvas.getContext("2d");
+    const pos    = getPos(e, canvas);
+    ctx.beginPath(); ctx.strokeStyle = currentColor; ctx.lineWidth = brushSize;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y); ctx.stroke();
+    lastPos.current = pos;
+    currentStroke.current.push({ ...pos, color: currentColor, size: brushSize });
+  };
+  const endDraw = () => {
+    if (!isDrawing.current) return;
+    isDrawing.current = false;
+    if (currentStroke.current.length > 0)
+      setDrawings(prev => ({ ...prev, [currentIndex]: [...(prev[currentIndex] || []), currentStroke.current] }));
+    currentStroke.current = [];
+  };
+  const undoStroke = () => setDrawings(prev => ({ ...prev, [currentIndex]: (prev[currentIndex] || []).slice(0, -1) }));
+
+  // ── Text helpers ─────────────────────────────────────────────
+  const confirmText = () => {
+    if (!textInput.trim()) { setIsTypingText(false); setTextInput(""); return; }
+    const id = Math.random().toString(36).slice(2);
+    setTextItems(prev => ({
+      ...prev,
+      [currentIndex]: [...(prev[currentIndex] || []), { id, text: textInput, color: currentColor, x: 50, y: 40 }],
+    }));
+    setTextInput("");
+    setIsTypingText(false);
+  };
+
+  // ── Text drag ────────────────────────────────────────────────
+  const onTextPointerDown = (e, item) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const wrap = imgWrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx   = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy   = e.touches ? e.touches[0].clientY : e.clientY;
+    textDrag.current = { id: item.id, startX: cx, startY: cy, startItemX: item.x, startItemY: item.y, rectW: rect.width, rectH: rect.height };
+    const onMove = (ev) => {
+      if (!textDrag.current) return;
+      const mcx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const mcy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const dx  = ((mcx - textDrag.current.startX) / textDrag.current.rectW) * 100;
+      const dy  = ((mcy - textDrag.current.startY) / textDrag.current.rectH) * 100;
+      const nx  = Math.max(0, Math.min(95, textDrag.current.startItemX + dx));
+      const ny  = Math.max(0, Math.min(95, textDrag.current.startItemY + dy));
+      setTextItems(prev => ({
+        ...prev,
+        [currentIndex]: (prev[currentIndex] || []).map(t =>
+          t.id === textDrag.current.id ? { ...t, x: nx, y: ny } : t
+        ),
+      }));
+    };
+    const onUp = () => {
+      textDrag.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  };
+
+  // ── Crop helpers ──────────────────────────────────────────────
+  const startCropDrag = (e, edge) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const wrap = imgWrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx   = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy   = e.touches ? e.touches[0].clientY : e.clientY;
+    cropDrag.current = { edge, startX: cx, startY: cy, startBox: { ...cropBox }, rectW: rect.width, rectH: rect.height };
+
+    const onMove = (ev) => {
+      if (!cropDrag.current) return;
+      const mcx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      const mcy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      const dpx = ((mcx - cropDrag.current.startX) / cropDrag.current.rectW) * 100;
+      const dpy = ((mcy - cropDrag.current.startY) / cropDrag.current.rectH) * 100;
+      const b   = cropDrag.current.startBox;
+      const MIN = 8;
+      setCropBox(() => {
+        let { x, y, w, h } = b;
+        switch (cropDrag.current.edge) {
+          case "move": x = Math.max(0,Math.min(100-b.w,b.x+dpx)); y = Math.max(0,Math.min(100-b.h,b.y+dpy)); break;
+          case "e":    w = Math.max(MIN,Math.min(100-b.x,b.w+dpx)); break;
+          case "w": { const nx=Math.max(0,Math.min(b.x+b.w-MIN,b.x+dpx)); w=b.w-(nx-b.x); x=nx; break; }
+          case "s":    h = Math.max(MIN,Math.min(100-b.y,b.h+dpy)); break;
+          case "n": { const ny=Math.max(0,Math.min(b.y+b.h-MIN,b.y+dpy)); h=b.h-(ny-b.y); y=ny; break; }
+          case "se":   w=Math.max(MIN,Math.min(100-b.x,b.w+dpx)); h=Math.max(MIN,Math.min(100-b.y,b.h+dpy)); break;
+          case "sw": { const nx2=Math.max(0,Math.min(b.x+b.w-MIN,b.x+dpx)); w=b.w-(nx2-b.x); x=nx2; h=Math.max(MIN,Math.min(100-b.y,b.h+dpy)); break; }
+          case "ne": { const ny2=Math.max(0,Math.min(b.y+b.h-MIN,b.y+dpy)); h=b.h-(ny2-b.y); y=ny2; w=Math.max(MIN,Math.min(100-b.x,b.w+dpx)); break; }
+          case "nw": { const nx3=Math.max(0,Math.min(b.x+b.w-MIN,b.x+dpx)); const ny3=Math.max(0,Math.min(b.y+b.h-MIN,b.y+dpy)); w=b.w-(nx3-b.x); x=nx3; h=b.h-(ny3-b.y); y=ny3; break; }
+          default: break;
+        }
+        return { x, y, w, h };
+      });
+    };
+    const onUp = () => {
+      cropDrag.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup",   onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend",  onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend",  onUp);
+  };
+
+  // ── compositeImage: flatten edits → new File ─────────────────
+  // Draws base image, then strokes from the draw canvas, then text overlays.
+  // If crop tool was used (or cropBox moved from default) the output is cropped.
+  const compositeImage = useCallback(async (fileObj, idx) => {
+    if (fileObj.type !== "image") return fileObj;
+
+    const img = new Image();
+    img.src = fileObj.preview;
+    await new Promise((res) => {
+      if (img.complete) { res(); return; }
+      img.onload = res;
+    });
+
+    const iW = img.naturalWidth;
+    const iH = img.naturalHeight;
+
+    // Only apply crop when the tool was explicitly used for this file
+    const cb = cropBox;
+    const hasCrop = idx === currentIndex && tool === "crop";
+    const cropX = hasCrop ? Math.round((cb.x / 100) * iW) : 0;
+    const cropY = hasCrop ? Math.round((cb.y / 100) * iH) : 0;
+    const cropW = hasCrop ? Math.round((cb.w / 100) * iW) : iW;
+    const cropH = hasCrop ? Math.round((cb.h / 100) * iH) : iH;
+
+    const outW = cropW;
+    const outH = cropH;
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+
+    // Draw (cropped) base image
+    ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+
+    // Overlay drawings — map from display-canvas coords to natural-px coords
+    const drawCanvas = canvasRef.current;
+    const strokes = drawings[idx] || [];
+    if (drawCanvas && strokes.length > 0) {
+      const dispW = drawCanvas.width  || 1;
+      const dispH = drawCanvas.height || 1;
+      const scaleX = iW / dispW;
+      const scaleY = iH / dispH;
+
+      strokes.forEach(stroke => {
+        if (!stroke.length) return;
+        ctx.beginPath();
+        ctx.strokeStyle = stroke[0].color;
+        ctx.lineWidth   = stroke[0].size * Math.max(scaleX, scaleY);
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        // Offset for crop
+        const ox = cropX;
+        const oy = cropY;
+        ctx.moveTo(stroke[0].x * scaleX - ox, stroke[0].y * scaleY - oy);
+        stroke.forEach(pt => ctx.lineTo(pt.x * scaleX - ox, pt.y * scaleY - oy));
+        ctx.stroke();
+      });
+    }
+
+    // Overlay text items
+    (textItems[idx] || []).forEach(t => {
+      const fontSize = Math.max(24, Math.round(iW * 0.045));
+      ctx.font      = `900 ${fontSize}px sans-serif`;
+      ctx.fillStyle = t.color;
+      ctx.textAlign = "left";
+      // t.x / t.y are % of the wrapper → map to natural px, offset by crop
+      const tx = (t.x / 100) * iW - cropX;
+      const ty = (t.y / 100) * iH - cropY;
+      ctx.shadowColor   = "rgba(0,0,0,0.85)";
+      ctx.shadowBlur    = 10;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(t.text, tx, ty + fontSize);
+      ctx.shadowColor = "transparent";
+    });
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        const newFile = new File([blob], fileObj.name || "image.jpg", {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
+        resolve({ ...fileObj, file: newFile, preview: URL.createObjectURL(newFile) });
+      }, "image/jpeg", isHD ? 0.95 : 0.82);
+    });
+  }, [cropBox, currentIndex, tool, drawings, textItems, isHD]);
+
+  // ── Send — composite first, then pass to parent ───────────────
+  const handleSend = async () => {
+    const composited = await Promise.all(files.map((f, i) => compositeImage(f, i)));
+    onSend({ files: composited, caption });
+  };
+
+  if (!current) return null;
+
+  const handleStyle = (cursor, style = {}) => ({
+    position: "absolute", width: "18px", height: "18px",
+    background: "white", border: "2px solid rgba(0,0,0,0.3)", borderRadius: "3px",
+    cursor, zIndex: 10, transform: "translate(-50%,-50%)", ...style,
+  });
+  const edgeStyle = (cursor, style = {}) => ({
+    position: "absolute", background: "white", cursor, zIndex: 9, borderRadius: "4px", ...style,
+  });
+
+  return createPortal(
+    <div style={{ position:"fixed",inset:0,zIndex:999999,background:"#000",display:"flex",flexDirection:"column",fontFamily:"inherit" }}>
+      <style>{`
+        .ipb{width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.13);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.18s;backdrop-filter:blur(8px);flex-shrink:0}
+        .ipb:hover{background:rgba(255,255,255,0.23)}
+        .ipb.on{background:rgba(255,255,255,0.9);color:#000}
+        .ipdot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform 0.15s,border-color 0.15s;flex-shrink:0}
+        .ipdot.on{border-color:white;transform:scale(1.2)}
+        .ipthumb{width:52px;height:52px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s,opacity 0.15s;opacity:0.6}
+        .ipthumb.on{border-color:white;opacity:1}
+        @keyframes ipFade{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+      `}</style>
+
+      {/* ── Top bar ── */}
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0.75rem 1rem",background:"linear-gradient(to bottom,rgba(0,0,0,0.75),transparent)",position:"absolute",top:0,left:0,right:0,zIndex:20 }}>
+        <button onClick={onClose} className="ipb">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div style={{ display:"flex", gap:"0.5rem", alignItems:"center" }}>
+          <button onClick={() => setIsHD(h => !h)} className={`ipb${isHD?" on":""}`}
+            style={{ width:"auto", borderRadius:"20px", padding:"0 12px", fontSize:"0.72rem", fontWeight:"800", letterSpacing:"0.5px" }}>HD</button>
+
+          <button onClick={() => setTool(t => t==="crop" ? null : "crop")} className={`ipb${tool==="crop"?" on":""}`} title="Crop">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="6 2 6 6 2 6"/><polyline points="18 22 18 18 22 18"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          </button>
+
+          <button onClick={() => { setTool(t => t==="text" ? null : "text"); setIsTypingText(true); }} className={`ipb${tool==="text"?" on":""}`} title="Text">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          </button>
+
+          <button onClick={() => setTool(t => t==="draw" ? null : "draw")} className={`ipb${tool==="draw"?" on":""}`} title="Draw">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Image area ── */}
+      <div ref={imgWrapRef} style={{ flex:1, position:"relative", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+        {isImage ? (
+          <>
+            <img ref={imgRef} src={current.preview} alt="Preview"
+              style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", display:"block", userSelect:"none", pointerEvents:"none", animation:"ipFade 0.25s ease" }}/>
+
+            <canvas ref={canvasRef}
+              style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", cursor:tool==="draw"?"crosshair":"default", touchAction:"none", pointerEvents:tool==="draw"?"auto":"none" }}
+              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}/>
+
+            {(textItems[currentIndex] || []).map(t => (
+              <div key={t.id}
+                onMouseDown={e => onTextPointerDown(e, t)}
+                onTouchStart={e => onTextPointerDown(e, t)}
+                style={{ position:"absolute", left:`${t.x}%`, top:`${t.y}%`, color:t.color, fontWeight:"800", fontSize:"1.6rem", textShadow:"0 2px 8px rgba(0,0,0,0.9)", cursor:"grab", userSelect:"none", whiteSpace:"pre", textAlign:"center", padding:"4px 8px", letterSpacing:"0.5px", zIndex:12, touchAction:"none" }}
+                title="Drag to move · Double-click to remove"
+                onDoubleClick={() => setTextItems(prev => ({ ...prev, [currentIndex]: (prev[currentIndex]||[]).filter(x => x.id !== t.id) }))}
+              >{t.text}</div>
+            ))}
+
+            {tool === "text" && isTypingText && (
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:15 }}>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"0.75rem", width:"90%", maxWidth:"420px" }}>
+                  <input autoFocus value={textInput} onChange={e => setTextInput(e.target.value)}
+                    onKeyDown={e => { if (e.key==="Enter") confirmText(); if (e.key==="Escape") { setIsTypingText(false); setTextInput(""); } }}
+                    placeholder="Type text…"
+                    style={{ width:"100%", boxSizing:"border-box", background:"rgba(0,0,0,0.55)", border:"none", borderBottom:`2px solid ${currentColor}`, outline:"none", color:currentColor, fontWeight:"700", fontSize:"1.5rem", textAlign:"center", padding:"0.6rem 1rem", fontFamily:"inherit", backdropFilter:"blur(8px)", caretColor:currentColor }}/>
+                  <div style={{ display:"flex", gap:"0.75rem" }}>
+                    <button onClick={() => { setIsTypingText(false); setTextInput(""); }} className="ipb" style={{ background:"rgba(255,255,255,0.15)" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <button onClick={confirmText} style={{ padding:"0 1.5rem", height:"44px", borderRadius:"22px", border:"none", background:currentColor, color:currentColor==="#ffffff"?"#000":"#fff", fontWeight:"700", fontSize:"0.9rem", cursor:"pointer" }}>Done</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tool === "crop" && (
+              <div style={{ position:"absolute", inset:0, zIndex:10, pointerEvents:"all" }}>
+                <div style={{ position:"absolute", top:0, left:0, right:0, height:`${cropBox.y}%`, background:"rgba(0,0,0,0.55)", pointerEvents:"none" }}/>
+                <div style={{ position:"absolute", bottom:0, left:0, right:0, height:`${100-cropBox.y-cropBox.h}%`, background:"rgba(0,0,0,0.55)", pointerEvents:"none" }}/>
+                <div style={{ position:"absolute", top:`${cropBox.y}%`, left:0, width:`${cropBox.x}%`, height:`${cropBox.h}%`, background:"rgba(0,0,0,0.55)", pointerEvents:"none" }}/>
+                <div style={{ position:"absolute", top:`${cropBox.y}%`, right:0, width:`${100-cropBox.x-cropBox.w}%`, height:`${cropBox.h}%`, background:"rgba(0,0,0,0.55)", pointerEvents:"none" }}/>
+
+                <div onMouseDown={e => startCropDrag(e,"move")} onTouchStart={e => startCropDrag(e,"move")}
+                  style={{ position:"absolute", left:`${cropBox.x}%`, top:`${cropBox.y}%`, width:`${cropBox.w}%`, height:`${cropBox.h}%`, border:"1.5px solid white", boxSizing:"border-box", cursor:"move" }}>
+                  <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
+                    {[33.3,66.6].map(p => <div key={p} style={{ position:"absolute", left:0, right:0, top:`${p}%`, height:"0.5px", background:"rgba(255,255,255,0.35)" }}/>)}
+                    {[33.3,66.6].map(p => <div key={p} style={{ position:"absolute", top:0, bottom:0, left:`${p}%`, width:"0.5px", background:"rgba(255,255,255,0.35)" }}/>)}
+                  </div>
+                  <div onMouseDown={e=>startCropDrag(e,"nw")} onTouchStart={e=>startCropDrag(e,"nw")} style={handleStyle("nw-resize",{top:0,left:0})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"ne")} onTouchStart={e=>startCropDrag(e,"ne")} style={handleStyle("ne-resize",{top:0,left:"100%"})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"sw")} onTouchStart={e=>startCropDrag(e,"sw")} style={handleStyle("sw-resize",{top:"100%",left:0})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"se")} onTouchStart={e=>startCropDrag(e,"se")} style={handleStyle("se-resize",{top:"100%",left:"100%"})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"n")} onTouchStart={e=>startCropDrag(e,"n")} style={edgeStyle("n-resize",{top:"-4px",left:"calc(50% - 18px)",width:"36px",height:"8px"})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"s")} onTouchStart={e=>startCropDrag(e,"s")} style={edgeStyle("s-resize",{bottom:"-4px",left:"calc(50% - 18px)",width:"36px",height:"8px"})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"w")} onTouchStart={e=>startCropDrag(e,"w")} style={edgeStyle("w-resize",{left:"-4px",top:"calc(50% - 18px)",width:"8px",height:"36px"})}/>
+                  <div onMouseDown={e=>startCropDrag(e,"e")} onTouchStart={e=>startCropDrag(e,"e")} style={edgeStyle("e-resize",{right:"-4px",top:"calc(50% - 18px)",width:"8px",height:"36px"})}/>
+                </div>
+                <button onClick={() => setTool(null)}
+                  style={{ position:"absolute", bottom:"1rem", left:"50%", transform:"translateX(-50%)", padding:"0.5rem 2rem", borderRadius:"20px", border:"none", background:"white", color:"#000", fontWeight:"700", cursor:"pointer", zIndex:20, fontSize:"0.9rem" }}>Done</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ color:"white", textAlign:"center", padding:"2rem" }}>
+            <div style={{ fontSize:"3rem", marginBottom:"1rem" }}>📄</div>
+            <div style={{ fontWeight:"600", fontSize:"0.95rem", wordBreak:"break-all" }}>{current.name}</div>
+            <div style={{ color:"rgba(255,255,255,0.5)", fontSize:"0.82rem", marginTop:"0.4rem" }}>{(current.size/1024).toFixed(1)} KB</div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Color + undo bar ── */}
+      {(tool === "draw" || tool === "text") && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.45rem", padding:"0.55rem 1rem", background:"rgba(0,0,0,0.6)", backdropFilter:"blur(12px)" }}>
+          {tool === "draw" && (
+            <>
+              <button onClick={undoStroke} className="ipb" style={{ marginRight:"0.25rem" }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+              </button>
+              <input type="range" min="2" max="20" value={brushSize} onChange={e => setBrushSize(Number(e.target.value))}
+                style={{ width:"70px", accentColor:currentColor, marginRight:"0.25rem" }}/>
+            </>
+          )}
+          {colors.map(c => (
+            <div key={c} className={`ipdot${currentColor===c?" on":""}`}
+              style={{ background:c, boxShadow:c==="#ffffff"?"inset 0 0 0 1px rgba(0,0,0,0.3)":"none" }}
+              onClick={() => setCurrentColor(c)}/>
+          ))}
+        </div>
+      )}
+
+      {/* ── Bottom: thumbnails + caption (no emoji) + send ── */}
+      <div style={{ background:"linear-gradient(to top,rgba(0,0,0,0.9),transparent)", padding:"0.5rem 1rem 1rem" }}>
+        {files.length > 1 && (
+          <div style={{ display:"flex", gap:"0.4rem", overflowX:"auto", padding:"0 0 0.6rem", scrollbarWidth:"none" }}>
+            {files.map((f, i) => (
+              f.type === "image"
+                ? <img key={f.id} src={f.preview} className={`ipthumb${i===currentIndex?" on":""}`} onClick={() => setCurrentIndex(i)} alt=""/>
+                : <div key={f.id} onClick={() => setCurrentIndex(i)} className={`ipthumb${i===currentIndex?" on":""}`}
+                    style={{ background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.3rem" }}>📄</div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ display:"flex", alignItems:"center", width:"min(480px, 90%)", background:"rgba(255,255,255,0.08)", borderRadius:"24px", padding:"0.4rem 0.6rem 0.4rem 1rem", border:"1px solid rgba(255,255,255,0.18)" }}>
+            <input
+              value={caption}
+              onChange={e => setCaption(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+              placeholder="Add a caption…"
+              style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"white", fontSize:"0.88rem", fontFamily:"inherit" }}
+            />
+            <button
+              onClick={handleSend}
+              style={{ width:"38px", height:"38px", borderRadius:"50%", border:"none", background:"linear-gradient(135deg,var(--accent,#e87722),var(--accent-alt,#d06010))", color:"white", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(232,119,34,0.4)", transition:"transform 0.15s", marginLeft:"4px" }}
+              onMouseEnter={e => e.currentTarget.style.transform="scale(1.08)"}
+              onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:"translateX(1px)" }}>
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── ImageGrid — WhatsApp-style grouped images ─────────────
+function ImageGrid({ group, isMe, onZoom }) {
+  const messages = group.messages;
+  const count = messages.length;
+  const images = messages.map(m => m.imageUrl || m.preview);
+
+  const outerRadius = isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px";
+
+  // The grid background IS the separator line.
+  // gap: 2px means 2px of the container bg bleeds between cells.
+  // overflow: hidden clips everything to the rounded container — no padding needed.
+  let gridTemplate = "1fr 1fr / 1fr 1fr";
+  if (count === 2) gridTemplate = "1fr / 1fr 1fr";
+  if (count === 3) gridTemplate = '"a b" "a c" / 1.2fr 1fr';
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplate,
+      gap: "3px",
+      borderRadius: outerRadius,
+      overflow: "hidden",
+      width: "280px",
+      height: "280px",
+      cursor: "pointer",
+      // --bg-base is the page background: #0a0a0a dark / #fff light — always visible against images
+      background: "var(--bg-base)",
+    }}>
+      {messages.slice(0, 4).map((msg, i) => {
+        const src = msg.imageUrl || msg.preview;
+        const isExtra = count > 4 && i === 3;
+
+        return (
+          <div
+            key={msg.id}
+            onClick={() => onZoom(images, i)}
+            style={{
+              position: "relative",
+              gridArea: count === 3 && i === 0 ? "a" : "auto",
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src={src}
+              alt="Grouped"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                transition: "transform 0.35s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+            />
+            {isExtra && (
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "1.5rem",
+                fontWeight: "700",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+              }}>
+                +{count - 3}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── FileBubble — WhatsApp-style attachment rendering ─────────
+function FileBubble({ msg, isMe, onZoom }) {
+  const fileType = msg.fileType || (msg.imageUrl && !msg.fileUrl ? "image" : null);
+  const isImage = fileType === "image" || (!fileType && msg.imageUrl && !msg.fileUrl);
+  const isVideo = fileType === "video";
+  const isDoc   = fileType === "pdf" || fileType === "file" || fileType === "document" ||
+                  (!isImage && !isVideo && (msg.fileUrl || msg.fileName));
+
+  const imgSrc = msg.imageUrl || msg.preview || null;
+  const fileSrc = msg.fileUrl || msg.preview || null;
+
+  if (isImage) {
+    if (!imgSrc) return null;
+    return (
+      <img
+        src={imgSrc}
+        alt="Sent photo"
+        onClick={() => onZoom(imgSrc)}
+        style={{
+          width: "100%",
+          maxWidth: msg.content ? "100%" : "240px",
+          height: msg.content ? "auto" : "180px",
+          maxHeight: "320px",
+          borderRadius: msg.content ? "12px" : "14px",
+          marginBottom: msg.content ? "0.6rem" : "0",
+          display: "block",
+          objectFit: "cover",
+          cursor: "zoom-in",
+          transition: "opacity 0.2s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+      />
+    );
+  }
+
+  if (isVideo) {
+    if (!fileSrc) return null;
+    return (
+      <video
+        src={fileSrc}
+        controls
+        style={{
+          width: "100%",
+          maxWidth: "280px",
+          borderRadius: "14px",
+          display: "block",
+          marginBottom: msg.content ? "0.6rem" : "0",
+          background: "#000",
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
+      />
+    );
+  }
+
+  if (isDoc) {
+    const name     = msg.fileName || "Document";
+    const ext      = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+    const isPdf    = ext === "pdf"  || fileType === "pdf";
+    const isWord   = ["doc","docx"].includes(ext);
+    const isExcel  = ["xls","xlsx","csv"].includes(ext);
+    const isPpt    = ["ppt","pptx"].includes(ext);
+    const isZip    = ["zip","rar","7z"].includes(ext);
+
+    // Color theme per file type
+    const theme = isPdf   ? { accent:"#ef4444", bg:"#ef444418", badge:"PDF" }
+                : isWord  ? { accent:"#3b82f6", bg:"#3b82f618", badge:"DOC" }
+                : isExcel ? { accent:"#22c55e", bg:"#22c55e18", badge:"XLS" }
+                : isPpt   ? { accent:"#f97316", bg:"#f9731618", badge:"PPT" }
+                : isZip   ? { accent:"#a855f7", bg:"#a855f718", badge:"ZIP" }
+                :           { accent:"#64748b", bg:"#64748b18", badge: (ext.toUpperCase().slice(0,4) || "FILE") };
+
+    const sizeStr = msg.fileSize
+      ? msg.fileSize > 1_000_000
+        ? (msg.fileSize / 1_000_000).toFixed(1) + " MB"
+        : Math.round(msg.fileSize / 1_000) + " KB"
+      : "";
+
+    const isUploading = !fileSrc;
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownload = async (e) => {
+      if (!fileSrc || isDownloading) return;
+      e.preventDefault();
+      e.stopPropagation();
+      
+      setIsDownloading(true);
+      try {
+        const response = await fetch(fileSrc);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name; // Use the actual original filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Download failed:", err);
+        window.open(fileSrc, "_blank");
+      } finally {
+        setIsDownloading(false);
+      }
+    };
+
+    return (
+      <div
+        onClick={handleDownload}
+        style={{ textDecoration: "none", display: "block", marginBottom: msg.content ? "0.5rem" : "0" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.65rem",
+            padding: "0.65rem 0.8rem",
+            // Use same radius as parent bubble for a perfect fit
+            borderRadius: isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+            border: "1px solid var(--glass-border, rgba(0,0,0,0.1))",
+            minWidth: "220px",
+            maxWidth: "280px",
+            cursor: fileSrc ? "pointer" : "default",
+            transition: "all 0.2s ease",
+            opacity: isUploading ? 0.7 : 1,
+            // Removed shadow that looked like a partial line
+          }}
+          onMouseEnter={(e) => { 
+            if (fileSrc) {
+              e.currentTarget.style.background = "var(--bg-card-hover, rgba(0,0,0,0.05))";
+              e.currentTarget.style.borderColor = "var(--accent-border, var(--accent))";
+            }
+          }}
+          onMouseLeave={(e) => { 
+            e.currentTarget.style.background = isMe ? "var(--bg-card, rgba(0,0,0,0.03))" : "var(--bg-card, #1e1e2e)"; 
+            e.currentTarget.style.borderColor = "var(--glass-border, rgba(0,0,0,0.1))";
+          }}
+        >
+          {/* File type icon */}
+          <div style={{
+            width: "42px", height: "42px", flexShrink: 0, borderRadius: "10px",
+            background: theme.bg, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: "2px",
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke={theme.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              {isPdf && <line x1="8" y1="13" x2="16" y2="13"/>}
+              {isPdf && <line x1="8" y1="17" x2="12" y2="17"/>}
+            </svg>
+            <span style={{
+              fontSize: "0.38rem", fontWeight: "900", color: theme.accent,
+              letterSpacing: "0.6px", lineHeight: 1, textTransform: "uppercase",
+            }}>{theme.badge}</span>
+          </div>
+
+          {/* File info */}
+          <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+            <div style={{
+              fontSize: "0.85rem", fontWeight: "600", lineHeight: 1.3,
+              color: "var(--text-primary)",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>
+              {name}
+            </div>
+            <div style={{
+              fontSize: "0.68rem", marginTop: "0.2rem",
+              color: "var(--text-secondary)",
+              display: "flex", alignItems: "center", gap: "0.25rem",
+            }}>
+              {isUploading ? (
+                <span style={{ fontStyle: "italic" }}>Uploading…</span>
+              ) : (
+                <>
+                  {sizeStr && <span>{sizeStr}</span>}
+                  {sizeStr && <span>·</span>}
+                  <span>{theme.badge} Document</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Download button */}
+          {fileSrc && (
+            <div style={{
+              width: "32px", height: "32px", flexShrink: 0, borderRadius: "50%",
+              background: theme.bg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: `1px solid ${theme.accent}20`,
+              position: "relative"
+            }}>
+              {isDownloading ? (
+                <div style={{
+                  width: "14px", height: "14px", 
+                  border: `2px solid ${theme.accent}`,
+                  borderTopColor: "transparent",
+                  borderRadius: "50%",
+                  animation: "mspin 0.8s linear infinite"
+                }} />
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  stroke={theme.accent}
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 // ── Confirm Dialog ────────────────────────────────────────────
 function ConfirmDialog({ open, onConfirm, onCancel, name }) {
@@ -1319,6 +2318,17 @@ function Messages() {
   const [inputFocused, setInputFocused] = useState(false);
   const [newConvoMode, setNewConvoMode] = useState(false);
   const [markingRead, setMarkingRead] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]); // array of { file, type, preview, name, size, id }
+  const [previewEditor, setPreviewEditor] = useState(null); // files staged for WhatsApp-style editor
+  const [localUrls, setLocalUrls] = useState({}); // { messageId: blobUrl }
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [fullImageGallery, setFullImageGallery] = useState(null);
   const [theme, setTheme] = useState(
     () => document.documentElement.dataset.theme || "ember",
   );
@@ -1355,10 +2365,62 @@ function Messages() {
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const messagesEndRef = useRef(null);
-  const msgInputRef = useRef(null);
+  // Group messages for WhatsApp-style image grids
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const myId = user?.id;
+  const groupedMessages = useMemo(() => {
+    const result = [];
+    let i = 0;
+    while (i < messages.length) {
+      const msg = messages[i];
+      // Only group if it's an image and has no text content
+      const isGroupable = msg.imageUrl && !msg.content && !msg.fileUrl;
+      
+      if (isGroupable) {
+        const group = [msg];
+        let j = i + 1;
+        while (j < messages.length) {
+          const next = messages[j];
+          const isNextGroupable = next.imageUrl && !next.content && !next.fileUrl;
+          const sameSender = String(next.senderId) === String(msg.senderId);
+          
+          // Group if same sender, both images, no text, and within 1 minute
+          const timeA = new Date(msg.createdAt || msg.timestamp).getTime();
+          const timeB = new Date(next.createdAt || next.timestamp).getTime();
+          const isWithinTime = Math.abs(timeB - timeA) < 60000;
+
+          if (isNextGroupable && sameSender && isWithinTime) {
+            group.push(next);
+            j++;
+          } else {
+            break;
+          }
+        }
+        
+        if (group.length > 1) {
+          result.push({
+            id: `group_${msg.id}`,
+            type: "image-group",
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            createdAt: group[group.length - 1].createdAt,
+            timestamp: group[group.length - 1].timestamp,
+            messages: group,
+            isMe: String(msg.senderId) === String(myId),
+          });
+          i = j;
+          continue;
+        }
+      }
+      
+      result.push(msg);
+      i++;
+    }
+    return result;
+  }, [messages, myId]);
+
+  const messagesEndRef = useRef(null);
+  const msgInputRef = useRef(null);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -1478,8 +2540,32 @@ function Messages() {
 
       if (isActiveConvo) {
         setMessages((prev) => {
+          // Already have this real message by ID — skip
           if (prev.some((m) => m.id === msg.id)) return prev;
-          const next = [...prev, msg];
+
+          // Remove the matching optimistic placeholder (identified by _optimistic flag)
+          // Match on ID prefix OR on content+attachment for text messages.
+          // IMPORTANT: only remove _optimistic messages, never real ones.
+          const filtered = prev.filter((m) => {
+            if (!m._optimistic) return true;  // never remove a real message
+            const isMyMsg = String(msg.senderId) === String(myId);
+            if (!isMyMsg) return true;
+            // For text-only messages match on content
+            if (!msg.fileUrl && !msg.imageUrl) {
+              return m.content !== msg.content;
+            }
+            // For file messages match on name and size (since URLs change from Blob to Remote)
+            if (msg.fileName && msg.fileSize) {
+              return m.fileName !== msg.fileName || m.fileSize !== msg.fileSize;
+            }
+            
+            // Fallback: match on URL if available
+            if (msg.fileUrl)  return m.fileUrl  !== msg.fileUrl;
+            if (msg.imageUrl) return m.imageUrl !== msg.imageUrl;
+            return true;
+          });
+
+          const next = [...filtered, msg];
           return next.sort(
             (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
           );
@@ -1491,7 +2577,7 @@ function Messages() {
               ? {
                   ...c,
                   unread_count: 0,
-                  last_message: msg.content,
+                  last_message: msg.content || (msg.imageUrl ? "Photo" : ""),
                   last_message_at: msg.createdAt,
                 }
               : c,
@@ -1524,7 +2610,7 @@ function Messages() {
               c.conversation_id === activeConvo.conversation_id
                 ? {
                     ...c,
-                    last_message: msg.content,
+                    last_message: msg.content || (msg.imageUrl ? "Photo" : ""),
                     last_message_at: msg.createdAt,
                   }
                 : c,
@@ -1553,7 +2639,7 @@ function Messages() {
               ? {
                   ...c,
                   unread_count: (c.unread_count || 0) + 1,
-                  last_message: msg.content,
+                  last_message: msg.content || (msg.imageUrl ? "Photo" : ""),
                   last_message_at: msg.createdAt,
                 }
               : c,
@@ -1673,7 +2759,17 @@ function Messages() {
         const sorted = [...res.data].sort(
           (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
         );
-        setMessages(sorted);
+        // Merge: keep any still-pending optimistic messages so they survive
+        // a re-fetch triggered mid-upload (e.g. chat_request_status change).
+        setMessages((prev) => {
+          const optimisticPending = prev.filter(
+            (m) => m._optimistic && !sorted.some((s) => s.id === m.id),
+          );
+          const merged = [...sorted, ...optimisticPending];
+          return merged.sort(
+            (a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp),
+          );
+        });
         setConversations((prev) =>
           prev.map((c) =>
             c.conversation_id === activeConvo.conversation_id
@@ -1708,6 +2804,18 @@ function Messages() {
   useEffect(() => {
     if (activeConvo) setTimeout(() => msgInputRef.current?.focus(), 100);
   }, [activeConvo?.conversation_id, activeConvo?.item_id]);
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return;
+    const handleGlobalClick = (e) => {
+      // If the click is not on the plus button or the menu itself, close it
+      if (!e.target.closest(".attachment-btn") && !e.target.closest(".attachment-menu")) {
+        setAttachmentMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleGlobalClick);
+    return () => document.removeEventListener("mousedown", handleGlobalClick);
+  }, [attachmentMenuOpen, setAttachmentMenuOpen]);
 
   async function handleMarkAllRead() {
     try {
@@ -1833,82 +2941,240 @@ function Messages() {
     );
   }
 
-  async function handleSend(e) {
-    e.preventDefault();
-    if (!newMessage.trim() || !activeConvo) return;
+  const handleFileSelect = useCallback(
+    (e, mediaType) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+      e.target.value = ""; // reset so same file can be re-selected
+
+      const newFiles = files.map((file) => ({
+        file,
+        type: file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : "file",
+        preview: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+        id: Math.random().toString(36).substring(7),
+      }));
+
+      setAttachmentMenuOpen(false);
+
+      // Images only → open WhatsApp-style preview editor (videos and docs go straight to pending)
+      const hasImages = newFiles.some(f => f.type === "image");
+      if (hasImages) {
+        setPreviewEditor(newFiles);
+      } else {
+        // Docs go straight to pending (no preview needed)
+        setPendingFiles((prev) => [...prev, ...newFiles]);
+      }
+    },
+    [setPendingFiles, setAttachmentMenuOpen, setPreviewEditor],
+  );
+
+  function removeFile(id) {
+    setPendingFiles((prev) => (id ? prev.filter((f) => f.id !== id) : []));
+  }
+
+  const handleSend = useCallback(
+  async (e, overrides = null) => {
+    if (e) e.preventDefault();
+
+    // overrides = { text, files } injected directly from handlePreviewSend
+    const text        = overrides ? overrides.text        : newMessage.trim();
+    const filesToSend = overrides ? overrides.files       : [...pendingFiles];
+
+    if ((!text && filesToSend.length === 0) || !activeConvo) return;
+
+    const otherUserId = activeConvo.other_user_id;
+    const itemId      = activeConvo.item_id;
+
     try {
       setSending(true);
-      const itemId = activeConvo.item_id ?? null;
-      const content = newMessage.trim();
-      setNewMessage("");
+      // Only clear UI state when not using direct overrides
+      if (!overrides) {
+        setNewMessage("");
+        setPendingFiles([]);
+      }
 
-      const res = await API.post("/messages", {
-        receiverId: activeConvo.other_user_id,
-        itemId,
-        content,
-      });
+        // 1. Send text message if present
+        if (text) {
+          const optimisticId = `opt_${Date.now()}_text`;
+          const optimisticMsg = {
+            id: optimisticId,
+            content: text,
+            senderId: myId,
+            receiverId: otherUserId,
+            itemId,
+            timestamp: new Date().toISOString(),
+            _optimistic: true,
+          };
+          setMessages((prev) => [...prev, optimisticMsg]);
 
-      if (res.data?.routedAsRequest) {
-        const convosRes = await API.get("/messages/conversations").catch(
-          () => null,
-        );
-        if (convosRes?.data) {
-          setConvosDedupe(convosRes.data);
-          const pending = convosRes.data.find(
-            (c) =>
-              String(c.other_user_id) === String(activeConvo.other_user_id) &&
-              String(c.item_id ?? "null") ===
-                String(activeConvo.item_id ?? "null") &&
-              c.chat_request_status === "pending",
-          );
-          if (pending) {
-            setActiveConvo(pending);
-            setNewConvoMode(false);
+          try {
+            const res = await API.post("/messages", {
+              receiverId: otherUserId,
+              itemId,
+              content: text,
+            });
+            // Remove the optimistic placeholder; the socket may have already
+            // added the real message — dedup so we never show it twice.
+            setMessages((prev) => {
+              const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
+              if (withoutOptimistic.some((m) => m.id === res.data.id)) {
+                return withoutOptimistic; // socket already added it, don't duplicate
+              }
+              const next = [...withoutOptimistic, res.data];
+              return next.sort(
+                (a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp),
+              );
+            });
+            handleAfterSend(res.data);
+          } catch (err) {
+            console.error("Failed to send text", err);
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
           }
         }
-        API.get("/chat-requests")
-          .then((r) => {
-            setChatRequests(
-              r.data?.received?.filter((x) => x.status === "pending") || [],
-            );
-          })
-          .catch(() => {});
-        return;
-      }
 
-      if (activeConvo.isNew) {
-        const convosRes = await API.get("/messages/conversations");
+        // 2. Send each file message
+        for (const pf of filesToSend) {
+          const optimisticId = `opt_${Date.now()}_${pf.id}`;
+          const optimisticMsg = {
+            id: optimisticId,
+            content: "",
+            senderId: myId,
+            receiverId: otherUserId,
+            itemId,
+            timestamp: new Date().toISOString(),
+            fileType: pf.type,
+            fileName: pf.name,
+            fileSize: pf.size,
+            imageUrl: pf.type === "image" ? pf.preview : null,
+            fileUrl: pf.type !== "image" ? pf.preview : null,
+            _optimistic: true,
+          };
+          setMessages((prev) => [...prev, optimisticMsg]);
+
+          try {
+            const formData = new FormData();
+            const fieldName = pf.type === "image" ? "image" : pf.type === "video" ? "video" : "file";
+            formData.append(fieldName, pf.file);
+
+            // A. Upload the file first
+            const uploadEndpoint =
+              pf.type === "image"
+                ? "/upload/message-image"
+                : pf.type === "video"
+                  ? "/upload/message-video"
+                  : "/upload/message-file";
+            
+            const uploadRes = await API.post(uploadEndpoint, formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+
+            const uploadedUrl = uploadRes.data.url;
+
+            // B. Create the message record with the uploaded URL
+            const msgRes = await API.post("/messages", {
+              receiverId: otherUserId,
+              itemId,
+              content: "",
+              imageUrl: pf.type === "image" ? uploadedUrl : null,
+              fileUrl: pf.type !== "image" ? uploadedUrl : null,
+              fileType: pf.type,
+              fileName: pf.name,
+              fileSize: pf.size,
+              publicId: uploadRes.data.publicId,
+            });
+
+            // Remove the optimistic placeholder; the socket may have already
+            // added the real message — dedup so we never show it twice.
+            setMessages((prev) => {
+              const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
+              if (withoutOptimistic.some((m) => m.id === msgRes.data.id)) {
+                return withoutOptimistic; // socket already added it, don't duplicate
+              }
+              const next = [...withoutOptimistic, msgRes.data];
+              return next.sort(
+                (a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp),
+              );
+            });
+            handleAfterSend(msgRes.data);
+          } catch (err) {
+            console.error(`Failed to send ${pf.type}`, err);
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+          }
+        }
+
+        // Stop typing indicator
+        const socket = getSocket();
+        if (socket && otherUserId) {
+          clearTimeout(typingEmitTimeoutRef.current);
+          typingEmitRef.current = false;
+          socket.emit("typing-stop", { toUserId: otherUserId, itemId });
+        }
+      } catch (err) {
+        console.error("Send process failed", err);
+      } finally {
+        setSending(false);
+      }
+    },
+    [
+      activeConvo,
+      newMessage,
+      pendingFiles,
+      setMessages,
+      myId,
+      handleAfterSend,
+      setPendingFiles,
+    ],
+  );
+
+  // Called when user hits Send inside ImagePreviewEditor.
+  // Defined AFTER handleSend to avoid TDZ reference error.
+  const handlePreviewSend = useCallback(({ files, caption }) => {
+    setPreviewEditor(null);
+    handleSend(null, { text: caption.trim(), files });
+  }, [handleSend]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleAfterSend(res) {
+    if (res.data?.routedAsRequest) {
+      const convosRes = await API.get("/messages/conversations").catch(() => null);
+      if (convosRes?.data) {
         setConvosDedupe(convosRes.data);
-        const real =
-          convosRes.data.find(
-            (c) =>
-              c.conversation_id === activeConvo.conversation_id && !c.isNew,
-          ) ||
-          convosRes.data.find(
-            (c) =>
-              String(c.other_user_id) === String(activeConvo.other_user_id) &&
-              String(c.item_id ?? "null") ===
-                String(activeConvo.item_id ?? "null") &&
-              !c.isNew,
-          );
-        if (real) setActiveConvo(real);
-        setNewConvoMode(false);
+        const pending = convosRes.data.find(
+          (c) =>
+            String(c.other_user_id) === String(activeConvo.other_user_id) &&
+            String(c.item_id ?? "null") === String(activeConvo.item_id ?? "null") &&
+            c.chat_request_status === "pending"
+        );
+        if (pending) {
+          setActiveConvo(pending);
+          setNewConvoMode(false);
+        }
       }
+      API.get("/chat-requests")
+        .then((r) => {
+          setChatRequests(r.data?.received?.filter((x) => x.status === "pending") || []);
+        })
+        .catch(() => {});
+      return;
+    }
 
-      const socket = getSocket();
-      if (socket && activeConvo?.other_user_id) {
-        clearTimeout(typingEmitTimeoutRef.current);
-        typingEmitRef.current = false;
-        socket.emit("typing-stop", {
-          toUserId: activeConvo.other_user_id,
-          itemId,
-        });
-      }
-    } catch (err) {
-      setNewMessage(newMessage);
-      console.error("Failed to send message", err);
-    } finally {
-      setSending(false);
+    if (activeConvo.isNew) {
+      const convosRes = await API.get("/messages/conversations");
+      setConvosDedupe(convosRes.data);
+      const real = convosRes.data.find(
+        (c) =>
+          (c.conversation_id === activeConvo.conversation_id && !c.isNew) ||
+          (String(c.other_user_id) === String(activeConvo.other_user_id) &&
+            String(c.item_id ?? "null") === String(activeConvo.item_id ?? "null") &&
+            !c.isNew)
+      );
+      if (real) setActiveConvo(real);
+      setNewConvoMode(false);
     }
   }
 
@@ -3940,10 +5206,11 @@ function Messages() {
                       No messages yet. Say hello!
                     </div>
                   ) : (
-                    messages.map((msg, i) => {
+                    groupedMessages.map((msg, i) => {
+                      const isGroup = msg.type === "image-group";
                       const isMe =
                         msg.senderId === myId || msg.sender_id === myId;
-                      const time = msg.createdAt || msg.created_at;
+                      const time = msg.createdAt || msg.created_at || msg.timestamp;
                       return (
                         <div
                           key={msg.id || i}
@@ -3951,6 +5218,8 @@ function Messages() {
                             display: "flex",
                             justifyContent: isMe ? "flex-end" : "flex-start",
                             animation: "fadeUp 0.2s ease",
+                            opacity: msg._optimistic ? 0.6 : 1,
+                            transition: "opacity 0.3s ease"
                           }}
                         >
                           <div
@@ -3964,25 +5233,47 @@ function Messages() {
                           >
                             <div
                               style={{
-                                padding: "0.6rem 0.95rem",
+                                padding: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content ? "0" : "0.6rem 0.95rem",
                                 borderRadius: isMe
                                   ? "18px 18px 4px 18px"
                                   : "18px 18px 18px 4px",
-                                background: isMe
-                                  ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                                  : "var(--bg-card-hover)",
-                                border: isMe
+                                background: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content 
+                                  ? "transparent" 
+                                  : isMe
+                                    ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
+                                    : "var(--bg-card-hover)",
+                                border: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content
                                   ? "none"
-                                  : "1px solid var(--border-hover)",
+                                  : isMe
+                                    ? "none"
+                                    : "1px solid var(--border-hover)",
                                 color: isMe ? "white" : "var(--text-primary)",
                                 fontSize: "0.875rem",
                                 lineHeight: "1.5",
-                                boxShadow: isMe
+                                boxShadow: isMe && !((msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content)
                                   ? "0 4px 12px rgba(var(--accent-rgb),0.22)"
                                   : "none",
+                                overflow: "hidden"
                               }}
                             >
-                              {msg.content}
+                                {isGroup ? (
+                                  <ImageGrid
+                                    group={msg}
+                                    isMe={isMe}
+                                    onZoom={(images, index) => setFullImageGallery({ images, index })}
+                                  />
+                                ) : (
+                                  <FileBubble
+                                    msg={msg}
+                                    isMe={isMe}
+                                    onZoom={(src) => setFullImageGallery({ images: [src], index: 0 })}
+                                  />
+                                )}
+                              {msg.content && (
+                                <div style={{ padding: (msg.imageUrl || msg.fileUrl || msg.preview) ? "0 0.1rem 0.1rem" : "0" }}>
+                                  {msg.content}
+                                </div>
+                              )}
                             </div>
                             {time && (
                               <span
@@ -4008,11 +5299,228 @@ function Messages() {
 
                 <div
                   style={{
-                    padding: "0.85rem 1.25rem",
+                    padding: "0.85rem 1.25rem 1.25rem",
                     borderTop: "1px solid var(--border)",
                     flexShrink: 0,
+                    position: "relative",
                   }}
                 >
+                  {pendingFiles.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "1.25rem",
+                        overflowX: "auto",
+                        padding: "10px 10px 5px", // Added padding for the remove buttons
+                        marginBottom: "0.25rem",
+                        scrollbarWidth: "none",
+                      }}
+                      className="hide-scrollbar"
+                    >
+                      {pendingFiles.map((pf) => (
+                        <div
+                          key={pf.id}
+                          style={{
+                            position: "relative",
+                            flexShrink: 0,
+                            animation: "fadeUp 0.2s ease",
+                          }}
+                        >
+                          {pf.type === "image" ? (
+                            <img
+                              src={pf.preview}
+                              alt="Preview"
+                              style={{
+                                width: "120px",
+                                height: "120px",
+                                borderRadius: "14px",
+                                border: "1px solid var(--border-hover)",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "120px",
+                                height: "120px",
+                                background: "var(--bg-card)",
+                                borderRadius: "14px",
+                                border: "1px solid var(--border-hover)",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: "0.5rem",
+                              }}
+                            >
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="var(--accent)"
+                                strokeWidth="2.5"
+                              >
+                                {pf.type === "video" ? (
+                                  <path d="M23 7l-7 5 7 5V7z" />
+                                ) : (
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                )}
+                                {pf.type === "video" ? (
+                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                ) : (
+                                  <polyline points="14 2 14 8 20 8" />
+                                )}
+                              </svg>
+                              <div
+                                style={{
+                                  fontSize: "0.6rem",
+                                  color: "var(--text-secondary)",
+                                  textAlign: "center",
+                                  marginTop: "0.5rem",
+                                  maxWidth: "110px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {pf.name}
+                              </div>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => removeFile(pf.id)}
+                            style={{
+                              position: "absolute",
+                              top: "-6px",
+                              right: "-6px",
+                              width: "22px",
+                              height: "22px",
+                              borderRadius: "50%",
+                              background: "rgba(255,107,107,0.9)",
+                              border: "none",
+                              color: "white",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                              zIndex: 1,
+                            }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {attachmentMenuOpen && (
+                    <div
+                      className="attachment-menu"
+                      style={{
+                        position: "absolute",
+                        bottom: "100%",
+                        left: "1.25rem",
+                        marginBottom: "0.5rem",
+                        background: "var(--bg-surface)",
+                        border: "1px solid var(--border-hover)",
+                        borderRadius: "18px",
+                        boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
+                        overflow: "hidden",
+                        width: "220px",
+                        zIndex: 100,
+                        animation: "fadeUp 0.15s ease",
+                      }}
+                    >
+                      {[
+                        {
+                          id: "file",
+                          label: "Document",
+                          icon: (
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          ),
+                          extra: <polyline points="14 2 14 8 20 8" />,
+                          color: "#3b82f6",
+                          ref: fileInputRef,
+                        },
+                        {
+                          id: "media",
+                          label: "Photos & Videos",
+                          icon: <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />,
+                          extra: (
+                            <>
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </>
+                          ),
+                          color: "#e87722",
+                          ref: imageInputRef,
+                        },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => opt.ref.current?.click()}
+                          style={{
+                            width: "100%",
+                            padding: "1rem 1.25rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "1rem",
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "var(--bg-card-hover)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "none")
+                          }
+                        >
+                          <div
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "50%",
+                              background: opt.color + "15",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: opt.color,
+                            }}
+                          >
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                            >
+                              {opt.icon}
+                              {opt.extra}
+                            </svg>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.85rem",
+                              fontWeight: "600",
+                              color: "var(--text-primary)",
+                            }}
+                          >
+                            {opt.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {activeConvo.chat_request_status === "pending" &&
                   activeConvo.is_request_sender ? (
                     <div
@@ -4063,6 +5571,56 @@ function Messages() {
                         alignItems: "center",
                       }}
                     >
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,video/*"
+                        onChange={(e) => handleFileSelect(e, "media")}
+                        style={{ display: "none" }}
+                      />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                        onChange={(e) => handleFileSelect(e, "file")}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        className="attachment-btn"
+                        onClick={() => setAttachmentMenuOpen(!attachmentMenuOpen)}
+                        style={{
+                          width: "38px",
+                          height: "38px",
+                          borderRadius: "11px",
+                          border: "1px solid var(--border-hover)",
+                          background: attachmentMenuOpen ? "var(--bg-card-hover)" : "var(--bg-card)",
+                          color: attachmentMenuOpen || pendingFiles.length > 0 ? "var(--accent)" : "var(--text-muted)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          transform: attachmentMenuOpen ? "rotate(135deg)" : "rotate(0deg)",
+                        }}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                        >
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                      </button>
+
                       <div style={{ flex: 1 }}>
                         <input
                           ref={msgInputRef}
@@ -4087,7 +5645,7 @@ function Messages() {
                                   toUserId: activeConvo.other_user_id,
                                   itemId: activeConvo.item_id,
                                 });
-                              }, 800);
+                              }, 3000);
                             }
                           }}
                           onFocus={() => setInputFocused(true)}
@@ -4097,74 +5655,79 @@ function Messages() {
                               ? `Message ${activeConvo.other_user_name}...`
                               : "Type a message..."
                           }
+                          disabled={sending}
                           style={{
                             width: "100%",
                             boxSizing: "border-box",
                             padding: "0.7rem 1rem",
-                            background: inputFocused
-                              ? "var(--bg-input-focus)"
-                              : "var(--bg-input)",
+                            borderRadius: "12px",
+                            background: "var(--bg-card)",
                             border: inputFocused
                               ? "1px solid var(--accent-border)"
                               : "1px solid var(--border)",
-                            borderRadius: "12px",
                             color: "var(--text-primary)",
-                            fontSize: "0.875rem",
+                            fontSize: "0.9rem",
                             fontFamily: "inherit",
-                            transition: "all 0.2s ease",
+                            transition: "all 0.18s ease",
+                            outline: "none",
                           }}
                         />
                       </div>
                       <button
                         type="submit"
-                        disabled={sending || !newMessage.trim()}
+                        disabled={
+                          sending || (!newMessage.trim() && pendingFiles.length === 0)
+                        }
                         style={{
-                          width: "42px",
-                          height: "42px",
-                          borderRadius: "12px",
-                          flexShrink: 0,
+                          width: "38px",
+                          height: "38px",
+                          borderRadius: "11px",
                           background:
-                            sending || !newMessage.trim()
-                              ? "var(--bg-card-hover)"
+                            sending || (!newMessage.trim() && pendingFiles.length === 0)
+                              ? "var(--bg-card)"
                               : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                          color:
+                            sending || (!newMessage.trim() && pendingFiles.length === 0)
+                              ? "var(--text-ghost)"
+                              : "white",
                           border: "none",
                           cursor:
-                            sending || !newMessage.trim()
+                            sending || (!newMessage.trim() && pendingFiles.length === 0)
                               ? "not-allowed"
                               : "pointer",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          transition: "all 0.2s ease",
+                          flexShrink: 0,
+                          transition: "all 0.18s ease",
                           boxShadow:
-                            !sending && newMessage.trim()
-                              ? "0 4px 14px rgba(var(--accent-rgb),0.3)"
-                              : "none",
+                            sending || (!newMessage.trim() && pendingFiles.length === 0)
+                              ? "none"
+                              : "0 4px 12px rgba(var(--accent-rgb),0.3)",
                         }}
                       >
                         {sending ? (
                           <div
                             style={{
-                              width: "14px",
-                              height: "14px",
-                              border: "2px solid var(--border-hover)",
-                              borderTopColor: "var(--text-primary)",
+                              width: "16px",
+                              height: "16px",
+                              border: "2px solid rgba(255,255,255,0.3)",
+                              borderTopColor: "white",
                               borderRadius: "50%",
                               animation: "spin 0.6s linear infinite",
                             }}
                           />
                         ) : (
                           <svg
-                            width="16"
-                            height="16"
+                            width="18"
+                            height="18"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke={
-                              !newMessage.trim() ? "var(--text-ghost)" : "white"
-                            }
+                            stroke="currentColor"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
+                            style={{ transform: "translateX(1px)" }}
                           >
                             <line x1="22" y1="2" x2="11" y2="13" />
                             <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -4179,6 +5742,17 @@ function Messages() {
           </div>
         </div>
       </div>
+      <FullImageModal
+        gallery={fullImageGallery}
+        onClose={() => setFullImageGallery(null)}
+      />
+      {previewEditor && (
+        <ImagePreviewEditor
+          files={previewEditor}
+          onSend={handlePreviewSend}
+          onClose={() => setPreviewEditor(null)}
+        />
+      )}
     </div>
   );
 }
