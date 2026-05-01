@@ -521,7 +521,7 @@ function MsgNotifRow({ msg, onClick }) {
         >
           {isChatRequest
             ? msg.content || "Sent you a chat request"
-            : msg.content}
+            : msg.content || (msg.imageUrl ? "Photo" : "")}
         </div>
         <div style={{ fontSize: "0.67rem", fontWeight: "600", opacity: 0.7 }}>
           <span style={{ color: "var(--text-muted)" }}>
@@ -1531,116 +1531,6 @@ function BellIcon({ isLoggedIn, registerOpenBell }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Profile Nudge Banner ─────────────────────────────────────────────────────
-
-function ProfileNudge({ onDismiss }) {
-  const navigate = useNavigate();
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      style={{
-        background: "var(--accent-soft)",
-        borderBottom: "1px solid var(--accent-border)",
-        padding: "0.5rem 1.5rem",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "1rem",
-        animation: "nudgeSlide 0.4s ease",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.6rem",
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "50%",
-            background: "var(--accent)",
-            boxShadow: "0 0 8px var(--accent)",
-            flexShrink: 0,
-            animation: "pulse 2s ease infinite",
-          }}
-        />
-        <span
-          style={{
-            fontSize: "0.78rem",
-            color: "var(--text-secondary)",
-            fontFamily: "var(--font-body)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Complete your profile —{" "}
-          <span style={{ color: "var(--accent)", fontWeight: "600" }}>
-            add institution &amp; phone
-          </span>
-        </span>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.6rem",
-          flexShrink: 0,
-        }}
-      >
-        <button
-          onClick={() => navigate("/settings?section=institution")}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            padding: "0.28rem 0.75rem",
-            background: hovered ? "var(--accent)" : "var(--accent-soft)",
-            border: "1px solid var(--accent-border)",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "0.7rem",
-            fontWeight: "700",
-            color: hovered ? "white" : "var(--accent)",
-            transition: "all 0.2s ease",
-            letterSpacing: "0.5px",
-            fontFamily: "var(--font-body)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Complete →
-        </button>
-        <button
-          onClick={onDismiss}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--text-muted)",
-            fontSize: "1.1rem",
-            lineHeight: 1,
-            padding: "2px 4px",
-            transition: "color 0.2s",
-            fontFamily: "var(--font-body)",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--text-secondary)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "var(--text-muted)")
-          }
-          title="Dismiss"
-        >
-          ×
-        </button>
-      </div>
     </div>
   );
 }
@@ -2683,6 +2573,12 @@ function Navbar({ registerOpenBell }) {
     localStorage.removeItem("user");
     localStorage.removeItem("pendingNotifications");
     sessionStorage.removeItem("nudgeDismissed");
+    // Clear all banner closed states so they reappear on next login
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith("banner_closed_")) {
+        sessionStorage.removeItem(key);
+      }
+    });
     setCartCount(0);
     setDrawerOpen(false);
     setSlimOpen(false);
@@ -3445,8 +3341,7 @@ function Navbar({ registerOpenBell }) {
           </div>
         </div>
 
-        {/* Nudge */}
-        {showNudge && <ProfileNudge onDismiss={handleDismissNudge} />}
+        {/* Nudge removed - moved to App.jsx for better control */}
       </div>
 
       {/* ══ SLIM DROPDOWN ══ */}

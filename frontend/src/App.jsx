@@ -29,6 +29,7 @@ import ToastNotification from "./components/ToastNotification";
 import { useState, useEffect, useRef } from "react";
 import { connectSocket, disconnectSocket } from "./socket";
 import PageTitle from "./components/PageTitle";
+import Banner from "./components/Banner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
@@ -121,6 +122,9 @@ function AppInner() {
   const [notifications, setNotifications] = useState([]);
   const openBellRef = useRef(null);
 
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const showInstitutionBanner = user && !user.institution && location.pathname !== "/settings";
+
   useEffect(() => {
     const stored = localStorage.getItem("pendingNotifications");
     if (stored) {
@@ -147,6 +151,20 @@ function AppInner() {
   return (
     <>
       <PageTitle />
+      {showInstitutionBanner && (
+        <Banner
+          id="complete_profile"
+          message="Complete your profile to unlock all features. Please select your institution."
+          buttonText="Complete Profile"
+          to="/settings?section=institution&focus=institution"
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+          }
+        />
+      )}
       <Navbar
         registerOpenBell={(fn) => {
           openBellRef.current = fn;

@@ -1083,7 +1083,7 @@ label {
   font-family: var(--font-body);
 }
 
-/* ── Back button circle — smooth theme transition, no flash ── */
+/* ── Back button circle */
 .back-btn-circle {
   background: transparent !important;
   border: 1.5px solid var(--border) !important;
