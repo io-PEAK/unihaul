@@ -18,28 +18,25 @@ const prisma = new PrismaClient({ adapter });
 // Auto-migration for Message table columns
 (async () => {
   try {
-    await prisma.$executeRawUnsafe(`
+    // Using pool directly for startup migrations to avoid clashing with Prisma adapter initialization
+    await pool.query(`
       ALTER TABLE "Message" 
-      ADD COLUMN IF NOT EXISTS "fileUrl" TEXT,
-      ADD COLUMN IF NOT EXISTS "fileType" TEXT,
-      ADD COLUMN IF NOT EXISTS "fileName" TEXT,
-      ADD COLUMN IF NOT EXISTS "fileSize" INTEGER,
-      ADD COLUMN IF NOT EXISTS "publicId" TEXT,
-      ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS "isCloudDeleted" BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS "deletedBySender" BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS "deletedByReceiver" BOOLEAN DEFAULT FALSE;
-    `);
+        ADD COLUMN IF NOT EXISTS "fileUrl" TEXT,
+        ADD COLUMN IF NOT EXISTS "fileType" TEXT,
+        ADD COLUMN IF NOT EXISTS "fileName" TEXT,
+        ADD COLUMN IF NOT EXISTS "fileSize" INTEGER,
+        ADD COLUMN IF NOT EXISTS "publicId" TEXT,
+        ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS "isCloudDeleted" BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS "deletedBySender" BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS "deletedByReceiver" BOOLEAN DEFAULT FALSE;
 
-    await prisma.$executeRawUnsafe(`
       ALTER TABLE "ChatRequest"
-      ADD COLUMN IF NOT EXISTS "deletedBySender" BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS "deletedByReceiver" BOOLEAN DEFAULT FALSE;
-    `);
+        ADD COLUMN IF NOT EXISTS "deletedBySender" BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS "deletedByReceiver" BOOLEAN DEFAULT FALSE;
 
-    await prisma.$executeRawUnsafe(`
       ALTER TABLE "User"
-      ADD COLUMN IF NOT EXISTS "upiId" TEXT;
+        ADD COLUMN IF NOT EXISTS "upiId" TEXT;
     `);
     // console.log("Database: All table columns verified.");
   } catch (err) {
