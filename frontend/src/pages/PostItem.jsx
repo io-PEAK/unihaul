@@ -1751,6 +1751,12 @@ function PostItem() {
   const [error, setError] = useState(null);
   const errorRef = useRef(null);
 
+  // Lock page scroll — only the panel scrolls
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   useEffect(() => {
     if (!error) return;
     const t = setTimeout(() => setError(null), 3000);
@@ -2015,21 +2021,24 @@ function PostItem() {
 
   return (
     <>
-      {showUPIBanner && (
-        <Banner
-          id="missing_upi"
-          message="You haven't added a UPI ID. Direct UPI transfers will be disabled; buyers can only use Razorpay."
-          buttonText="Add UPI ID"
-          to="/settings?section=profile&focus=upiId"
-          icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="5" width="20" height="14" rx="2" />
-              <line x1="2" y1="10" x2="22" y2="10" />
-            </svg>
-          }
-        />
-      )}
       <div className="pi-page-wrap">
+      {/* Banner lives inside the locked wrapper so it doesn't push page height */}
+      {showUPIBanner && (
+        <div className="pi-banner-slot">
+          <Banner
+            id="missing_upi"
+            message="You haven't added a UPI ID. Direct UPI transfers will be disabled; buyers can only use Razorpay."
+            buttonText="Add UPI ID"
+            to="/settings?section=profile&focus=upiId"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            }
+          />
+        </div>
+      )}
       <style>{`
         input::placeholder, textarea::placeholder { color: var(--text-ghost); }
         select option { background: var(--bg-surface); color: var(--text-primary); }
@@ -2049,6 +2058,12 @@ function PostItem() {
           justify-content: center;
           padding: 2rem;
           overflow: hidden;
+        }
+        .pi-banner-slot {
+          width: 100%;
+          align-self: stretch;
+          flex-shrink: 0;
+          margin-bottom: 0.5rem;
         }
         .pi-container {
           width: 100%;
@@ -2115,23 +2130,34 @@ function PostItem() {
         ════════════════════════════════════ */
         @media (max-width: 768px) {
           .pi-page-wrap {
-            height: auto;
-            overflow: visible;
+            height: calc(100vh - 70px);
+            overflow: hidden;
             justify-content: flex-start;
-            padding: 1.5rem 1.25rem 2.5rem;
+            padding: 0.75rem 1rem 1rem;
+            align-items: stretch;
+          }
+          .pi-banner-slot {
+            max-width: 100%;
           }
           .pi-container {
             max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
           }
           /* Back button goes inline above the panel */
           .pi-back-btn {
             position: static;
             display: inline-flex !important;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.6rem;
+            flex-shrink: 0;
           }
           .pi-panel {
+            flex: 1;
+            min-height: 0;
             max-height: none;
-            overflow-y: visible;
+            overflow-y: auto;
             padding: 1.75rem 1.5rem;
             border-radius: 20px;
           }

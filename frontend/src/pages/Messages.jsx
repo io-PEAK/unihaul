@@ -233,7 +233,6 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
   const [isHD, setIsHD] = useState(false);
 
   // Draw
-  const [drawings, setDrawings] = useState({});
   const [currentColor, setCurrentColor] = useState("#ffffff");
   const [brushSize, setBrushSize] = useState(4);
 
@@ -243,7 +242,7 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
   const [isTypingText, setIsTypingText] = useState(false);
 
   // Crop (% of image wrapper)
-  const [cropBox, setCropBox] = useState({ x: 10, y: 10, w: 80, h: 80 });
+  const [cropBox, setCropBox] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const cropDrag = useRef(null);
 
   const canvasRef     = useRef(null);
@@ -252,6 +251,8 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
   const isDrawing     = useRef(false);
   const lastPos       = useRef(null);
   const currentStroke = useRef([]);
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
   const textDrag      = useRef(null);
 
   const current = files[currentIndex];
@@ -259,38 +260,41 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
 
   const colors = ["#ffffff","#000000","#ff3b30","#ff9500","#ffcc00","#34c759","#007aff","#af52de","#ff2d55"];
 
-  // ── Canvas helpers ───────────────────────────────────────────
+  // ── Canvas helpers — ref-only, zero React re-renders ─────────
+  // Strokes stored in ref: drawingsRef.current[index] = [{color,size,points:[{x,y}]}]
+  const drawingsRef = useRef({});
+
+  // Redraw from ref — never triggers re-render
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    (drawings[currentIndex] || []).forEach(stroke => {
-      if (!stroke.length) return;
+    (drawingsRef.current[currentIndex] || []).forEach(stroke => {
+      if (!stroke.points.length) return;
       ctx.beginPath();
-      ctx.strokeStyle = stroke[0].color;
-      ctx.lineWidth   = stroke[0].size;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth   = stroke.size;
       ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.moveTo(stroke[0].x, stroke[0].y);
-      stroke.forEach(pt => ctx.lineTo(pt.x, pt.y));
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      stroke.points.forEach(pt => ctx.lineTo(pt.x, pt.y));
       ctx.stroke();
     });
-  }, [drawings, currentIndex]);
+  }, [currentIndex]);
 
-  useEffect(() => { redrawCanvas(); }, [redrawCanvas]);
-
+  // Resize canvas when switching images — redraw from ref after resize
   useEffect(() => {
     const img    = imgRef.current;
     const canvas = canvasRef.current;
     if (!img || !canvas || !isImage) return;
-    const sync = () => {
+    const doSync = () => {
       canvas.width  = img.offsetWidth;
       canvas.height = img.offsetHeight;
       redrawCanvas();
     };
-    img.addEventListener("load", sync);
-    if (img.complete) sync();
-    return () => img.removeEventListener("load", sync);
+    img.addEventListener("load", doSync);
+    if (img.complete) doSync();
+    return () => img.removeEventListener("load", doSync);
   }, [currentIndex, isImage, redrawCanvas]);
 
   const getPos = (e, el) => {
@@ -306,7 +310,9 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
     isDrawing.current = true;
     const pos = getPos(e, canvasRef.current);
     lastPos.current = pos;
-    currentStroke.current = [{ ...pos, color: currentColor, size: brushSize }];
+    currentStroke.current = [pos];
+    currentStroke._color = currentColor;
+    currentStroke._size  = brushSize;
   };
   const draw = (e) => {
     if (!isDrawing.current || tool !== "draw") return;
@@ -319,16 +325,27 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
     ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(pos.x, pos.y); ctx.stroke();
     lastPos.current = pos;
-    currentStroke.current.push({ ...pos, color: currentColor, size: brushSize });
+    currentStroke.current.push(pos);
   };
   const endDraw = () => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
-    if (currentStroke.current.length > 0)
-      setDrawings(prev => ({ ...prev, [currentIndex]: [...(prev[currentIndex] || []), currentStroke.current] }));
+    if (currentStroke.current.length > 0) {
+      // Save directly to ref — no setState, no re-render, no canvas wipe
+      const idx = currentIndexRef.current;
+      if (!drawingsRef.current[idx]) drawingsRef.current[idx] = [];
+      drawingsRef.current[idx].push({ color: currentStroke._color, size: currentStroke._size, points: [...currentStroke.current] });
+      // Visuals already on canvas from live draw — nothing more to do
+    }
     currentStroke.current = [];
   };
-  const undoStroke = () => setDrawings(prev => ({ ...prev, [currentIndex]: (prev[currentIndex] || []).slice(0, -1) }));
+  const undoStroke = () => {
+    const idx = currentIndexRef.current;
+    if (drawingsRef.current[idx] && drawingsRef.current[idx].length > 0) {
+      drawingsRef.current[idx] = drawingsRef.current[idx].slice(0, -1);
+      redrawCanvas();
+    }
+  };
 
   // ── Text helpers ─────────────────────────────────────────────
   const confirmText = () => {
@@ -360,10 +377,13 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
       const dy  = ((mcy - textDrag.current.startY) / textDrag.current.rectH) * 100;
       const nx  = Math.max(0, Math.min(95, textDrag.current.startItemX + dx));
       const ny  = Math.max(0, Math.min(95, textDrag.current.startItemY + dy));
+      // Capture id in local var — textDrag.current can be nulled by onUp
+      // before React's batched setState executes, causing a crash
+      const dragId = textDrag.current.id;
       setTextItems(prev => ({
         ...prev,
         [currentIndex]: (prev[currentIndex] || []).map(t =>
-          t.id === textDrag.current.id ? { ...t, x: nx, y: ny } : t
+          t.id === dragId ? { ...t, x: nx, y: ny } : t
         ),
       }));
     };
@@ -466,7 +486,7 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
 
     // Overlay drawings — map from display-canvas coords to natural-px coords
     const drawCanvas = canvasRef.current;
-    const strokes = drawings[idx] || [];
+    const strokes = drawingsRef.current[idx] || [];
     if (drawCanvas && strokes.length > 0) {
       const dispW = drawCanvas.width  || 1;
       const dispH = drawCanvas.height || 1;
@@ -474,16 +494,13 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
       const scaleY = iH / dispH;
 
       strokes.forEach(stroke => {
-        if (!stroke.length) return;
+        if (!stroke.points || !stroke.points.length) return;
         ctx.beginPath();
-        ctx.strokeStyle = stroke[0].color;
-        ctx.lineWidth   = stroke[0].size * Math.max(scaleX, scaleY);
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth   = stroke.size * Math.max(scaleX, scaleY);
         ctx.lineCap = "round"; ctx.lineJoin = "round";
-        // Offset for crop
-        const ox = cropX;
-        const oy = cropY;
-        ctx.moveTo(stroke[0].x * scaleX - ox, stroke[0].y * scaleY - oy);
-        stroke.forEach(pt => ctx.lineTo(pt.x * scaleX - ox, pt.y * scaleY - oy));
+        ctx.moveTo(stroke.points[0].x * scaleX - cropX, stroke.points[0].y * scaleY - cropY);
+        stroke.points.forEach(pt => ctx.lineTo(pt.x * scaleX - cropX, pt.y * scaleY - cropY));
         ctx.stroke();
       });
     }
@@ -514,12 +531,20 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
         resolve({ ...fileObj, file: newFile, preview: URL.createObjectURL(newFile) });
       }, "image/jpeg", isHD ? 0.95 : 0.82);
     });
-  }, [cropBox, currentIndex, tool, drawings, textItems, isHD]);
+  }, [cropBox, currentIndex, tool, textItems, isHD]);
 
   // ── Send — composite first, then pass to parent ───────────────
+  const [isSending, setIsSending] = useState(false);
   const handleSend = async () => {
-    const composited = await Promise.all(files.map((f, i) => compositeImage(f, i)));
-    onSend({ files: composited, caption });
+    if (isSending) return;
+    setIsSending(true);
+    try {
+      const composited = await Promise.all(files.map((f, i) => compositeImage(f, i)));
+      await onSend({ files: composited, caption });
+      // onSend closes the editor (setPreviewEditor(null)) — no need to do it here
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (!current) return null;
@@ -543,7 +568,10 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
         .ipdot.on{border-color:white;transform:scale(1.2)}
         .ipthumb{width:52px;height:52px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s,opacity 0.15s;opacity:0.6}
         .ipthumb.on{border-color:white;opacity:1}
+        .ip-caption{outline:none!important;box-shadow:none!important;}
+        .ip-caption:focus{outline:none!important;box-shadow:none!important;}
         @keyframes ipFade{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
 
       {/* ── Top bar ── */}
@@ -555,7 +583,21 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
           <button onClick={() => setIsHD(h => !h)} className={`ipb${isHD?" on":""}`}
             style={{ width:"auto", borderRadius:"20px", padding:"0 12px", fontSize:"0.72rem", fontWeight:"800", letterSpacing:"0.5px" }}>HD</button>
 
-          <button onClick={() => setTool(t => t==="crop" ? null : "crop")} className={`ipb${tool==="crop"?" on":""}`} title="Crop">
+          <button onClick={() => {
+            const next = tool === "crop" ? null : "crop";
+            if (next === "crop" && imgRef.current && imgWrapRef.current) {
+              const img  = imgRef.current;
+              const wrap = imgWrapRef.current;
+              const iR   = img.getBoundingClientRect();
+              const wR   = wrap.getBoundingClientRect();
+              const x = ((iR.left - wR.left) / wR.width)  * 100;
+              const y = ((iR.top  - wR.top)  / wR.height) * 100;
+              const w = (iR.width  / wR.width)  * 100;
+              const h = (iR.height / wR.height) * 100;
+              setCropBox({ x, y, w, h });
+            }
+            setTool(next);
+          }} className={`ipb${tool==="crop"?" on":""}`} title="Crop">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="6 2 6 6 2 6"/><polyline points="18 22 18 18 22 18"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
           </button>
 
@@ -570,11 +612,11 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
       </div>
 
       {/* ── Image area ── */}
-      <div ref={imgWrapRef} style={{ flex:1, position:"relative", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+      <div ref={imgWrapRef} style={{ flex:1, position:"relative", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", paddingTop:"70px", paddingBottom:"90px" }}>
         {isImage ? (
           <>
             <img ref={imgRef} src={current.preview} alt="Preview"
-              style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", display:"block", userSelect:"none", pointerEvents:"none", animation:"ipFade 0.25s ease" }}/>
+              style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", display:"block", userSelect:"none", pointerEvents:"none" }}/>
 
             <canvas ref={canvasRef}
               style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", cursor:tool==="draw"?"crosshair":"default", touchAction:"none", pointerEvents:tool==="draw"?"auto":"none" }}
@@ -597,7 +639,7 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
                   <input autoFocus value={textInput} onChange={e => setTextInput(e.target.value)}
                     onKeyDown={e => { if (e.key==="Enter") confirmText(); if (e.key==="Escape") { setIsTypingText(false); setTextInput(""); } }}
                     placeholder="Type text…"
-                    style={{ width:"100%", boxSizing:"border-box", background:"rgba(0,0,0,0.55)", border:"none", borderBottom:`2px solid ${currentColor}`, outline:"none", color:currentColor, fontWeight:"700", fontSize:"1.5rem", textAlign:"center", padding:"0.6rem 1rem", fontFamily:"inherit", backdropFilter:"blur(8px)", caretColor:currentColor }}/>
+                    style={{ width:"100%", boxSizing:"border-box", background:"rgba(0,0,0,0.55)", border:"none", borderBottom:`2px solid ${currentColor}`, outline:"none", color:currentColor, fontWeight:"700", fontSize:"1.5rem", textAlign:"center", padding:"0.55rem 1rem", fontFamily:"inherit", backdropFilter:"blur(8px)", caretColor:currentColor }}/>
                   <div style={{ display:"flex", gap:"0.75rem" }}>
                     <button onClick={() => { setIsTypingText(false); setTextInput(""); }} className="ipb" style={{ background:"rgba(255,255,255,0.15)" }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -665,7 +707,7 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
       )}
 
       {/* ── Bottom: thumbnails + caption (no emoji) + send ── */}
-      <div style={{ background:"linear-gradient(to top,rgba(0,0,0,0.9),transparent)", padding:"0.5rem 1rem 1rem" }}>
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(to top,rgba(0,0,0,0.9),transparent)", padding:"0.5rem 1rem 1rem", zIndex:10 }}>
         {files.length > 1 && (
           <div style={{ display:"flex", gap:"0.4rem", overflowX:"auto", padding:"0 0 0.6rem", scrollbarWidth:"none" }}>
             {files.map((f, i) => (
@@ -677,26 +719,30 @@ function ImagePreviewEditor({ files, onSend, onClose }) {
           </div>
         )}
 
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ display:"flex", alignItems:"center", width:"min(480px, 90%)", background:"rgba(255,255,255,0.08)", borderRadius:"24px", padding:"0.4rem 0.6rem 0.4rem 1rem", border:"1px solid rgba(255,255,255,0.18)" }}>
-            <input
-              value={caption}
-              onChange={e => setCaption(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
-              placeholder="Add a caption…"
-              style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"white", fontSize:"0.88rem", fontFamily:"inherit" }}
-            />
-            <button
-              onClick={handleSend}
-              style={{ width:"38px", height:"38px", borderRadius:"50%", border:"none", background:"linear-gradient(135deg,var(--accent,#e87722),var(--accent-alt,#d06010))", color:"white", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(232,119,34,0.4)", transition:"transform 0.15s", marginLeft:"4px" }}
-              onMouseEnter={e => e.currentTarget.style.transform="scale(1.08)"}
-              onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
-            >
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:"translateX(1px)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", width:"min(560px, 92%)", margin:"0 auto" }}>
+          <textarea
+            value={caption}
+            onChange={e => { setCaption(e.target.value); e.target.style.height="40px"; e.target.style.height=e.target.scrollHeight+"px"; }}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Add a caption…"
+            className="ip-caption"
+            style={{ flex:1, boxSizing:"border-box", background:"rgba(255,255,255,0.10)", border:"1px solid rgba(255,255,255,0.18)", borderRadius:"20px", padding:"0.6rem 1rem", outline:"none", color:"white", fontSize:"0.9rem", fontFamily:"inherit", resize:"none", overflow:"hidden", lineHeight:"1.5", height:"40px", minHeight:"40px", maxHeight:"130px", overflowY:"auto", wordBreak:"break-word", display:"block", transition:"border-color 0.18s ease" }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={isSending}
+            style={{ width:"38px", height:"38px", borderRadius:"50%", border:"none", background:"linear-gradient(135deg,var(--accent,#e87722),var(--accent-alt,#d06010))", color:"white", cursor:isSending?"not-allowed":"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 10px rgba(232,119,34,0.4)", transition:"transform 0.15s" }}
+            onMouseEnter={e => { if(!isSending) e.currentTarget.style.transform="scale(1.08)"; }}
+            onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+          >
+            {isSending ? (
+              <div style={{ width:"18px", height:"18px", border:"2.5px solid rgba(255,255,255,0.35)", borderTopColor:"white", borderRadius:"50%", animation:"spin 0.75s linear infinite", flexShrink:0 }}/>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform:"translateX(-1px)" }}>
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-            </button>
-          </div>
+            )}
+          </button>
         </div>
       </div>
     </div>,
@@ -791,7 +837,20 @@ function FileBubble({ msg, isMe, onZoom }) {
   const isDoc   = fileType === "pdf" || fileType === "file" || fileType === "document" ||
                   (!isImage && !isVideo && (msg.fileUrl || msg.fileName));
 
-  const imgSrc = msg.imageUrl || msg.preview || null;
+  // _blobPreview: local blob URL kept from the optimistic message.
+  // We preload the real Cloudinary URL in the background, then switch — zero flicker.
+  const cloudinaryUrl = msg.imageUrl || msg.preview || null;
+  const blobPreview   = msg._blobPreview || null;
+  const [cloudinaryReady, setCloudinaryReady] = useState(!blobPreview);
+  const imgSrc = (blobPreview && !cloudinaryReady) ? blobPreview : cloudinaryUrl;
+  useEffect(() => {
+    if (!blobPreview || !cloudinaryUrl || blobPreview === cloudinaryUrl) return;
+    let alive = true;
+    const img = new Image();
+    img.onload = () => { if (alive) setCloudinaryReady(true); };
+    img.src = cloudinaryUrl;
+    return () => { alive = false; };
+  }, [cloudinaryUrl, blobPreview]);
   const fileSrc = msg.fileUrl || msg.preview || null;
 
   if (isImage) {
@@ -813,6 +872,7 @@ function FileBubble({ msg, isMe, onZoom }) {
           cursor: "zoom-in",
           transition: "opacity 0.2s",
         }}
+        onLoad={() => {}}
         onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
         onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
       />
@@ -1970,51 +2030,21 @@ function ItemCard({ convo, myId, onStatusChange }) {
           }}
         >
           {isSeller && !isSold ? (
-            <button
-              onClick={toggleStatus}
-              disabled={loading}
-              onMouseEnter={() => setStatusHovered(true)}
-              onMouseLeave={() => setStatusHovered(false)}
+            <div
               style={{
                 ...pillBase,
-                background: hoverBg,
-                border: `1px solid ${hoverColor}40`,
-                color: hoverColor,
-                opacity: loading ? 0.6 : 1,
-                minWidth: "90px",
-                justifyContent: "center",
+                cursor: "default",
+                background: statusBg,
+                border: `1px solid ${statusColor}40`,
+                color: statusColor,
               }}
             >
-              {loading ? (
-                <>
-                  <div
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      border: "1.5px solid currentColor",
-                      borderTopColor: "transparent",
-                      borderRadius: "50%",
-                      animation: "mspin 0.6s linear infinite",
-                    }}
-                  />
-                  Updating
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      width: "5px",
-                      height: "5px",
-                      borderRadius: "50%",
-                      background: hoverColor,
-                      boxShadow: `0 0 5px ${hoverColor}`,
-                      flexShrink: 0,
-                    }}
-                  />
-                  {hoverLabel}
-                </>
-              )}
-            </button>
+              <div style={{
+                width: "5px", height: "5px", borderRadius: "50%",
+                background: statusColor, boxShadow: `0 0 5px ${statusColor}`, flexShrink: 0,
+              }}/>
+              {statusLabel}
+            </div>
           ) : (
             <div
               style={{
@@ -2420,7 +2450,10 @@ function Messages() {
   }, [messages, myId]);
 
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const msgInputRef = useRef(null);
+  const isFirstScroll = useRef(true);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -2546,6 +2579,18 @@ function Messages() {
           // Remove the matching optimistic placeholder (identified by _optimistic flag)
           // Match on ID prefix OR on content+attachment for text messages.
           // IMPORTANT: only remove _optimistic messages, never real ones.
+          const hasPendingImageOptimistic = prev.some(
+            (m) => m._optimistic && m.fileType === "image" && String(msg.senderId) === String(myId)
+          );
+          // If we have a pending optimistic image from ourselves and the socket message is also
+          // an image from ourselves, skip this socket update entirely. handleSend's setMessages
+          // will replace the optimistic with the confirmed msgRes.data (which has all fields
+          // including content/caption). Letting the socket touch it first causes a flash because
+          // the socket payload may be missing content or have an incomplete structure.
+          if (hasPendingImageOptimistic && msg.imageUrl && String(msg.senderId) === String(myId)) {
+            return prev;
+          }
+
           const filtered = prev.filter((m) => {
             if (!m._optimistic) return true;  // never remove a real message
             const isMyMsg = String(msg.senderId) === String(myId);
@@ -2558,7 +2603,6 @@ function Messages() {
             if (msg.fileName && msg.fileSize) {
               return m.fileName !== msg.fileName || m.fileSize !== msg.fileSize;
             }
-            
             // Fallback: match on URL if available
             if (msg.fileUrl)  return m.fileUrl  !== msg.fileUrl;
             if (msg.imageUrl) return m.imageUrl !== msg.imageUrl;
@@ -2761,6 +2805,7 @@ function Messages() {
         );
         // Merge: keep any still-pending optimistic messages so they survive
         // a re-fetch triggered mid-upload (e.g. chat_request_status change).
+        isFirstScroll.current = true;
         setMessages((prev) => {
           const optimisticPending = prev.filter(
             (m) => m._optimistic && !sorted.some((s) => s.id === m.id),
@@ -2769,6 +2814,12 @@ function Messages() {
           return merged.sort(
             (a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp),
           );
+        });
+        // Scroll to bottom after paint — requestAnimationFrame waits for DOM to update
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          });
         });
         setConversations((prev) =>
           prev.map((c) =>
@@ -2799,10 +2850,15 @@ function Messages() {
   ]); // eslint-disable-line
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!messagesEndRef.current) return;
+    if (isFirstScroll.current) return; // first load handled inside fetchMessages
+    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   useEffect(() => {
-    if (activeConvo) setTimeout(() => msgInputRef.current?.focus(), 100);
+    if (activeConvo) {
+      isFirstScroll.current = true;
+      setTimeout(() => msgInputRef.current?.focus(), 100);
+    }
   }, [activeConvo?.conversation_id, activeConvo?.item_id]);
 
   useEffect(() => {
@@ -2974,6 +3030,8 @@ function Messages() {
     [setPendingFiles, setAttachmentMenuOpen, setPreviewEditor],
   );
 
+
+
   function removeFile(id) {
     setPendingFiles((prev) => (id ? prev.filter((f) => f.id !== id) : []));
   }
@@ -2982,9 +3040,10 @@ function Messages() {
   async (e, overrides = null) => {
     if (e) e.preventDefault();
 
-    // overrides = { text, files } injected directly from handlePreviewSend
-    const text        = overrides ? overrides.text        : newMessage.trim();
-    const filesToSend = overrides ? overrides.files       : [...pendingFiles];
+    // overrides = { text, files, captionOnFirst } injected directly from handlePreviewSend
+    const text          = overrides ? overrides.text          : newMessage.trim();
+    const filesToSend   = overrides ? overrides.files         : [...pendingFiles];
+    const captionOnFirst = overrides?.captionOnFirst || "";
 
     if ((!text && filesToSend.length === 0) || !activeConvo) return;
 
@@ -2997,6 +3056,9 @@ function Messages() {
       if (!overrides) {
         setNewMessage("");
         setPendingFiles([]);
+        if (msgInputRef.current) {
+          msgInputRef.current.style.height = "auto";
+        }
       }
 
         // 1. Send text message if present
@@ -3039,11 +3101,13 @@ function Messages() {
         }
 
         // 2. Send each file message
-        for (const pf of filesToSend) {
+        for (let pfIdx = 0; pfIdx < filesToSend.length; pfIdx++) {
+          const pf = filesToSend[pfIdx];
+          const isFirstFile = pfIdx === 0;
           const optimisticId = `opt_${Date.now()}_${pf.id}`;
           const optimisticMsg = {
             id: optimisticId,
-            content: "",
+            content: isFirstFile ? captionOnFirst : "",
             senderId: myId,
             receiverId: otherUserId,
             itemId,
@@ -3080,7 +3144,7 @@ function Messages() {
             const msgRes = await API.post("/messages", {
               receiverId: otherUserId,
               itemId,
-              content: "",
+              content: isFirstFile ? captionOnFirst : "",
               imageUrl: pf.type === "image" ? uploadedUrl : null,
               fileUrl: pf.type !== "image" ? uploadedUrl : null,
               fileType: pf.type,
@@ -3092,11 +3156,17 @@ function Messages() {
             // Remove the optimistic placeholder; the socket may have already
             // added the real message — dedup so we never show it twice.
             setMessages((prev) => {
+              const optimistic = prev.find((m) => m.id === optimisticId);
               const withoutOptimistic = prev.filter((m) => m.id !== optimisticId);
               if (withoutOptimistic.some((m) => m.id === msgRes.data.id)) {
                 return withoutOptimistic; // socket already added it, don't duplicate
               }
-              const next = [...withoutOptimistic, msgRes.data];
+              // Preserve the blob URL so FileBubble can show it while Cloudinary loads
+              const realMsg = {
+                ...msgRes.data,
+                _blobPreview: optimistic?.imageUrl || null,
+              };
+              const next = [...withoutOptimistic, realMsg];
               return next.sort(
                 (a, b) => new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp),
               );
@@ -3132,12 +3202,13 @@ function Messages() {
     ],
   );
 
-  // Called when user hits Send inside ImagePreviewEditor.
-  // Defined AFTER handleSend to avoid TDZ reference error.
-  const handlePreviewSend = useCallback(({ files, caption }) => {
+  // handlePreviewSend: caption is embedded as content on the image message (WhatsApp style)
+  // NOT sent as a separate text message before the image
+  const handlePreviewSend = useCallback(async ({ files, caption }) => {
+    // Pass files with captionOnFirst so handleSend attaches the caption to the first image
+    await handleSend(null, { text: "", files, captionOnFirst: caption.trim() });
     setPreviewEditor(null);
-    handleSend(null, { text: caption.trim(), files });
-  }, [handleSend]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleSend, setPreviewEditor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAfterSend(res) {
     if (res.data?.routedAsRequest) {
@@ -3191,6 +3262,7 @@ function Messages() {
     >
       <style>{`
         @keyframes spin      { to { transform: rotate(360deg) } }
+        @keyframes scrollBtnIn { from { opacity:0; transform:translateX(-50%) translateY(12px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes fadeUp    { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
         @keyframes pulse     { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:0.5; transform:scale(0.85) } }
         @keyframes typingDot { 0%,60%,100% { transform:translateY(0); opacity:0.4 } 30% { transform:translateY(-3px); opacity:1 } }
@@ -5041,6 +5113,13 @@ function Messages() {
                 </div>
 
                 <div
+                  ref={scrollContainerRef}
+                  onScroll={() => {
+                    const el = scrollContainerRef.current;
+                    if (!el) return;
+                    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+                    setShowScrollBtn(distFromBottom > el.scrollHeight / 2);
+                  }}
                   style={{
                     flex: 1,
                     overflowY: "auto",
@@ -5231,32 +5310,18 @@ function Messages() {
                               alignItems: isMe ? "flex-end" : "flex-start",
                             }}
                           >
-                            <div
-                              style={{
-                                padding: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content ? "0" : "0.6rem 0.95rem",
-                                borderRadius: isMe
-                                  ? "18px 18px 4px 18px"
-                                  : "18px 18px 18px 4px",
-                                background: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content 
-                                  ? "transparent" 
-                                  : isMe
-                                    ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
-                                    : "var(--bg-card-hover)",
-                                border: (msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content
-                                  ? "none"
-                                  : isMe
-                                    ? "none"
-                                    : "1px solid var(--border-hover)",
-                                color: isMe ? "white" : "var(--text-primary)",
-                                fontSize: "0.875rem",
-                                lineHeight: "1.5",
-                                boxShadow: isMe && !((msg.imageUrl || msg.fileUrl || msg.preview || msg.type === "image-group") && !msg.content)
-                                  ? "0 4px 12px rgba(var(--accent-rgb),0.22)"
-                                  : "none",
-                                overflow: "hidden"
-                              }}
-                            >
-                                {isGroup ? (
+                            {(() => {
+                              // An image-only message needs NO outer bubble wrapper —
+                              // FileBubble renders the image directly with the right radius.
+                              // A text-only or doc message gets the coloured bubble.
+                              // A message with image + caption gets both.
+                              const isImageOnly = (msg.imageUrl && !msg.fileUrl && !msg.content) || msg.type === "image-group";
+                              const isTextOnly  = !msg.imageUrl && !msg.fileUrl && !msg.preview && msg.content;
+                              const bubbleRadius = isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px";
+
+                              if (isImageOnly) {
+                                // Pure image / image-group — no wrapper bubble at all
+                                return isGroup ? (
                                   <ImageGrid
                                     group={msg}
                                     isMe={isMe}
@@ -5268,13 +5333,41 @@ function Messages() {
                                     isMe={isMe}
                                     onZoom={(src) => setFullImageGallery({ images: [src], index: 0 })}
                                   />
-                                )}
-                              {msg.content && (
-                                <div style={{ padding: (msg.imageUrl || msg.fileUrl || msg.preview) ? "0 0.1rem 0.1rem" : "0" }}>
-                                  {msg.content}
+                                );
+                              }
+
+                              // Text-only or doc or image+caption — use the coloured bubble
+                              return (
+                                <div style={{
+                                  padding: isTextOnly ? "0.6rem 0.95rem" : "0",
+                                  borderRadius: bubbleRadius,
+                                  background: isMe
+                                    ? "linear-gradient(135deg, var(--accent), var(--accent-alt))"
+                                    : "var(--bg-card-hover)",
+                                  border: isMe ? "none" : "1px solid var(--border-hover)",
+                                  color: isMe ? "white" : "var(--text-primary)",
+                                  fontSize: "0.875rem",
+                                  lineHeight: "1.5",
+                                  boxShadow: isMe ? "0 4px 12px rgba(var(--accent-rgb),0.22)" : "none",
+                                  overflow: "hidden",
+                                  wordBreak: "break-word",
+                                  overflowWrap: "anywhere",
+                                }}>
+                                  {!isGroup && (msg.imageUrl || msg.fileUrl || msg.preview) && (
+                                    <FileBubble
+                                      msg={msg}
+                                      isMe={isMe}
+                                      onZoom={(src) => setFullImageGallery({ images: [src], index: 0 })}
+                                    />
+                                  )}
+                                  {msg.content && (
+                                    <div style={{ padding: (msg.imageUrl || msg.fileUrl || msg.preview) ? "0.4rem 0.75rem 0.5rem" : "0" }}>
+                                      {msg.content}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
+                              );
+                            })()}
                             {time && (
                               <span
                                 style={{
@@ -5305,6 +5398,34 @@ function Messages() {
                     position: "relative",
                   }}
                 >
+                  {/* ── Scroll to bottom button ── */}
+                  <button
+                    onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+                    style={{
+                      position: "absolute",
+                      top: "-56px",
+                      left: "50%",
+                      transform: showScrollBtn ? "translateX(-50%) translateY(0px)" : "translateX(-50%) translateY(16px)",
+                      opacity: showScrollBtn ? 1 : 0,
+                      pointerEvents: showScrollBtn ? "auto" : "none",
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                      border: "none",
+                      color: "white",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 20,
+                      transition: "opacity 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
                   {pendingFiles.length > 0 && (
                     <div
                       style={{
@@ -5423,33 +5544,36 @@ function Messages() {
                       className="attachment-menu"
                       style={{
                         position: "absolute",
-                        bottom: "100%",
-                        left: "1.25rem",
-                        marginBottom: "0.5rem",
-                        background: "var(--bg-surface)",
-                        border: "1px solid var(--border-hover)",
+                        bottom: "calc(100% + 12px)",
+                        left: "0",
+                        background: "light-dark(#ffffff, var(--bg-card))",
+                        border: "1px solid var(--border)",
                         borderRadius: "18px",
-                        boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
                         overflow: "hidden",
-                        width: "220px",
+                        width: "215px",
                         zIndex: 100,
-                        animation: "fadeUp 0.15s ease",
+                        animation: "fadeUp 0.18s cubic-bezier(0.16,1,0.3,1)",
+                        padding: "0.4rem",
                       }}
                     >
                       {[
                         {
                           id: "file",
                           label: "Document",
+                          sublabel: "PDF, Word, Excel…",
                           icon: (
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           ),
                           extra: <polyline points="14 2 14 8 20 8" />,
-                          color: "#3b82f6",
+                          color: "#2563eb",
+                          bg: "rgba(59,130,246,0.12)",
                           ref: fileInputRef,
                         },
                         {
                           id: "media",
                           label: "Photos & Videos",
+                          sublabel: "Images, GIFs, clips…",
                           icon: <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />,
                           extra: (
                             <>
@@ -5457,7 +5581,8 @@ function Messages() {
                               <polyline points="21 15 16 10 5 21" />
                             </>
                           ),
-                          color: "#e87722",
+                          color: "var(--accent)",
+                          bg: "rgba(var(--accent-rgb),0.08)",
                           ref: imageInputRef,
                         },
                       ].map((opt) => (
@@ -5466,56 +5591,46 @@ function Messages() {
                           onClick={() => opt.ref.current?.click()}
                           style={{
                             width: "100%",
-                            padding: "1rem 1.25rem",
+                            padding: "0.55rem 0.65rem",
                             display: "flex",
                             alignItems: "center",
-                            gap: "1rem",
+                            gap: "0.7rem",
                             border: "none",
-                            background: "none",
+                            background: "transparent",
                             cursor: "pointer",
-                            transition: "background 0.2s",
+                            borderRadius: "12px",
+                            transition: "background 0.12s ease",
+                            textAlign: "left",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "var(--bg-card-hover)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "none")
-                          }
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-card-hover, rgba(128,128,128,0.08))")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
                           <div
                             style={{
-                              width: "32px",
-                              height: "32px",
-                              borderRadius: "50%",
-                              background: opt.color + "15",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "10px",
+                              background: opt.bg,
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               color: opt.color,
+                              flexShrink: 0,
                             }}
                           >
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                            >
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               {opt.icon}
                               {opt.extra}
                             </svg>
                           </div>
-                          <span
-                            style={{
-                              fontSize: "0.85rem",
-                              fontWeight: "600",
-                              color: "var(--text-primary)",
-                            }}
-                          >
-                            {opt.label}
-                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                            <span style={{ fontSize: "0.83rem", fontWeight: "600", color: "var(--text-primary)", letterSpacing: "-0.1px", lineHeight: 1.3 }}>
+                              {opt.label}
+                            </span>
+                            <span style={{ fontSize: "0.7rem", color: "var(--text-muted, #9ca3af)", lineHeight: 1.2 }}>
+                              {opt.sublabel}
+                            </span>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -5567,8 +5682,9 @@ function Messages() {
                       onSubmit={handleSend}
                       style={{
                         display: "flex",
-                        gap: "0.65rem",
                         alignItems: "center",
+                        gap: "8px",
+                        minHeight: "56px",
                       }}
                     >
                       <input
@@ -5592,19 +5708,20 @@ function Messages() {
                         className="attachment-btn"
                         onClick={() => setAttachmentMenuOpen(!attachmentMenuOpen)}
                         style={{
-                          width: "38px",
-                          height: "38px",
-                          borderRadius: "11px",
-                          border: "1px solid var(--border-hover)",
-                          background: attachmentMenuOpen ? "var(--bg-card-hover)" : "var(--bg-card)",
-                          color: attachmentMenuOpen || pendingFiles.length > 0 ? "var(--accent)" : "var(--text-muted)",
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          border: "1px solid var(--border)",
+                          background: attachmentMenuOpen ? "var(--accent)" : "var(--bg-surface)",
+                          color: attachmentMenuOpen ? "white" : pendingFiles.length > 0 ? "var(--accent)" : "var(--text-secondary)",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
-                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                          transform: attachmentMenuOpen ? "rotate(135deg)" : "rotate(0deg)",
+                          marginTop: "4px",
+                          transition: "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
+                          boxShadow: "none",
                         }}
                       >
                         <svg
@@ -5615,20 +5732,22 @@ function Messages() {
                           stroke="currentColor"
                           strokeWidth="3"
                           strokeLinecap="round"
+                          style={{ transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)", transform: attachmentMenuOpen ? "rotate(45deg)" : "rotate(0deg)" }}
                         >
                           <line x1="12" y1="5" x2="12" y2="19" />
                           <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                       </button>
 
-                      <div style={{ flex: 1 }}>
-                        <input
+                      <textarea
                           ref={msgInputRef}
                           className="msg-input"
-                          type="text"
                           value={newMessage}
+                          rows={1}
                           onChange={(e) => {
                             setNewMessage(e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = e.target.scrollHeight + "px";
                             const socket = getSocket();
                             if (socket && activeConvo?.other_user_id) {
                               if (!typingEmitRef.current) {
@@ -5648,6 +5767,12 @@ function Messages() {
                               }, 3000);
                             }
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSend(e);
+                            }
+                          }}
                           onFocus={() => setInputFocused(true)}
                           onBlur={() => setInputFocused(false)}
                           placeholder={
@@ -5657,53 +5782,59 @@ function Messages() {
                           }
                           disabled={sending}
                           style={{
+                            flex: 1,
                             width: "100%",
                             boxSizing: "border-box",
-                            padding: "0.7rem 1rem",
-                            borderRadius: "12px",
-                            background: "var(--bg-card)",
-                            border: inputFocused
-                              ? "1px solid var(--accent-border)"
-                              : "1px solid var(--border)",
+                            padding: "0.6rem 1rem",
+                            borderRadius: "20px",
+                            background: "var(--bg-surface)",
+                            border: inputFocused ? "1px solid var(--accent-border)" : "1px solid var(--border)",
+                            boxShadow: inputFocused ? "0 0 0 3px rgba(var(--accent-rgb),0.08)" : "none",
                             color: "var(--text-primary)",
                             fontSize: "0.9rem",
                             fontFamily: "inherit",
-                            transition: "all 0.18s ease",
                             outline: "none",
+                            resize: "none",
+                            overflow: "hidden",
+                            lineHeight: "1.5",
+                            minHeight: "40px",
+                            maxHeight: "140px",
+                            overflowY: "auto",
+                            wordBreak: "break-word",
+                            display: "block",
+                            transition: "border-color 0.18s ease, box-shadow 0.18s ease",
                           }}
                         />
-                      </div>
                       <button
                         type="submit"
                         disabled={
                           sending || (!newMessage.trim() && pendingFiles.length === 0)
                         }
                         style={{
-                          width: "38px",
-                          height: "38px",
-                          borderRadius: "11px",
-                          background:
-                            sending || (!newMessage.trim() && pendingFiles.length === 0)
-                              ? "var(--bg-card)"
-                              : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-                          color:
-                            sending || (!newMessage.trim() && pendingFiles.length === 0)
-                              ? "var(--text-ghost)"
-                              : "white",
-                          border: "none",
-                          cursor:
-                            sending || (!newMessage.trim() && pendingFiles.length === 0)
-                              ? "not-allowed"
-                              : "pointer",
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          background: sending || (!newMessage.trim() && pendingFiles.length === 0)
+                            ? "var(--bg-surface)"
+                            : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
+                          color: sending || (!newMessage.trim() && pendingFiles.length === 0)
+                            ? "var(--text-muted)"
+                            : "white",
+                          border: sending || (!newMessage.trim() && pendingFiles.length === 0)
+                            ? "1px solid var(--border)"
+                            : "1px solid transparent",
+                          cursor: sending || (!newMessage.trim() && pendingFiles.length === 0)
+                            ? "not-allowed"
+                            : "pointer",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
-                          transition: "all 0.18s ease",
-                          boxShadow:
-                            sending || (!newMessage.trim() && pendingFiles.length === 0)
-                              ? "none"
-                              : "0 4px 12px rgba(var(--accent-rgb),0.3)",
+                          marginTop: "4px",
+                          transition: "background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+                          boxShadow: sending || (!newMessage.trim() && pendingFiles.length === 0)
+                            ? "none"
+                            : "0 2px 10px rgba(var(--accent-rgb),0.35)",
                         }}
                       >
                         {sending ? (
@@ -5724,10 +5855,10 @@ function Messages() {
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            strokeWidth="2.5"
+                            strokeWidth="2.4"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            style={{ transform: "translateX(1px)" }}
+                            style={{ transform: "translateX(-1px)" }}
                           >
                             <line x1="22" y1="2" x2="11" y2="13" />
                             <polygon points="22 2 15 22 11 13 2 9 22 2" />
