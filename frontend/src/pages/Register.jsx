@@ -495,7 +495,7 @@ function Register() {
                   : btnHovered
                     ? "linear-gradient(135deg, var(--accent-alt), var(--accent))"
                     : "linear-gradient(135deg, var(--accent), var(--accent-alt))",
-                color: loading ? "var(--text-muted)" : "var(--btn-text)",
+                color: loading ? "var(--text-muted)" : "#ffffff",
                 border: "none",
                 borderRadius: "12px",
                 fontSize: "0.85rem",

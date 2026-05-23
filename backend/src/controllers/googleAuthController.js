@@ -80,7 +80,10 @@ export const googleAuth = async (req, res) => {
     res.json({ token, user })
   } catch (err) {
     console.error('[googleAuth]', err)
-    res.status(401).json({ error: 'Google sign-in failed. Please try again.' })
+    const errorMessage = process.env.NODE_ENV === 'development'
+      ? `Google sign-in failed: ${err.message}`
+      : 'Google sign-in failed. Please try again.';
+    res.status(401).json({ error: errorMessage })
   }
 }
 
