@@ -1911,7 +1911,13 @@ function Home() {
     return () => window.removeEventListener("watching-updated", fetchWatched);
   }, []);
   const [error, setError] = useState(null);
-  const [location, setLocation] = useState(defaultLocation);
+  const [location, setLocation] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("homeLocation");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return defaultLocation();
+  });
 
   // Filter panel
   const [showFilters, setShowFilters] = useState(false);
@@ -2029,6 +2035,11 @@ function Home() {
     sessionStorage.setItem("homeFilters", JSON.stringify(filters));
   }, [filters]);
 
+  // Persist location across navigation (back button / refresh)
+  useEffect(() => {
+    sessionStorage.setItem("homeLocation", JSON.stringify(location));
+  }, [location]);
+
   // Sync full filter state to navbar so it can show badges + drive buttons
   useEffect(() => {
     window.dispatchEvent(
@@ -2061,6 +2072,7 @@ function Home() {
 
   function clearAllFilters() {
     setFilters({ ...emptyFilters });
+    setLocation(defaultLocation());
   }
 
   // Fetch on search/filters change
@@ -2154,6 +2166,11 @@ function Home() {
         @keyframes panelIn { from { opacity:0; transform:translateY(-8px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
         @keyframes btnGlow { 0%,100% { box-shadow:0 0 0 0 rgba(var(--accent-rgb),0); } 60% { box-shadow:0 0 0 5px rgba(var(--accent-rgb),0.13); } }
         @keyframes spin    { to { transform:rotate(360deg); } }
+        @keyframes emptyFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+        @keyframes emptyFadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes emptyPulseRing { 0% { transform:scale(0.8); opacity:0.5; } 50% { transform:scale(1.2); opacity:0; } 100% { transform:scale(0.8); opacity:0; } }
+        @keyframes emptySparkle { 0%,100% { opacity:0; transform:scale(0.5); } 50% { opacity:1; transform:scale(1); } }
+        @keyframes emptyShimmer { 0% { background-position:200% center; } 100% { background-position:-200% center; } }
 
         input::placeholder, textarea::placeholder { color: var(--text-ghost); }
         select option { background: var(--bg-surface); color: var(--text-primary); }
@@ -2782,46 +2799,124 @@ function Home() {
             found
           </p>
           {filteredItems.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "5rem 2rem",
-                color: "var(--text-faint)",
-                background: "var(--glass-bg)",
-                backdropFilter: "blur(20px)",
-                borderRadius: "20px",
-                border: "1px solid var(--glass-border)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2.5rem",
-                  marginBottom: "1rem",
-                  opacity: 0.5,
-                }}
-              >
-                ∅
-              </div>
-              <p style={{ fontSize: "1rem", fontWeight: "500" }}>
-                No items match your filters.
-              </p>
-              <button
-                onClick={clearAllFilters}
-                style={{
-                  marginTop: "1rem",
-                  padding: "0.5rem 1.5rem",
-                  background: "var(--accent-soft)",
-                  border: "1px solid var(--border-accent)",
-                  borderRadius: "10px",
-                  color: "var(--accent)",
-                  cursor: "pointer",
-                  fontSize: "0.82rem",
-                  fontWeight: "600",
-                }}
-              >
-                Clear Filters
-              </button>
-            </div>
+            (() => {
+              const hasActiveFilters = !!(search || activeCount > 0 || location.mode === "custom");
+              return hasActiveFilters ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "5rem 2rem",
+                    color: "var(--text-faint)",
+                    background: "var(--glass-bg)",
+                    backdropFilter: "blur(20px)",
+                    borderRadius: "20px",
+                    border: "1px solid var(--glass-border)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "2.5rem",
+                      marginBottom: "1rem",
+                      opacity: 0.5,
+                    }}
+                  >
+                    ∅
+                  </div>
+                  <p style={{ fontSize: "1rem", fontWeight: "500" }}>
+                    No items match your filters.
+                  </p>
+                  <button
+                    onClick={clearAllFilters}
+                    style={{
+                      marginTop: "1rem",
+                      padding: "0.5rem 1.5rem",
+                      background: "var(--accent-soft)",
+                      border: "1px solid var(--border-accent)",
+                      borderRadius: "10px",
+                      color: "var(--accent)",
+                      cursor: "pointer",
+                      fontSize: "0.82rem",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "5rem 2rem 4rem",
+                    color: "var(--text-faint)",
+                    background: "var(--glass-bg)",
+                    backdropFilter: "blur(20px)",
+                    borderRadius: "24px",
+                    border: "1px solid var(--glass-border)",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ display: "inline-block", marginBottom: "1.5rem" }}>
+
+
+
+                    {/* Floating bag icon */}
+                    <div style={{
+                      animation: "emptyFloat 4s ease-in-out infinite",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "80px",
+                      height: "80px",
+                      borderRadius: "24px",
+                      background: "linear-gradient(145deg, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-rgb), 0.04))",
+                      border: "1px solid rgba(var(--accent-rgb), 0.15)",
+                      boxShadow: "0 8px 32px rgba(var(--accent-rgb), 0.08)",
+                      position: "relative",
+                    }}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <path d="M16 10a4 4 0 01-8 0" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Text with staggered fade-in */}
+                  <p style={{
+                    fontSize: "1.2rem",
+                    fontWeight: "700",
+                    color: "var(--text-muted)",
+                    marginBottom: "0.6rem",
+                    animation: "emptyFadeUp 0.6s ease-out 0.2s both",
+                  }}>
+                    No items available right now
+                  </p>
+                  <p style={{
+                    fontSize: "0.9rem",
+                    fontWeight: "400",
+                    color: "var(--text-ghost)",
+                    maxWidth: "360px",
+                    margin: "0 auto",
+                    lineHeight: "1.6",
+                    animation: "emptyFadeUp 0.6s ease-out 0.4s both",
+                  }}>
+                    New listings are added regularly. Check back soon.
+                  </p>
+
+                  {/* Shimmer accent line */}
+                  <div style={{
+                    width: "60px",
+                    height: "3px",
+                    borderRadius: "2px",
+                    margin: "1.5rem auto 0",
+                    background: "linear-gradient(90deg, transparent, rgba(var(--accent-rgb),0.4), transparent)",
+                    backgroundSize: "200% 100%",
+                    animation: "emptyShimmer 3s ease-in-out infinite, emptyFadeUp 0.6s ease-out 0.6s both",
+                  }} />
+                </div>
+              );
+            })()
           ) : (
             <>
               <style>{`
