@@ -380,6 +380,7 @@ export default function LocationPicker({ location, setLocation }) {
         @keyframes spin { to { transform:rotate(360deg) } }
         .loc-scroll::-webkit-scrollbar { width:3px }
         .loc-scroll::-webkit-scrollbar-thumb { background:var(--scrollbar); border-radius:99px }
+        .inst-name-scroll::-webkit-scrollbar { display:none }
         .loc-row:hover { background:var(--bg-card-hover) !important }
       `}</style>
 
@@ -597,7 +598,7 @@ export default function LocationPicker({ location, setLocation }) {
                       style={rowStyle(checked)}
                     >
                       <Checkbox checked={checked} />
-                      <div style={{ minWidth: 0 }}>
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
                         <div
                           style={{
                             fontSize: "0.78rem",
@@ -606,9 +607,11 @@ export default function LocationPicker({ location, setLocation }) {
                               ? "var(--accent)"
                               : "var(--text-primary)",
                             whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            overflowX: "auto",
+                            scrollbarWidth: "none",
+                            msOverflowStyle: "none",
                           }}
+                          className="inst-name-scroll"
                         >
                           {inst.name}
                         </div>

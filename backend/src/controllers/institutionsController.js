@@ -430,7 +430,6 @@ function loadAll() {
       const name = cleanName(r['name'] || '')
       if (name) add({ name, city: r['city']?.trim() || '', state: r['state']?.trim() || '', type: 'college' })
     }
-    console.log(`[institutions] loaded india_colleges.csv (${rows.length} rows)`)
   } catch { console.warn('[institutions] india_colleges.csv not found — skipping') }
 
   // 3. Schools — india_schools.csv (247 schools — replaces hand-curated fallback)
@@ -443,7 +442,6 @@ function loadAll() {
       if (name) add({ name, city: r['city']?.trim() || '', state: r['state']?.trim() || '', board: r['board']?.trim() || '', type: 'school' })
     }
     schoolsFromCSV = true
-    console.log(`[institutions] loaded india_schools.csv (${rows.length} rows)`)
   } catch { console.warn('[institutions] india_schools.csv not found — falling back to SCHOOLS_FALLBACK') }
 
   // Fallback: hand-curated list only if CSV is missing
@@ -453,7 +451,6 @@ function loadAll() {
 
   const colleges = all.filter(i => i.type === 'college').length
   const schools  = all.filter(i => i.type === 'school').length
-  console.log(`[institutions] total: ${colleges} colleges + ${schools} schools (${all.length} combined)`)
 
   _cache = all
   return _cache

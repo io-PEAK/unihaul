@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 
@@ -45,6 +45,91 @@ export default function Watching() {
   };
 
   const navigate = useNavigate();
+
+  // ── Draggable back button ──────────────────────────────────
+  const [draggable, setDraggable] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("floatingDraggable") ?? "false");
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setDraggable(JSON.parse(localStorage.getItem("floatingDraggable") ?? "false"));
+      } catch {}
+    };
+    window.addEventListener("floatingDraggableChanged", sync);
+    return () => window.removeEventListener("floatingDraggableChanged", sync);
+  }, []);
+  const backRef = useRef(null);
+  useEffect(() => {
+    if (!draggable || !backRef.current) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem("drag_backbtn_watching"));
+      if (saved) backRef.current.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`;
+    } catch {}
+  }, []); // eslint-disable-line
+  useEffect(() => {
+    const el = backRef.current;
+    if (!el) return;
+    if (!draggable) {
+      el.style.transform = "";
+      el.style.transition = "";
+      el.style.zIndex = "";
+      el.style.cursor = "";
+      localStorage.removeItem("drag_backbtn_watching");
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem("drag_backbtn_watching"));
+        if (saved) el.style.transform = `translate(${saved.dx}px, ${saved.dy}px)`;
+      } catch {}
+    }
+  }, [draggable]);
+  const startBackDrag = useCallback((clientX, clientY) => {
+    if (!draggable || !backRef.current) return;
+    const el = backRef.current;
+    const match = el.style.transform.match(/translate\(([-.0-9]+)px,\s*([-.0-9]+)px\)/);
+    const baseDx = match ? parseFloat(match[1]) : 0;
+    const baseDy = match ? parseFloat(match[2]) : 0;
+    let dx = baseDx, dy = baseDy;
+    let hasDragged = false;
+    let rafId = null;
+    el.style.transition = "none";
+    el.style.zIndex = "9999";
+    el.style.cursor = "grabbing";
+    const onMove = (cx, cy) => {
+      dx = baseDx + (cx - clientX);
+      dy = baseDy + (cy - clientY);
+      if (Math.abs(cx - clientX) > 4 || Math.abs(cy - clientY) > 4) hasDragged = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => { el.style.transform = `translate(${dx}px, ${dy}px)`; });
+    };
+    const onUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      el.style.cursor = "grab";
+      el.style.transition = "";
+      el.style.zIndex = "";
+      if (hasDragged) {
+        localStorage.setItem("drag_backbtn_watching", JSON.stringify({ dx, dy }));
+        const kill = (ce) => { ce.stopPropagation(); ce.preventDefault(); window.removeEventListener("click", kill, true); };
+        window.addEventListener("click", kill, true);
+      }
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    const onMouseMove = (e) => onMove(e.clientX, e.clientY);
+    const onTouchMove = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  }, [draggable]);
+  const onBackMouseDown = useCallback((e) => { e.preventDefault(); startBackDrag(e.clientX, e.clientY); }, [startBackDrag]);
+  const onBackTouchStart = useCallback((e) => { startBackDrag(e.touches[0].clientX, e.touches[0].clientY); }, [startBackDrag]);
 
   useEffect(() => {
     fetchWatching();
@@ -114,8 +199,11 @@ export default function Watching() {
         >
           {/* ── Back button ── */}
           <button
+            ref={backRef}
             className="dash-back-btn back-btn-circle"
             onClick={() => navigate(-1)}
+            onMouseDown={onBackMouseDown}
+            onTouchStart={onBackTouchStart}
             style={{
               width: "34px",
               height: "34px",
@@ -127,7 +215,7 @@ export default function Watching() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              cursor: "pointer",
+              cursor: draggable ? "grab" : "pointer",
               flexShrink: 0,
               color: "var(--text-muted)",
               fontFamily: "var(--font-body)",

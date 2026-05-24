@@ -10,7 +10,10 @@ html {
   scroll-behavior: smooth;
 }
 html,
-body,
+body {
+  min-height: 100vh;
+  overscroll-behavior-y: auto;
+}
 #root {
   min-height: 100vh;
   overscroll-behavior-y: none;

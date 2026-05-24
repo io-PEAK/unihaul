@@ -3743,6 +3743,11 @@ function Dashboard() {
           left: -50px;
           top: 6px;
         }
+        .dash-back-btn:hover {
+          border-color: var(--accent) !important;
+          color: var(--accent) !important;
+          box-shadow: 0 0 8px 2px rgba(var(--accent-rgb),0.35) !important;
+        }
 
         /* ── Page heading ── */
         .dash-heading {
