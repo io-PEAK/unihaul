@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "d6bc532f-bab5-4d7a-8793-35db7f94f77b",
-    "name": "Student Shop APIs",
+    "name": "UniCart APIs",
     "description": "Single collection with grouped folders for Auth, Items, Transactions, Notifications, and Sales Flow.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

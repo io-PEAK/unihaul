@@ -2233,8 +2233,7 @@ function Home() {
             fontWeight: "400",
           }}
         >
-          Second-hand goods, first-class deals — only for students.
-        </p>
+          Trade what you don’t need. Find what you do.       </p>
       </div>
 
       {/* Search bar + filter row */}

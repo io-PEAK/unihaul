@@ -153,9 +153,7 @@ app.use("/upload", uploadRoutes);
 app.use("/chat-requests", chatRequestRoutes);
 app.use("/reviews", reviewRoutes);
 
-app.get("/", (req, res) =>
-  res.json({ message: "Student Shop API is running!" }),
-);
+app.get("/", (req, res) => res.json({ message: "UniHaul API is running!" }));
 
 app.use((req, res) => res.status(404).json({ error: "Route not found." }));
 
@@ -190,7 +188,7 @@ httpServer.listen(PORT, () => {
     return c.cyan("  │") + inner + padding + c.cyan("│");
   };
 
-  const title = "   Student Shop API";
+  const title = "   UniHaul API";
   const titlePad = " ".repeat(Math.max(0, W - strip(title).length));
 
   console.log("");
@@ -221,7 +219,10 @@ httpServer.listen(PORT, () => {
   }, 60 * 1000);
 
   // Clean up expired multi-media attachments every 12 hours.
-  setInterval(() => {
-    cleanupExpiredAttachments();
-  }, 12 * 60 * 60 * 1000);
+  setInterval(
+    () => {
+      cleanupExpiredAttachments();
+    },
+    12 * 60 * 60 * 1000,
+  );
 });

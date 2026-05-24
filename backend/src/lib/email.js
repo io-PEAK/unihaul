@@ -1,23 +1,23 @@
-import { Resend } from 'resend'
+import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = 'Student Shop <onboarding@resend.dev>'
+const FROM = "UniHaul <onboarding@resend.dev>";
 
 export async function sendOtpEmail({ to, otp, type }) {
-  const isEmailChange = type === 'email_change'
+  const isEmailChange = type === "email_change";
 
   const subject = isEmailChange
-    ? 'Verify your email change — Student Shop'
-    : 'Reset your password — Student Shop'
+    ? "Verify your email change — UniCart"
+    : "Reset your password — UniCart";
 
   const heading = isEmailChange
-    ? 'Email Change Verification'
-    : 'Password Reset Code'
+    ? "Email Change Verification"
+    : "Password Reset Code";
 
   const message = isEmailChange
-    ? 'You requested to change your email address. Use the code below to verify.'
-    : 'You requested a password reset. Use the code below to set a new password.'
+    ? "You requested to change your email address. Use the code below to verify."
+    : "You requested a password reset. Use the code below to set a new password.";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -37,7 +37,7 @@ export async function sendOtpEmail({ to, otp, type }) {
           <td style="vertical-align:middle;">
             <table cellpadding="0" cellspacing="0" style="background:#e87722;border-radius:12px;width:44px;height:44px;">
               <tr><td style="text-align:center;vertical-align:middle;padding:8px;">
-                <img src="https://student-shop.vercel.app/favicon.svg" width="28" height="28" style="display:block;margin:0 auto;" alt="S">
+                <img src="https://unihaul.vercel.app/favicon.svg" width="28" height="28" style="display:block;margin:0 auto;" alt="S">
               </td></tr>
             </table>
           </td>
@@ -100,7 +100,7 @@ export async function sendOtpEmail({ to, otp, type }) {
       <!-- FOOTER -->
       <tr><td style="padding:32px 20px 0;text-align:center;">
         <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.8;letter-spacing:0.2px;">
-          Sent by <span style="color:rgba(255,255,255,0.5);font-weight:700;">Student Shop</span><br>
+          Sent by <span style="color:rgba(255,255,255,0.5);font-weight:700;">UniHaul</span><br>
           An automated security message. Please do not reply.
         </p>
       </td></tr>
@@ -109,19 +109,19 @@ export async function sendOtpEmail({ to, otp, type }) {
   </td></tr>
 </table>
 </body>
-</html>`
+</html>`;
 
   const { error } = await resend.emails.send({
     from: FROM,
     to: process.env.DEV_EMAIL || to,
     subject,
     html,
-  })
+  });
 
   if (error) {
-    console.error('Resend error:', error)
-    throw new Error('Failed to send email')
+    console.error("Resend error:", error);
+    throw new Error("Failed to send email");
   }
 
-  console.log(`✅ OTP email sent to ${to} — code: ${otp}`)
+  console.log(`✅ OTP email sent to ${to} — code: ${otp}`);
 }

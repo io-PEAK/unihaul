@@ -3480,7 +3480,7 @@ function Navbar({ registerOpenBell }) {
                   fontFamily: "var(--font-body)",
                 }}
               >
-                Student Shop
+                UniHaul
               </div>
               <div
                 style={{

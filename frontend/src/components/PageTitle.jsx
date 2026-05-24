@@ -16,7 +16,7 @@ const TITLES = {
   "/users": "Seller Profile",
 };
 
-const APP_NAME = "Student Shop";
+const APP_NAME = "UniHaul";
 
 function PageTitle() {
   const location = useLocation();

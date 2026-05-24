@@ -468,7 +468,7 @@ function Checkout() {
       key: result.razorpayKeyId,
       amount: result.razorpayOrder.amount,
       currency: result.razorpayOrder.currency,
-      name: "Student Shop",
+      name: "UniHaul",
       description: selectedItem?.title || "Item purchase",
       order_id: result.razorpayOrder.id,
       method: toRazorpayMethodConfig(paymentOption),

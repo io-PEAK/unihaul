@@ -296,7 +296,7 @@ function Register() {
                 letterSpacing: "0.2px",
               }}
             >
-              Create your Student Shop account
+              Create your UniHaul account
             </p>
           </div>
 

@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="images/logo.svg" alt="Student Shop" width="100" />
+<img src="images/logo.svg" alt="UniHaul" width="100" />
 
-<h1>Student Shop</h1>
+<h1>UniHaul</h1>
 
 <p><b>A peer-to-peer marketplace built exclusively for Indian students.</b><br/>
 Buy and sell second-hand books, electronics, furniture and more —<br/>
@@ -104,7 +104,7 @@ Every college and school across all Indian states
 ## <img src="images/icons/structure.svg" width="20" height="20" valign="middle"/> &nbsp; Project Structure
 
 ```
-student-shop/
+unihaul/
 │
 ├── frontend/
 │   └── src/
@@ -272,8 +272,8 @@ GET /institutions/states
 ### 1 &nbsp;·&nbsp; Clone
 
 ```bash
-git clone https://github.com/your-username/student-shop.git
-cd student-shop
+git clone https://github.com/your-username/unihaul.git
+cd unihaul
 ```
 
 ### 2 &nbsp;·&nbsp; Database

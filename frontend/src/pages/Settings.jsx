@@ -331,8 +331,7 @@ function CreatePasswordPanel({ onSuccess }) {
           color: "var(--text-muted)",
           lineHeight: "1.6",
         }}
-      >
-      </div>
+      ></div>
       <div
         className="st-grid-2"
         style={{
@@ -829,7 +828,7 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
       setError("");
       await API.post("/users/send-otp", { type: "email_change" });
       setStep("otp_sent");
-      
+
       if (isResend) {
         setHasResentOnce(true);
         startCountdown();
@@ -837,7 +836,7 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
         setHasResentOnce(false);
         setCountdown(0);
       }
-      
+
       setTimeout(() => otpInputRef.current?.focus(), 100);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send OTP");
@@ -910,19 +909,24 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
             type="email"
             disabled={step !== "idle"}
             className="st-inp"
-            style={{ ...IS, flex: 1, opacity: step !== "idle" ? 0.55 : 1, margin: 0 }}
+            style={{
+              ...IS,
+              flex: 1,
+              opacity: step !== "idle" ? 0.55 : 1,
+              margin: 0,
+            }}
           />
           {step === "idle" && (
-            <button 
-              onClick={sendOtp} 
-              style={{ 
-                ...AB, 
+            <button
+              onClick={sendOtp}
+              style={{
+                ...AB,
                 padding: "0.5rem 1.1rem",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 height: "fit-content",
-                margin: 0
+                margin: 0,
               }}
             >
               Send OTP
@@ -1036,19 +1040,21 @@ function ChangeEmailPanel({ currentEmail, onSuccess }) {
               style={{
                 ...AB,
                 padding: "0.5rem 1.1rem",
-                opacity: (step === "submitting" || countdown > 0) ? 0.45 : 1,
+                opacity: step === "submitting" || countdown > 0 ? 0.45 : 1,
                 minWidth: "fit-content",
                 fontSize: "0.78rem",
                 height: "fit-content",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                margin: 0
+                margin: 0,
               }}
             >
-              {step === "submitting" 
-                ? "Verifying…" 
-                : (countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP")}
+              {step === "submitting"
+                ? "Verifying…"
+                : countdown > 0
+                  ? `Resend in ${countdown}s`
+                  : "Resend OTP"}
             </button>
           </div>
         </div>
@@ -2206,7 +2212,10 @@ export default function Settings() {
         targetRef.current.focus();
         // For some browsers/situations, we might need to call focus twice or with a slight delay
         // but interval handles it. Also scroll to it.
-        targetRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        targetRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
         clearInterval(interval);
       }
       if (attempts > 30) clearInterval(interval);
@@ -3684,7 +3693,7 @@ export default function Settings() {
                 <div style={{ animation: "stFadeUp 0.25s ease" }}>
                   <SectionCard
                     title="Appearance"
-                    subtitle="Choose how Student Shop looks for you"
+                    subtitle="Choose how UniHaul looks for you"
                     icon={<PaintIcon sz={17} />}
                   >
                     <div
@@ -4126,7 +4135,7 @@ export default function Settings() {
                   {/* ── Connected accounts ── */}
                   <SectionCard
                     title="Connected Accounts"
-                    subtitle="How you sign in to Student Shop"
+                    subtitle="How you sign in to UniHaul"
                     icon={
                       <svg
                         width="17"

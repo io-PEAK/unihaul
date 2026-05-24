@@ -43,7 +43,7 @@ const buildUpiIntent = ({ upiId, amount, txnId, itemTitle }) => {
 
   const params = new URLSearchParams({
     pa: normalizedUpiId,
-    pn: "Student Shop",
+    pn: "UniHaul",
     am: Number(amount).toFixed(2),
     cu: "INR",
     tr: `SS${txnId}`,
@@ -607,7 +607,8 @@ export const initializeCheckout = async (req, res) => {
 
     if (method === PAYMENT_METHODS.UPI_DIRECT && !item.seller?.upiId) {
       return res.status(400).json({
-        error: "Seller has not configured their UPI ID. Direct payment is unavailable for this item.",
+        error:
+          "Seller has not configured their UPI ID. Direct payment is unavailable for this item.",
       });
     }
 

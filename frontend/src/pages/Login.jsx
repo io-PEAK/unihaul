@@ -314,7 +314,7 @@ function Login() {
                 fontWeight: "400",
               }}
             >
-              Sign in to your Student Shop account
+              Sign in to your UniHaul account
             </p>
             {fromMessage && (
               <div

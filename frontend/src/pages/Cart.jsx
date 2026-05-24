@@ -2401,7 +2401,7 @@ function Cart() {
       key: checkoutResult.razorpayKeyId,
       amount: checkoutResult.razorpayOrder.amount,
       currency: checkoutResult.razorpayOrder.currency,
-      name: "Student Shop",
+      name: "UniHaul",
       description: target?.title || "Item purchase",
       order_id: checkoutResult.razorpayOrder.id,
       handler: async function (response) {
