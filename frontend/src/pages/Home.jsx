@@ -449,7 +449,7 @@ const dropMenuStyle = {
   border: "1px solid var(--border-accent)",
   maxHeight: "200px",
   overflowY: "auto",
-  boxShadow: "0 20px 48px rgba(0,0,0,0.85)",
+  boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
   borderRadius: "0 0 9px 9px",
   borderTop: "none",
 };
@@ -607,7 +607,7 @@ function FilterSpecInput({
               : value
                 ? "1px solid var(--border-accent)"
                 : "1px solid var(--border)",
-            borderRadius: "9px",
+            borderRadius: isOpen ? "9px 9px 0 0" : "9px",
             color: value ? "var(--text-primary)" : undefined,
             fontSize: "0.8rem",
             outline: "none",
@@ -799,7 +799,7 @@ function FilterCategorySelect({ value, onChange, options, placeholder }) {
             : value
               ? "1px solid var(--border-accent)"
               : "1px solid var(--border)",
-          borderRadius: "9px",
+          borderRadius: open ? "9px 9px 0 0" : "9px",
           color: value ? "var(--text-primary)" : "var(--text-muted)",
           fontSize: "0.8rem",
           cursor: "pointer",
@@ -2404,8 +2404,7 @@ function Home() {
               border: "1px solid var(--border-hover)",
               borderRadius: "20px",
               padding: "1.35rem",
-              boxShadow:
-                "0 40px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
               zIndex: 9999,
               animation: "panelIn 0.22s cubic-bezier(0.175,0.885,0.32,1.275)",
             }}
@@ -2439,21 +2438,23 @@ function Home() {
                 onClick={clearAllFilters}
                 style={{
                   fontSize: "0.7rem",
-                  color: "var(--text-ghost)",
-                  background: "none",
-                  border: "none",
+                  color: "var(--color-danger)",
+                  background: "var(--bg-danger)",
+                  border: "1px solid var(--bd-danger)",
                   cursor: "pointer",
                   fontWeight: "600",
-                  padding: "0.2rem 0.5rem",
-                  borderRadius: "6px",
-                  transition: "color 0.15s",
+                  padding: "0.35rem 0.8rem",
+                  borderRadius: "8px",
+                  transition: "all 0.15s",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "var(--color-sold)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "var(--text-ghost)")
-                }
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-danger)";
+                  e.currentTarget.style.color = "white";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--bg-danger)";
+                  e.currentTarget.style.color = "var(--color-danger)";
+                }}
               >
                 Clear all
               </button>

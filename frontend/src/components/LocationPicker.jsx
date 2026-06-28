@@ -420,10 +420,10 @@ export default function LocationPicker({ location, setLocation }) {
                 style={{
                   fontSize: "0.72rem",
                   fontWeight: "600",
-                  color: "var(--text-secondary)",
-                  background: "var(--bg-card-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
+                  color: "var(--color-danger)",
+                  background: "var(--bg-danger)",
+                  border: "1px solid var(--bd-danger)",
+                  borderRadius: "8px",
                   cursor: "pointer",
                   padding: "0.25rem 0.6rem",
                   fontFamily: "var(--font-body)",
@@ -431,14 +431,14 @@ export default function LocationPicker({ location, setLocation }) {
                   lineHeight: 1.4,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#ff6b6b";
-                  e.currentTarget.style.borderColor = "rgba(255,107,107,0.4)";
-                  e.currentTarget.style.background = "rgba(255,107,107,0.08)";
+                  e.currentTarget.style.color = "white";
+                  e.currentTarget.style.borderColor = "var(--color-danger)";
+                  e.currentTarget.style.background = "var(--color-danger)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                  e.currentTarget.style.borderColor = "var(--border)";
-                  e.currentTarget.style.background = "var(--bg-card-hover)";
+                  e.currentTarget.style.color = "var(--color-danger)";
+                  e.currentTarget.style.borderColor = "var(--bd-danger)";
+                  e.currentTarget.style.background = "var(--bg-danger)";
                 }}
               >
                 Reset
