@@ -72,7 +72,7 @@ async function playTransition(setTheme, nextId) {
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'ember'
+    return localStorage.getItem('theme') || 'chalk'
   })
 
   const themeRef = useRef(theme)
